@@ -1,0 +1,24 @@
+# diff() is s - s.shift(1) for most numbers, datetimes and timedeltas. Unsafe: on an unsigned
+# integer column diff wraps around, so 0 after 1 gives 255 for uint8 where the subtraction gave
+# -1, and on a boolean column diff returns booleans. A comparison is left alone for that reason.
+id: subtract-shift
+language: python
+severity: warning
+message: diff() is the difference from the previous row. Write $S.diff().
+rule:
+  any:
+    - pattern: $S - $S.shift()
+    - pattern: $S - $S.shift(1)
+    - pattern: $S - $S.shift(periods=1)
+constraints:
+  S: { not: { matches: boolean } }
+utils:
+  boolean:
+    any:
+      - kind: comparison_operator
+      - kind: not_operator
+      - kind: boolean_operator
+      - kind: parenthesized_expression
+        has: { matches: boolean }
+fix: $S.diff()
+metadata: { fix: unsafe }

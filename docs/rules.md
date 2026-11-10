@@ -48,12 +48,66 @@ array.
 The `no-inplace` fix applies only to a call that stands alone as a statement, on a name, attribute
 or subscript. The inplace fixes drop comments between the call's arguments.
 
+### Shorter forms, including the pandas 3.0 and 3.1 API
+
+These rules are warnings. Most of them make code shorter and do not change its speed.
+
+| Rule | Severity | Catches | Fix |
+| --- | --- | --- | --- |
+| `lambda-column` | warning | `df.assign(c=lambda d: d["a"] + 1)` and `df.loc[lambda d: d["a"] > 50]` | safe: `pd.col("a") + 1` |
+| `sort-then-reset-index` | warning | `df.sort_values("b").reset_index(drop=True)`, also after `sort_index`, `dropna`, `drop_duplicates`, `explode` and `sample` | safe: `df.sort_values("b", ignore_index=True)` |
+| `set-index-then-resample` | warning | `df.set_index("d").resample("D").sum()` | safe: `df.resample("D", on="d").sum()` |
+| `subtract-shift` | warning | `df["b"] - df["b"].shift()` | unsafe: `df["b"].diff()` |
+| `range-mask` | warning | `(df["a"] >= 10) & (df["a"] <= 20)` | unsafe: `df["a"].between(10, 20)` |
+
+`lambda-column` rewrites a lambda only when every use of its parameter is `d["name"]` and the body
+has no plain function call such as `len(d)`, and no `if`, `and`, `or`, `not` or `in`.
+`set-index-then-resample` applies only when a named aggregation such as `sum` or `mean` follows,
+because upsampling with `asfreq` raises with `on=`, and a function passed to `agg` sees other
+data. The `range-mask` fix is unsafe, because the operand may be a numpy array, which has no
+`between`. The `subtract-shift` fix is unsafe, because `diff` wraps around on an unsigned integer
+column and returns booleans for a boolean column.
+
 ### Python work per row or per value
 
 | Rule | Severity | Catches | Fix |
 | --- | --- | --- | --- |
+| `apply-known-function` | warning | `df["s"].apply(len)`, `df["b"].apply(pd.isna)`, `df["raw"].apply(pd.to_datetime)` and `df["b"].apply(lambda v: round(v, 2))` | safe: `df["s"].str.len()`. unsafe: `df["b"].isna()`, `pd.to_datetime(df["raw"])`, `df["b"].round(2)` |
+| `literal-contains` | warning | `df["s"].str.contains("ta_")`, a pattern with no regex character | safe: `str.contains("ta_", regex=False)` |
+| `copy-after-indexing` | warning | `df[["a", "b"]].copy()`, `df[mask].copy()` and `df.loc[...].copy()` | safe: drop `.copy()` |
 | `no-iterrows` | warning | `df.iterrows()`, a row-by-row loop | none |
 | `concat-in-loop` | warning | `pd.concat` inside a loop, which is quadratic | none |
+
+`apply-known-function` reports only a column taken by a text label, because on a frame `apply`
+works per column. Its `pd.to_datetime` fix is unsafe, because a call per value parses each text
+on its own, and the whole column must share one format. The `isna` fix is unsafe, because on a
+column of lists `pd.isna` per value returned an array per cell. The `round` fix is unsafe, because
+Python and numpy round some halfway values differently. `copy-after-indexing` leaves a single text
+label and a slice alone, because on a dict or a numpy array the copy keeps a later write away
+from the original.
+
+### groupby, agg and transform
+
+| Rule | Severity | Catches | Fix |
+| --- | --- | --- | --- |
+| `groupby-lambda` | warning | `g["b"].agg(lambda v: v.max())`, `g.agg(np.sum)` and `pivot_table(aggfunc=np.mean)` | safe: `"max"` for min, max, median, count and nunique. unsafe: `"sum"`, `"mean"` |
+| `groupby-lambda-window` | warning | `g["b"].transform(lambda v: v.shift(1))` | safe: `g["b"].shift(1)`. unsafe: `g["b"].cumsum()` |
+
+`groupby-lambda` leaves a lambda inside a list alone, because the result column would get a new
+name. It also leaves `np.median`, `np.std` and `np.var` alone, because they treat missing values
+and degrees of freedom differently from the named methods. The fixes for sum, mean, std, var, prod,
+cumsum and cumprod are unsafe, because pandas adds up each group with compensated summation. On
+values such as 1e16, 1, 1 and -1e16 the sum changes from 0 to 2. `groupby-lambda-window` leaves
+`shift(freq=)` alone, because it moves the index.
+
+### Time series
+
+| Rule | Severity | Catches | Fix |
+| --- | --- | --- | --- |
+| `rolling-apply` | warning | `rolling(20).apply(lambda w: w.max())`, and `rolling(20).apply(f)` without `raw=True` | safe: `rolling(20).max()` for min, max and median. unsafe: sum, mean, std and var. The `raw=True` case has no fix |
+
+The `rolling-apply` fixes for sum, mean, std and var are unsafe, because the window methods keep
+running totals, so values far apart in size can give another result.
 
 ### Stated intent
 

@@ -1,0 +1,41 @@
+# A pattern made only of letters, digits, spaces and punctuation that has no meaning in a regular
+# expression matches the same text with regex=False. flags= needs the regex engine, so a call
+# with flags or regex is left alone.
+id: literal-contains
+language: python
+severity: warning
+message: This pattern is plain text, so the regex engine is not needed. Pass regex=False.
+rule:
+  pattern: $X.str.contains($P)
+constraints:
+  P: { matches: literal }
+utils:
+  literal: { kind: string, regex: '^["''][A-Za-z0-9 _,:;@#%&=/<>!~-]*["'']$' }
+fix: $X.str.contains($P, regex=False)
+metadata: { fix: safe }
+---
+id: literal-contains
+language: python
+severity: warning
+message: This pattern is plain text, so the regex engine is not needed. Pass regex=False.
+rule:
+  pattern: $X.str.contains($P, $$$REST)
+  has: { field: arguments, has: { kind: keyword_argument } }
+  not:
+    has:
+      field: arguments
+      has:
+        any:
+          - kind: keyword_argument
+            has: { field: name, regex: ^(regex|flags|pat)$ }
+          - all:
+              - not: { kind: keyword_argument }
+              - not: { regex: '^[(),]$' }
+              - not: { kind: comment }
+              - not: { pattern: $P }
+constraints:
+  P: { matches: literal }
+utils:
+  literal: { kind: string, regex: '^["''][A-Za-z0-9 _,:;@#%&=/<>!~-]*["'']$' }
+fix: $X.str.contains($P, $$$REST, regex=False)
+metadata: { fix: safe }

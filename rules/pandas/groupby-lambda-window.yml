@@ -1,0 +1,60 @@
+# transform with a lambda that calls one window method gives the same result as calling that
+# method on the groupby, which runs without Python per group. A resample receiver is left alone,
+# because a resampler has no cumsum or rank.
+id: groupby-lambda-window
+language: python
+severity: warning
+message: Call $G.$W(...) directly. A lambda in transform runs in Python once per group.
+rule:
+  pattern: "$G.transform(lambda $X: $X.$W($$$A))"
+  not:
+    has:
+      field: arguments
+      has:
+        kind: lambda
+        has:
+          field: body
+          has:
+            field: arguments
+            any:
+              - has: { stopBy: end, pattern: $X }
+              # shift(freq=) or shift(1, "D") moves the index instead of the values, and an
+              # unpacked argument may hold a frequency.
+              - has: { kind: keyword_argument, has: { field: name, regex: ^freq$ } }
+              - has: { any: [{ kind: string }, { kind: list_splat }, { kind: dictionary_splat }] }
+              - has: { nthChild: 2, not: { kind: keyword_argument } }
+constraints:
+  W: { regex: ^(cummax|cummin|shift|diff|ffill|bfill|rank|pct_change)$ }
+  G: { not: { regex: '\.(resample|rolling|expanding|ewm)\(' } }
+fix: $G.$W($$$A)
+metadata: { fix: safe }
+---
+# cumsum and cumprod: unsafe, because the groupby methods add up with compensated summation,
+# so a running total over values far apart in size can change.
+id: groupby-lambda-window
+language: python
+severity: warning
+message: Call $G.$W(...) directly. A lambda in transform runs in Python once per group.
+rule:
+  pattern: "$G.transform(lambda $X: $X.$W($$$A))"
+  not:
+    has:
+      field: arguments
+      has:
+        kind: lambda
+        has:
+          field: body
+          has:
+            field: arguments
+            any:
+              - has: { stopBy: end, pattern: $X }
+              # shift(freq=) or shift(1, "D") moves the index instead of the values, and an
+              # unpacked argument may hold a frequency.
+              - has: { kind: keyword_argument, has: { field: name, regex: ^freq$ } }
+              - has: { any: [{ kind: string }, { kind: list_splat }, { kind: dictionary_splat }] }
+              - has: { nthChild: 2, not: { kind: keyword_argument } }
+constraints:
+  W: { regex: ^(cumsum|cumprod)$ }
+  G: { not: { regex: '\.(resample|rolling|expanding|ewm)\(' } }
+fix: $G.$W($$$A)
+metadata: { fix: unsafe }
