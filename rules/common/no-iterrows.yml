@@ -1,0 +1,6 @@
+id: no-iterrows
+language: python
+severity: warning
+message: Row-wise loop. Prefer vectorized ops; itertuples() if a loop is unavoidable.
+rule:
+  pattern: $DF.iterrows()

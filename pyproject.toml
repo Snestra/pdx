@@ -1,0 +1,12 @@
+[build-system]
+requires = ["maturin>=1.9,<2"]
+build-backend = "maturin"
+
+[project]
+name = "pdx"
+description = "Fast pandas linter and helpers for humans and coding agents"
+requires-python = ">=3.9"
+dynamic = ["version"]
+
+[tool.maturin]
+bindings = "bin"

@@ -1,0 +1,11 @@
+id: concat-in-loop
+language: python
+severity: warning
+message: Concatenating inside a loop is quadratic. Collect frames in a list, concat once.
+rule:
+  pattern: pd.concat($$$)
+  inside:
+    stopBy: end
+    any:
+      - kind: for_statement
+      - kind: while_statement

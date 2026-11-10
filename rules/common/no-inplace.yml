@@ -1,0 +1,9 @@
+id: no-inplace
+language: python
+severity: warning
+message: inplace=True gives no speedup and blocks chaining. Reassign instead.
+rule:
+  kind: keyword_argument
+  all:
+    - has: { field: name, regex: ^inplace$ }
+    - has: { field: value, regex: ^True$ }

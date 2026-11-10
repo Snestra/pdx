@@ -1,0 +1,15 @@
+id: merge-without-validate
+language: python
+severity: warning
+message: merge without validate= can silently duplicate rows.
+rule:
+  any:
+    - pattern: $A.merge($$$ARGS)
+    - pattern: pd.merge($$$ARGS)
+  not:
+    has:
+      stopBy: end
+      kind: keyword_argument
+      has:
+        field: name
+        regex: ^validate$

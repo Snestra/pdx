@@ -1,0 +1,10 @@
+id: pandas-import
+language: python
+rule:
+  any:
+    - kind: import_statement
+    - kind: import_from_statement
+  has:
+    stopBy: end
+    kind: dotted_name
+    regex: ^pandas(\.|$)
