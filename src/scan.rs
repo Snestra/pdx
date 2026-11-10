@@ -2,98 +2,26 @@
 
 use std::{
     collections::HashSet,
-    fmt, fs,
+    fs,
     path::{Path, PathBuf},
 };
 
 use anyhow::{Context, Result};
-use ast_grep_config::Severity;
 use ast_grep_core::tree_sitter::LanguageExt;
 use ast_grep_language::SupportLang;
 use rayon::iter::{IntoParallelRefIterator, ParallelIterator};
-use serde_json::{Value, json};
 
-use crate::rules::Pack;
+use crate::{report::Issue, rules::Pack};
 
-/// How serious a finding is. Only `Error` fails `pdx check`.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub(crate) enum Level {
-    Error,
-    Warning,
-    Info,
-    Hint,
+pub(crate) fn is_python(path: &Path) -> bool {
+    path.extension()
+        .is_some_and(|x| x.eq_ignore_ascii_case("py"))
 }
 
-impl Level {
-    fn from_severity(s: &Severity) -> Option<Self> {
-        match s {
-            Severity::Error => Some(Self::Error),
-            Severity::Warning => Some(Self::Warning),
-            Severity::Info => Some(Self::Info),
-            Severity::Hint => Some(Self::Hint),
-            Severity::Off => None,
-        }
-    }
-
-    fn as_str(self) -> &'static str {
-        match self {
-            Self::Error => "error",
-            Self::Warning => "warning",
-            Self::Info => "info",
-            Self::Hint => "hint",
-        }
-    }
-}
-
-impl fmt::Display for Level {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        f.write_str(self.as_str())
-    }
-}
-
-#[derive(Debug)]
-pub(crate) struct Issue {
-    /// Module name of the pack the rule belongs to.
-    pub(crate) package: &'static str,
-    pub(crate) rule: String,
-    pub(crate) file: PathBuf,
-    pub(crate) line: usize,
-    pub(crate) column: usize,
-    pub(crate) level: Level,
-    pub(crate) message: String,
-}
-
-/// `file:line:column: level [package/rule] message`, as `check` and `hook` print it.
-impl fmt::Display for Issue {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(
-            f,
-            "{}:{}:{}: {} [{}/{}] {}",
-            self.file.display(),
-            self.line,
-            self.column,
-            self.level,
-            self.package,
-            self.rule,
-            self.message
-        )
-    }
-}
-
-impl Issue {
-    pub(crate) fn to_json(&self) -> Value {
-        json!({"package": self.package, "rule": self.rule, "file": self.file.display().to_string(), "line": self.line,
-               "column": self.column, "severity": self.level.as_str(), "message": self.message})
-    }
-}
-
-/// The context every read error carries, so the message names the path.
 fn cannot_read(path: &Path) -> String {
     format!("cannot read {}", path.display())
 }
 
-/// Expands paths into Python files. Directories are walked with .gitignore respected. A file
-/// reached through several paths, such as `a.py ./a.py` or `. src/`, is listed once.
 pub(crate) fn collect_files(paths: &[PathBuf]) -> Result<Vec<PathBuf>> {
     let mut files = Vec::new();
     let mut seen = HashSet::new();
@@ -112,13 +40,8 @@ pub(crate) fn collect_files(paths: &[PathBuf]) -> Result<Vec<PathBuf>> {
         }
         for entry in ignore::WalkBuilder::new(p).build() {
             let entry = entry.with_context(|| cannot_read(p))?;
-            let path = entry.path();
-            if entry.file_type().is_some_and(|t| t.is_file())
-                && path
-                    .extension()
-                    .is_some_and(|x| x.eq_ignore_ascii_case("py"))
-            {
-                add(path)?;
+            if entry.file_type().is_some_and(|t| t.is_file()) && is_python(entry.path()) {
+                add(entry.path())?;
             }
         }
     }
@@ -132,7 +55,6 @@ pub(crate) fn scan(files: &[PathBuf], packs: &[Pack]) -> Result<Vec<Issue>> {
         .par_iter()
         .map(|path| {
             let src = fs::read_to_string(path).with_context(|| cannot_read(path))?;
-            // A file that never names the module can't import it, so it is never parsed.
             let mut root = None;
             let mut found = Vec::new();
             for pack in packs.iter().filter(|p| src.contains(p.module)) {
@@ -141,9 +63,6 @@ pub(crate) fn scan(files: &[PathBuf], packs: &[Pack]) -> Result<Vec<Issue>> {
                     continue;
                 }
                 for rule in &pack.rules {
-                    let Some(level) = Level::from_severity(&rule.severity) else {
-                        continue;
-                    };
                     for m in root.root().find_all(&rule.matcher) {
                         let pos = m.start_pos();
                         found.push(Issue {
@@ -152,7 +71,7 @@ pub(crate) fn scan(files: &[PathBuf], packs: &[Pack]) -> Result<Vec<Issue>> {
                             file: path.clone(),
                             line: pos.line() + 1,
                             column: pos.column(&m) + 1,
-                            level,
+                            severity: rule.severity.clone(),
                             message: rule.get_message(&m),
                         });
                     }

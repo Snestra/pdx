@@ -3,6 +3,7 @@
 //! the first.
 
 mod pyenv;
+mod report;
 mod rules;
 mod scan;
 
@@ -17,13 +18,9 @@ use std::{
 
 use anyhow::{Context, Result, bail};
 use clap::{Parser, Subcommand, ValueEnum};
-use serde_json::{Value, json};
+use serde_json::Value;
 
-use crate::{
-    pyenv::{Installed, Site},
-    rules::Pack,
-    scan::{Issue, Level},
-};
+use crate::{pyenv::Versions, report::Report};
 
 const SKILL: &str = include_str!("../SKILL.md");
 const PROFILE_PY: &str = include_str!("../py/profile.py");
@@ -131,14 +128,6 @@ impl Pins {
         let mut map = HashMap::new();
         for pin in env_pins.chain(self.pins.iter().cloned().map(Ok)) {
             let pin = pin?;
-            if !rules::modules().any(|m| m == pin.module) {
-                let known: Vec<&str> = rules::modules().collect();
-                bail!(
-                    "no rule pack for {:?}; packs: {}",
-                    pin.module,
-                    known.join(", ")
-                );
-            }
             map.insert(pin.module, pin.major);
         }
         Ok(map)
@@ -169,32 +158,20 @@ fn main() -> ExitCode {
     }
 }
 
-struct Report {
-    packs: Vec<Pack>,
-    issues: Vec<Issue>,
-}
-
 fn lint(paths: &[PathBuf], pins: &Pins) -> Result<Report> {
     let pins = pins.resolve()?;
-    // Finding the site folders can start Python, so it happens only for an unpinned pack.
-    let mut site: Option<Option<Site>> = None;
-    let packs = rules::load(|module| match pins.get(module) {
-        Some(&major) => Installed::pinned(major),
-        None => site
-            .get_or_insert_with(Site::locate)
-            .as_ref()
-            .map_or_else(Installed::missing, |s| s.installed(module)),
-    })
-    .context("invalid embedded rules")?;
+    let versions = Versions::new(&pins);
+    let packs =
+        rules::load(|module| versions.installed(module)).context("invalid embedded rules")?;
+    for module in pins.keys() {
+        if !packs.iter().any(|p| p.module == module) {
+            let known: Vec<&str> = packs.iter().map(|p| p.module).collect();
+            bail!("no rule pack for {module:?}; packs: {}", known.join(", "));
+        }
+    }
     let files = scan::collect_files(paths)?;
     let issues = scan::scan(&files, &packs)?;
     Ok(Report { packs, issues })
-}
-
-/// The rule set a pack used, as printed: `v3`, or `common` for a pack without version sets.
-fn set_name(pack: &Pack) -> String {
-    pack.set
-        .map_or_else(|| "common".to_owned(), |m| format!("v{m}"))
 }
 
 fn check(paths: &[PathBuf], format: Format, pins: &Pins) -> ExitCode {
@@ -205,39 +182,16 @@ fn check(paths: &[PathBuf], format: Format, pins: &Pins) -> ExitCode {
             return ExitCode::from(CHECK_FAILED);
         }
     };
-    let Report { packs, issues } = &report;
     match format {
-        Format::Json => {
-            let packages: Vec<Value> = packs
-                .iter()
-                .map(|p| {
-                    json!({"name": p.module, "version": p.installed.version, "major": p.installed.major,
-                           "source": p.installed.source.as_str(), "ruleset": set_name(p)})
-                })
-                .collect();
-            let issues: Vec<Value> = issues.iter().map(Issue::to_json).collect();
-            println!("{}", json!({"packages": packages, "issues": issues}));
-        }
+        Format::Json => println!("{}", report.to_json()),
         Format::Text => {
-            for i in issues {
+            for i in &report.issues {
                 println!("{i}");
             }
-            let packages: Vec<String> = packs
-                .iter()
-                .map(|p| {
-                    let version = p.installed.version.as_deref().unwrap_or("?");
-                    format!(
-                        "{} {version} ({}, rules {})",
-                        p.module,
-                        p.installed.source.as_str(),
-                        set_name(p)
-                    )
-                })
-                .collect();
-            eprintln!("pdx: {} issue(s); {}", issues.len(), packages.join("; "));
+            eprintln!("pdx: {}", report.summary());
         }
     }
-    if issues.iter().any(|i| i.level == Level::Error) {
+    if report.has_errors() {
         ExitCode::FAILURE
     } else {
         ExitCode::SUCCESS
@@ -263,10 +217,7 @@ fn hook(pins: &Pins) -> ExitCode {
     else {
         return ExitCode::SUCCESS;
     };
-    if !Path::new(path)
-        .extension()
-        .is_some_and(|x| x.eq_ignore_ascii_case("py"))
-    {
+    if !scan::is_python(Path::new(path)) {
         return ExitCode::SUCCESS;
     }
     let report = match lint(&[PathBuf::from(path)], pins) {

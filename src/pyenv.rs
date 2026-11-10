@@ -6,6 +6,8 @@
 //! once and caching its answer. Versions are read from `<module>-<version>.dist-info` folders.
 
 use std::{
+    cell::OnceCell,
+    collections::HashMap,
     env, fs,
     path::{Path, PathBuf},
     process::Command,
@@ -50,7 +52,7 @@ pub(crate) struct Installed {
 }
 
 impl Installed {
-    pub(crate) fn pinned(major: u32) -> Self {
+    fn pinned(major: u32) -> Self {
         Self {
             version: None,
             major: Some(major),
@@ -58,7 +60,7 @@ impl Installed {
         }
     }
 
-    pub(crate) fn missing() -> Self {
+    fn missing() -> Self {
         Self {
             version: None,
             major: None,
@@ -69,21 +71,22 @@ impl Installed {
 
 /// The folders one Python imports installed packages from.
 #[derive(Debug)]
-pub(crate) struct Site {
+struct Site {
     dirs: Vec<PathBuf>,
     source: Source,
 }
 
 impl Site {
-    /// Finds the site folders, or `None` when there is no venv and no `python3` on `PATH`.
-    pub(crate) fn locate() -> Option<Self> {
-        if let Some(venv) = venv_root() {
-            return Some(Self {
-                dirs: venv_site_dirs(&venv),
-                source: Source::Venv,
-            });
-        }
-        let python = path_python()?;
+    fn locate() -> Option<Self> {
+        let python = match project_python()? {
+            ProjectPython::Venv(venv) => {
+                return Some(Self {
+                    dirs: venv_site_dirs(&venv),
+                    source: Source::Venv,
+                });
+            }
+            ProjectPython::Path(python) => python,
+        };
         if let Some(dirs) = cache::lookup(&python) {
             return Some(Self {
                 dirs,
@@ -98,9 +101,7 @@ impl Site {
         })
     }
 
-    /// Reads the installed version of `module`. The folders are scanned on every run, so an
-    /// install, upgrade, or removal shows up without asking Python again.
-    pub(crate) fn installed(&self, module: &str) -> Installed {
+    fn installed(&self, module: &str) -> Installed {
         let prefix = format!("{module}-");
         let version = self
             .dirs
@@ -128,17 +129,55 @@ impl Site {
     }
 }
 
-/// Interpreter for `profile` and `equiv`: the venv's Python, then `python3` on `PATH`.
-pub(crate) fn python() -> PathBuf {
-    if let Some(venv) = venv_root() {
-        for rel in ["bin/python", "Scripts/python.exe"] {
-            let p = venv.join(rel);
-            if p.is_file() {
-                return p;
-            }
+#[derive(Debug)]
+pub(crate) struct Versions<'a> {
+    pins: &'a HashMap<String, u32>,
+    site: OnceCell<Option<Site>>,
+}
+
+impl<'a> Versions<'a> {
+    pub(crate) fn new(pins: &'a HashMap<String, u32>) -> Self {
+        Self {
+            pins,
+            site: OnceCell::new(),
         }
     }
-    path_python().unwrap_or_else(|| PathBuf::from("python3"))
+
+    pub(crate) fn installed(&self, module: &str) -> Installed {
+        if let Some(&major) = self.pins.get(module) {
+            return Installed::pinned(major);
+        }
+        self.site
+            .get_or_init(Site::locate)
+            .as_ref()
+            .map_or_else(Installed::missing, |s| s.installed(module))
+    }
+}
+
+enum ProjectPython {
+    Venv(PathBuf),
+    Path(PathBuf),
+}
+
+fn project_python() -> Option<ProjectPython> {
+    venv_root()
+        .map(ProjectPython::Venv)
+        .or_else(|| path_python().map(ProjectPython::Path))
+}
+
+pub(crate) fn python() -> PathBuf {
+    let venv_python = |venv: &Path| {
+        ["bin/python", "Scripts/python.exe"]
+            .map(|rel| venv.join(rel))
+            .into_iter()
+            .find(|p| p.is_file())
+    };
+    match project_python() {
+        Some(ProjectPython::Venv(venv)) => venv_python(&venv).or_else(path_python),
+        Some(ProjectPython::Path(python)) => Some(python),
+        None => None,
+    }
+    .unwrap_or_else(|| PathBuf::from("python3"))
 }
 
 fn venv_root() -> Option<PathBuf> {
@@ -203,7 +242,6 @@ mod cache {
         Some(format!("{}|{mtime}", real.display()))
     }
 
-    /// A real interpreter is a binary named python*, not a script starting with `#!`.
     fn is_interpreter(real: &Path) -> bool {
         let named_python = real
             .file_name()

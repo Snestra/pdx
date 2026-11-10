@@ -24,7 +24,6 @@ fn main() {
     fs::write(&target, code).unwrap_or_else(|e| panic!("write {}: {e}", target.display()));
 }
 
-/// Renders one `PackSource` literal for the pack folder `pack`.
 fn pack_source(pack: &Path) -> String {
     let module = file_name(pack);
     assert!(
@@ -58,7 +57,6 @@ fn pack_source(pack: &Path) -> String {
     )
 }
 
-/// Joins the .yml rules in `dir` into one multi-document YAML string, sorted by file name.
 fn joined_rules(dir: &Path) -> String {
     let mut files: Vec<PathBuf> = entries(dir)
         .into_iter()
