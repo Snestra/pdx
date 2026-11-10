@@ -1,4 +1,5 @@
-# A call that stands alone as a statement can be rewritten to reassign its result.
+# A call that stands alone as a statement, on a receiver that can be assigned to, can be
+# rewritten to reassign its result.
 id: no-inplace
 language: python
 severity: warning
@@ -7,7 +8,11 @@ rule:
   pattern: $OBJ.$M($$$ARGS)
   inside: { kind: expression_statement }
   has: { field: arguments, has: { matches: inplace-true } }
+constraints:
+  OBJ: { matches: assignable }
 utils:
+  assignable:
+    any: [{ kind: identifier }, { kind: attribute }, { kind: subscript }]
   inplace-true:
     kind: keyword_argument
     all:
@@ -47,9 +52,11 @@ rule:
   has: { field: arguments, has: { matches: inplace-true } }
   not:
     all:
-      - has: { field: function, kind: attribute }
+      - has: { field: function, kind: attribute, has: { field: object, matches: assignable } }
       - inside: { kind: expression_statement }
 utils:
+  assignable:
+    any: [{ kind: identifier }, { kind: attribute }, { kind: subscript }]
   inplace-true:
     kind: keyword_argument
     all:
