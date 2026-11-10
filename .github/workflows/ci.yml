@@ -16,7 +16,7 @@ jobs:
     timeout-minutes: 30
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-      - uses: jdx/mise-action@5228313ee0372e111a38da051671ca30fc5a96db # v3.6.3
+      - uses: jdx/mise-action@f5be966e4a917d54244728e6a5fdcd1d93a35e6c # v5.2.6
       - run: lefthook run pre-commit --all-files --force --no-auto-install
       # The formatters fix and stage files, so any change from HEAD means a file was not formatted.
       - run: git diff --exit-code HEAD

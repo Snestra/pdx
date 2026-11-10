@@ -48,7 +48,7 @@ jobs:
           args: --release --out dist
           manylinux: auto
       - name: Upload wheels
-        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6.0.0
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: wheels-linux-${{ matrix.platform.target }}
           path: dist
@@ -74,7 +74,7 @@ jobs:
           args: --release --out dist
           manylinux: musllinux_1_2
       - name: Upload wheels
-        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6.0.0
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: wheels-musllinux-${{ matrix.platform.target }}
           path: dist
@@ -99,7 +99,7 @@ jobs:
           rust-toolchain: ${{ needs.toolchain.outputs.rust }}
           args: --release --out dist
       - name: Upload wheels
-        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6.0.0
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: wheels-windows-${{ matrix.platform.target }}
           path: dist
@@ -124,7 +124,7 @@ jobs:
           rust-toolchain: ${{ needs.toolchain.outputs.rust }}
           args: --release --out dist
       - name: Upload wheels
-        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6.0.0
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: wheels-macos-${{ matrix.platform.target }}
           path: dist
@@ -140,7 +140,7 @@ jobs:
           command: sdist
           args: --out dist
       - name: Upload sdist
-        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6.0.0
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: wheels-sdist
           path: dist
@@ -156,12 +156,12 @@ jobs:
     permissions:
       id-token: write
     steps:
-      - uses: actions/download-artifact@37930b1c2abaa49bbe596cd826c3c89aef350131 # v7.0.0
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
       - name: Check the tag matches the package version
         run: |
           expected="wheels-sdist/pdx_lint-${GITHUB_REF_NAME#v}.tar.gz"
           test -f "$expected" || { echo "tag $GITHUB_REF_NAME does not match $(ls wheels-sdist)"; exit 1; }
-      - uses: astral-sh/setup-uv@37802adc94f370d6bfd71619e3f0bf239e1f3b78 # v7.6.0
+      - uses: astral-sh/setup-uv@68559e99cc807c1eb7e9238fd43a15bba460eec2 # v10.3.3
         with:
           # A cache restored here could slip into what gets published.
           enable-cache: false
@@ -178,7 +178,7 @@ jobs:
       attestations: write
       contents: write
     steps:
-      - uses: actions/download-artifact@37930b1c2abaa49bbe596cd826c3c89aef350131 # v7.0.0
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
       - uses: actions/attest@1e69f48acb82d1966a394da916b4c1698aa569d6 # v4.2.2
         with:
           subject-path: 'wheels-*/*'
