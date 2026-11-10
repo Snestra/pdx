@@ -64,7 +64,15 @@ rule:
             - kind: binary_operator
               all:
                 - has: { field: operator, regex: ^%$ }
-                - has: { field: left, kind: string }
+                - has: { field: left, matches: text }
+utils:
+  # A string literal, adjacent literals, or either in parentheses.
+  text:
+    any:
+      - kind: string
+      - kind: concatenated_string
+      - kind: parenthesized_expression
+        has: { matches: text }
 rewriters:
   - id: to-col
     rule:
