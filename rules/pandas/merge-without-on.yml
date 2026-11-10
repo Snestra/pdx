@@ -8,6 +8,8 @@ rule:
     - pattern: pd.merge($$$ARGS)
   not:
     any:
+      # A cross join by position needs no keys.
+      - has: { field: arguments, has: { regex: '^["'']cross["'']$' } }
       # on given by position: merge(right, how, on) or pd.merge(left, right, how, on).
       - all:
           - not: { pattern: pd.merge($$$ARGS) }

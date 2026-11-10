@@ -108,7 +108,8 @@ from the original.
 `apply-date-part` and `apply-arithmetic` are unsafe, because a column method returns a missing
 value where the lambda raised, and the dtype can change: `dt.year` is int32 where the lambda gave
 int64. `builtin-on-column` skips missing values after the fix. `sort-then-head` is unsafe, because
-`nsmallest` raises on a text column and orders ties differently. `replace-with-mapping` asks for
+`nsmallest` raises on a text column and orders ties differently, and `argmin` raises when every
+value is missing. `replace-with-mapping` asks for
 `df["k"].map(lambda v: mapping.get(v, v))`, which keeps the values and the dtype.
 
 ### groupby, agg and transform

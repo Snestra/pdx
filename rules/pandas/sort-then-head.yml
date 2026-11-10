@@ -1,5 +1,6 @@
 # Unsafe: nsmallest and nlargest raise on a text column, and they order ties differently. The
-# row form uses argmin, a position, so a repeated index label still gives one row.
+# row form uses argmin, a position, so a repeated index label still gives one row, and it raises
+# when every value in the column is missing, where the sort returned the first row.
 id: sort-then-head
 language: python
 severity: warning
