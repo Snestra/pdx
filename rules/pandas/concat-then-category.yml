@@ -5,10 +5,14 @@ severity: warning
 message: concat(..., union_categories=True) keeps the categorical dtype without a second pass over the data.
 rule:
   pattern: pd.concat($$$A).astype("category")
+  # Only the arguments of the concat right before astype count.
   not:
     has:
-      stopBy: end
-      kind: keyword_argument
-      has: { field: name, regex: ^union_categories$ }
+      field: function
+      has:
+        field: object
+        has:
+          field: arguments
+          has: { kind: keyword_argument, has: { field: name, regex: ^union_categories$ } }
 fix: pd.concat($$$A, union_categories=True)
 metadata: { fix: unsafe, since: "3.1" }
