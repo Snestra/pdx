@@ -1,4 +1,4 @@
-//! Walks paths, parses each Python file once, and runs the rule packs for the libraries it imports.
+//! Walks paths, fixes and lints each Python file with the rule packs for the libraries it imports.
 
 use std::{
     collections::HashSet,
@@ -7,11 +7,17 @@ use std::{
 };
 
 use anyhow::{Context, Result};
-use ast_grep_core::tree_sitter::LanguageExt;
+use ast_grep_core::{
+    AstGrep,
+    tree_sitter::{LanguageExt, StrDoc},
+};
 use ast_grep_language::SupportLang;
 use rayon::iter::{IntoParallelRefIterator, ParallelIterator};
 
-use crate::{report::Issue, rules::Pack};
+use crate::{
+    report::Issue,
+    rules::{Applicability, Pack},
+};
 
 pub(crate) fn is_python(path: &Path) -> bool {
     path.extension()
@@ -48,39 +54,127 @@ pub(crate) fn collect_files(paths: &[PathBuf]) -> Result<Vec<PathBuf>> {
     Ok(files)
 }
 
-/// Runs each pack only on files that import its library, because rules match names such as
-/// `merge` and `inplace` that other libraries share.
-pub(crate) fn scan(files: &[PathBuf], packs: &[Pack]) -> Result<Vec<Issue>> {
-    let per_file: Vec<Vec<Issue>> = files
+/// What a scan found, after any fixes it wrote.
+pub(crate) struct Scanned {
+    pub(crate) issues: Vec<Issue>,
+    /// Number of fixes written to disk.
+    pub(crate) fixed: usize,
+}
+
+/// A fix can create a match for another fix, so fixing repeats until nothing changes, at
+/// most this many times per file.
+const MAX_FIX_PASSES: usize = 100;
+
+/// Lints each file, after applying fixes up to `fix` when it is set and writing them back.
+pub(crate) fn scan(
+    files: &[PathBuf],
+    packs: &[Pack],
+    fix: Option<Applicability>,
+) -> Result<Scanned> {
+    let per_file: Vec<(Vec<Issue>, usize)> = files
         .par_iter()
         .map(|path| {
-            let src = fs::read_to_string(path).with_context(|| cannot_read(path))?;
-            let mut root = None;
-            let mut found = Vec::new();
-            for pack in packs.iter().filter(|p| src.contains(p.module)) {
-                let root = root.get_or_insert_with(|| SupportLang::Python.ast_grep(&src));
-                if root.root().find(&pack.gate.matcher).is_none() {
-                    continue;
-                }
-                for rule in &pack.rules {
-                    for m in root.root().find_all(&rule.matcher) {
-                        let pos = m.start_pos();
-                        found.push(Issue {
-                            package: pack.module,
-                            rule: rule.id.clone(),
-                            file: path.clone(),
-                            line: pos.line() + 1,
-                            column: pos.column(&m) + 1,
-                            severity: rule.severity.clone(),
-                            message: rule.get_message(&m),
-                        });
+            let mut src = fs::read_to_string(path).with_context(|| cannot_read(path))?;
+            let mut fixed = 0;
+            if let Some(allowed) = fix {
+                for _ in 0..MAX_FIX_PASSES {
+                    let (next, applied) = fix_pass(&src, packs, allowed);
+                    if applied == 0 {
+                        break;
                     }
+                    src = next;
+                    fixed += applied;
+                }
+                if fixed > 0 {
+                    fs::write(path, &src)
+                        .with_context(|| format!("cannot write {}", path.display()))?;
                 }
             }
-            Ok(found)
+            Ok((lint(path, &src, packs), fixed))
         })
         .collect::<Result<_>>()?;
-    let mut issues: Vec<Issue> = per_file.into_iter().flatten().collect();
+    let fixed = per_file.iter().map(|(_, n)| n).sum();
+    let mut issues: Vec<Issue> = per_file.into_iter().flat_map(|(i, _)| i).collect();
     issues.sort_by(|a, b| (&a.file, a.line, a.column).cmp(&(&b.file, b.line, b.column)));
-    Ok(issues)
+    Ok(Scanned { issues, fixed })
+}
+
+/// Parses `src` only when it names a pack's module, and yields each pack whose library the
+/// file imports. Rules run only on those files, because they match names such as `merge` and
+/// `inplace` that other libraries share.
+fn imported<'p>(
+    root: &AstGrep<StrDoc<SupportLang>>,
+    src: &str,
+    packs: &'p [Pack],
+) -> impl Iterator<Item = &'p Pack> {
+    packs
+        .iter()
+        .filter(move |p| src.contains(p.module) && root.root().find(&p.gate.matcher).is_some())
+}
+
+fn lint(path: &Path, src: &str, packs: &[Pack]) -> Vec<Issue> {
+    if !packs.iter().any(|p| src.contains(p.module)) {
+        return Vec::new();
+    }
+    let root = SupportLang::Python.ast_grep(src);
+    let mut found = Vec::new();
+    for pack in imported(&root, src, packs) {
+        for rule in &pack.rules {
+            for m in root.root().find_all(&rule.config.matcher) {
+                let pos = m.start_pos();
+                found.push(Issue {
+                    package: pack.module,
+                    rule: rule.config.id.clone(),
+                    file: path.to_path_buf(),
+                    line: pos.line() + 1,
+                    column: pos.column(&m) + 1,
+                    severity: rule.config.severity.clone(),
+                    message: rule.config.get_message(&m),
+                    fix: rule.fix,
+                });
+            }
+        }
+    }
+    found
+}
+
+/// Applies every fix up to `allowed` that does not overlap an earlier one, and returns the new
+/// source with the number of fixes applied. Overlapping fixes wait for the next pass.
+fn fix_pass(src: &str, packs: &[Pack], allowed: Applicability) -> (String, usize) {
+    if !packs.iter().any(|p| src.contains(p.module)) {
+        return (src.to_owned(), 0);
+    }
+    let root = SupportLang::Python.ast_grep(src);
+    let mut edits = Vec::new();
+    for pack in imported(&root, src, packs) {
+        for rule in &pack.rules {
+            if rule.fix.is_none_or(|a| a > allowed) {
+                continue;
+            }
+            let fixer = &rule.config.fixer[0];
+            for m in root.root().find_all(&rule.config.matcher) {
+                let edit = m.make_edit(&rule.config.matcher, fixer);
+                let old = &src.as_bytes()[edit.position..edit.position + edit.deleted_length];
+                if edit.inserted_text != old {
+                    edits.push(edit);
+                }
+            }
+        }
+    }
+    edits.sort_by_key(|e| e.position);
+    let mut out = Vec::with_capacity(src.len());
+    let mut copied = 0;
+    let mut applied = 0;
+    for edit in edits {
+        if edit.position < copied {
+            continue;
+        }
+        out.extend_from_slice(&src.as_bytes()[copied..edit.position]);
+        out.extend_from_slice(&edit.inserted_text);
+        copied = edit.position + edit.deleted_length;
+        applied += 1;
+    }
+    out.extend_from_slice(&src.as_bytes()[copied..]);
+    let out = String::from_utf8(out).expect("fixes splice UTF-8 text at node boundaries");
+    (out, applied)
 }

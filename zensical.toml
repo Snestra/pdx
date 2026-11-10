@@ -1,7 +1,7 @@
 [project]
 site_name = "pdx"
 site_url = "https://bjoernaagaard.github.io/pdx/"
-site_description = "Fast linter for Python library habits, starting with pandas"
+site_description = "Fast, opinionated linter for Python library habits, starting with pandas"
 repo_url = "https://github.com/bjoernaagaard/pdx"
 repo_name = "bjoernaagaard/pdx"
 edit_uri = "edit/main/docs/"
@@ -10,7 +10,6 @@ nav = [
   { "Get started" = "index.md" },
   { "Commands" = "commands.md" },
   { "Claude Code" = "claude-code.md" },
-  { "Library versions" = "versions.md" },
   { "Rules" = "rules.md" },
 ]
 

@@ -1,7 +1,6 @@
 //! Embeds the rule packs under rules/ into the binary.
 //!
-//! Each folder `rules/<module>/` is the pack for the Python library imported as `<module>`.
-//! It holds `common/` for every version of the library and `v<N>/` for major version N, with
+//! Each folder `rules/<module>/` is the pack for the Python library imported as `<module>`, with
 //! one ast-grep rule per .yml file. This script writes `OUT_DIR/packs.rs`, which src/rules.rs
 //! includes, so adding a rule or a pack needs no Rust change.
 
@@ -30,31 +29,9 @@ fn pack_source(pack: &Path) -> String {
         is_module_name(&module),
         "rules/{module}: the folder name must be a Python module name"
     );
-    let mut common = String::new();
-    let mut versions = Vec::new();
-    for set in sorted_dirs(pack) {
-        let name = file_name(&set);
-        if name == "common" {
-            common = joined_rules(&set);
-        } else if let Some(major) = name.strip_prefix('v').and_then(|n| n.parse::<u32>().ok()) {
-            versions.push((major, joined_rules(&set)));
-        } else {
-            panic!("rules/{module}/{name}: expected a folder named common or v<major>");
-        }
-    }
-    assert!(
-        !common.is_empty() || !versions.is_empty(),
-        "rules/{module}: the pack has no rules"
-    );
-    versions.sort_by_key(|(major, _)| *major);
-    let versions: Vec<String> = versions
-        .iter()
-        .map(|(major, docs)| format!("({major}, {docs:?})"))
-        .collect();
-    let versions = versions.join(", ");
-    format!(
-        "    PackSource {{ module: {module:?}, common: {common:?}, versions: &[{versions}] }},\n"
-    )
+    let rules = joined_rules(pack);
+    assert!(!rules.is_empty(), "rules/{module}: the pack has no rules");
+    format!("    PackSource {{ module: {module:?}, rules: {rules:?} }},\n")
 }
 
 fn joined_rules(dir: &Path) -> String {

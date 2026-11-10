@@ -1,169 +1,10 @@
-//! Finds where the project's Python keeps installed packages, and their versions, without
-//! starting Python on the hot path.
-//!
-//! The site folders come from a venv (`$VIRTUAL_ENV`, then the nearest `.venv` above the working
-//! directory), else from `python3` on `PATH`: first from the cache, then by asking that Python
-//! once and caching its answer. Versions are read from `<module>-<version>.dist-info` folders.
+//! Finds the project's Python for `profile` and `equiv`: the venv in `$VIRTUAL_ENV`, then the
+//! nearest `.venv` above the working directory, then `python3` on `PATH`.
 
 use std::{
-    cell::OnceCell,
-    collections::HashMap,
-    env, fs,
+    env,
     path::{Path, PathBuf},
-    process::Command,
-    time::UNIX_EPOCH,
 };
-
-/// Prints the folders Python imports installed packages from, one per line, in the order
-/// Python searches them: the user site folder comes before the interpreter's own.
-const SITE_DIRS_PY: &str = "import site; user = [site.getusersitepackages()] if site.ENABLE_USER_SITE else []; print(*user, *site.getsitepackages(), sep='\\n')";
-
-/// Where a library's version came from, reported in pdx output.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub(crate) enum Source {
-    /// `--pin` or `PDX_PIN`.
-    Pin,
-    Venv,
-    Cache,
-    Python,
-    /// No install found; the pack's newest rule set applies.
-    Missing,
-}
-
-impl Source {
-    pub(crate) fn as_str(self) -> &'static str {
-        match self {
-            Self::Pin => "pin",
-            Self::Venv => "venv",
-            Self::Cache => "cache",
-            Self::Python => "python",
-            Self::Missing => "missing",
-        }
-    }
-}
-
-/// The installed version of one library, as far as pdx could tell.
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub(crate) struct Installed {
-    /// Full version from the dist-info folder; `None` for a pin or a missing install.
-    pub(crate) version: Option<String>,
-    pub(crate) major: Option<u32>,
-    pub(crate) source: Source,
-}
-
-impl Installed {
-    fn pinned(major: u32) -> Self {
-        Self {
-            version: None,
-            major: Some(major),
-            source: Source::Pin,
-        }
-    }
-
-    fn missing() -> Self {
-        Self {
-            version: None,
-            major: None,
-            source: Source::Missing,
-        }
-    }
-}
-
-/// The folders one Python imports installed packages from.
-#[derive(Debug)]
-struct Site {
-    dirs: Vec<PathBuf>,
-    source: Source,
-}
-
-impl Site {
-    fn locate() -> Option<Self> {
-        let python = match project_python()? {
-            ProjectPython::Venv(venv) => {
-                return Some(Self {
-                    dirs: venv_site_dirs(&venv),
-                    source: Source::Venv,
-                });
-            }
-            ProjectPython::Path(python) => python,
-        };
-        if let Some(dirs) = cache::lookup(&python) {
-            return Some(Self {
-                dirs,
-                source: Source::Cache,
-            });
-        }
-        let dirs = ask_site_dirs(&python)?;
-        cache::store(&python, &dirs);
-        Some(Self {
-            dirs,
-            source: Source::Python,
-        })
-    }
-
-    fn installed(&self, module: &str) -> Installed {
-        let prefix = format!("{module}-");
-        let version = self
-            .dirs
-            .iter()
-            .filter_map(|d| fs::read_dir(d).ok())
-            .flat_map(Iterator::flatten)
-            .find_map(|e| {
-                let name = e.file_name();
-                let name = name.to_str()?;
-                name.strip_prefix(&prefix)?
-                    .strip_suffix(".dist-info")
-                    .map(str::to_owned)
-            });
-        match version {
-            Some(version) => {
-                let major = version.split('.').next().and_then(|s| s.parse().ok());
-                Installed {
-                    version: Some(version),
-                    major,
-                    source: self.source,
-                }
-            }
-            None => Installed::missing(),
-        }
-    }
-}
-
-#[derive(Debug)]
-pub(crate) struct Versions<'a> {
-    pins: &'a HashMap<String, u32>,
-    site: OnceCell<Option<Site>>,
-}
-
-impl<'a> Versions<'a> {
-    pub(crate) fn new(pins: &'a HashMap<String, u32>) -> Self {
-        Self {
-            pins,
-            site: OnceCell::new(),
-        }
-    }
-
-    pub(crate) fn installed(&self, module: &str) -> Installed {
-        if let Some(&major) = self.pins.get(module) {
-            return Installed::pinned(major);
-        }
-        self.site
-            .get_or_init(Site::locate)
-            .as_ref()
-            .map_or_else(Installed::missing, |s| s.installed(module))
-    }
-}
-
-enum ProjectPython {
-    Venv(PathBuf),
-    Path(PathBuf),
-}
-
-fn project_python() -> Option<ProjectPython> {
-    venv_root()
-        .map(ProjectPython::Venv)
-        .or_else(|| path_python().map(ProjectPython::Path))
-}
 
 pub(crate) fn python() -> PathBuf {
     let venv_python = |venv: &Path| {
@@ -172,12 +13,10 @@ pub(crate) fn python() -> PathBuf {
             .into_iter()
             .find(|p| p.is_file())
     };
-    match project_python() {
-        Some(ProjectPython::Venv(venv)) => venv_python(&venv).or_else(path_python),
-        Some(ProjectPython::Path(python)) => Some(python),
-        None => None,
-    }
-    .unwrap_or_else(|| PathBuf::from("python3"))
+    venv_root()
+        .and_then(|venv| venv_python(&venv))
+        .or_else(path_python)
+        .unwrap_or_else(|| PathBuf::from("python3"))
 }
 
 fn venv_root() -> Option<PathBuf> {
@@ -190,111 +29,9 @@ fn venv_root() -> Option<PathBuf> {
         .find(|p| p.is_dir())
 }
 
-fn venv_site_dirs(venv: &Path) -> Vec<PathBuf> {
-    let mut dirs = vec![venv.join("Lib").join("site-packages")];
-    if let Ok(entries) = fs::read_dir(venv.join("lib")) {
-        dirs.extend(entries.flatten().map(|e| e.path().join("site-packages")));
-    }
-    dirs
-}
-
 fn path_python() -> Option<PathBuf> {
     let path = env::var_os("PATH")?;
     env::split_paths(&path)
         .flat_map(|d| ["python3", "python3.exe"].map(|name| d.join(name)))
         .find(|p| p.is_file())
-}
-
-fn ask_site_dirs(python: &Path) -> Option<Vec<PathBuf>> {
-    let out = Command::new(python)
-        .args(["-c", SITE_DIRS_PY])
-        .output()
-        .ok()?;
-    out.status.success().then(|| {
-        String::from_utf8_lossy(&out.stdout)
-            .lines()
-            .map(PathBuf::from)
-            .collect()
-    })
-}
-
-/// Remembers each Python's site folders, so only the first run per interpreter starts Python.
-mod cache {
-    use super::{PathBuf, UNIX_EPOCH, env, fs};
-    use std::{io::Read, path::Path};
-
-    /// An entry stays valid while the interpreter file and its modification time are unchanged.
-    /// Returns `None`, so nothing is cached, when `python3` is a shim: a link to a version
-    /// manager such as mise, or a launcher script such as pyenv's. A shim picks an interpreter
-    /// per project or environment, which no file on disk records.
-    fn key(python: &Path) -> Option<String> {
-        let real = fs::canonicalize(python).ok()?;
-        if !is_interpreter(&real) {
-            return None;
-        }
-        let mtime = fs::metadata(&real)
-            .ok()?
-            .modified()
-            .ok()?
-            .duration_since(UNIX_EPOCH)
-            .ok()?
-            .as_secs();
-        Some(format!("{}|{mtime}", real.display()))
-    }
-
-    fn is_interpreter(real: &Path) -> bool {
-        let named_python = real
-            .file_name()
-            .and_then(|n| n.to_str())
-            .is_some_and(|n| n.starts_with("python"));
-        let mut magic = [0_u8; 2];
-        let is_script = fs::File::open(real)
-            .and_then(|mut f| f.read_exact(&mut magic))
-            .is_ok()
-            && magic == *b"#!";
-        named_python && !is_script
-    }
-
-    fn file() -> Option<PathBuf> {
-        let base = env::var_os("XDG_CACHE_HOME")
-            .map(PathBuf::from)
-            .or_else(|| env::var_os("HOME").map(|h| PathBuf::from(h).join(".cache")))?;
-        Some(base.join("pdx").join("site-dirs"))
-    }
-
-    /// One line per entry: the key, then each site folder, separated by tabs.
-    pub(super) fn lookup(python: &Path) -> Option<Vec<PathBuf>> {
-        let key = key(python)?;
-        let text = fs::read_to_string(file()?).ok()?;
-        text.lines().find_map(|line| {
-            let mut fields = line.split('\t');
-            (fields.next()? == key).then(|| fields.map(PathBuf::from).collect())
-        })
-    }
-
-    /// Best effort: a cache that can't be written only costs the next run one Python start.
-    pub(super) fn store(python: &Path, dirs: &[PathBuf]) {
-        let (Some(key), Some(file)) = (key(python), file()) else {
-            return;
-        };
-        let Some(folder) = file.parent() else { return };
-        if fs::create_dir_all(folder).is_err() {
-            return;
-        }
-        let old = fs::read_to_string(&file).unwrap_or_default();
-        let mut lines: Vec<String> = old
-            .lines()
-            .filter(|l| l.split('\t').next() != Some(key.as_str()))
-            .map(str::to_owned)
-            .collect();
-        let dirs: Vec<String> = dirs.iter().map(|d| d.display().to_string()).collect();
-        lines.push(format!("{key}\t{}", dirs.join("\t")));
-        let mut text = lines.join("\n");
-        text.push('\n');
-        // Write a temporary file and rename it, so a parallel pdx never reads half a file.
-        let tmp = folder.join(format!("site-dirs.{}", std::process::id()));
-        if fs::write(&tmp, text).is_ok() && fs::rename(&tmp, &file).is_err() {
-            let _ = fs::remove_file(&tmp); // best effort; a leftover temp file is harmless
-        }
-    }
 }
