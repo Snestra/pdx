@@ -3,7 +3,7 @@
 ## pandas
 
 The rules follow pandas 3, where copy-on-write is always on. A fix that writes `pd.` or `np.`
-applies only in a file that imports pandas as `pd` or numpy as `np`. In any other file pdx
+applies only in a file with `import pandas as pd` or `import numpy as np`. In any other file pdx
 reports the issue without a fix.
 
 One rule asks for an API that pandas 3.1 added, `concat-then-category`. pdx reads the installed
@@ -208,12 +208,22 @@ only helps a function passed to `rolling(...).apply`, where the `rolling-apply` 
 
 Rules are [ast-grep rules](https://ast-grep.github.io/guide/rule-config.html) in `.yml` files,
 compiled into the binary. A pack lives at `rules/<module>/`, where `<module>` is the name you
-import, such as `rules/pandas/row-loop.yml`. A file may hold several rule documents with the
-same id, one per shape.
+import.
+
+```text
+rules/pandas/
+├── pack.yml        # the pack's manifest: import aliases and package checks
+├── row-loop.yml    # one file per rule, named after the rule id
+└── ...
+```
+
+A rule file holds the documents of one rule, one per shape, and each document has the file's name
+as its `id`. The build fails on any other id.
 
 A rule may have one ast-grep `fix:`. It must then say whether the fix keeps what the code does,
-with `metadata: { fix: safe }` or `metadata: { fix: unsafe }`. A fix may write `pd.` or `np.`,
-and pdx applies it only in a file that imports pandas as `pd` or numpy as `np`.
+with `metadata: { fix: safe }` or `metadata: { fix: unsafe }`. A fix may write an alias that
+`pack.yml` lists under `aliases`, such as `pd.`, and pdx applies it only in a file that imports
+the module under that alias.
 
 A rule that needs a newer library version says so with `metadata: { since: "3.1" }`. pdx skips it
 when the project's venv holds an older version of the pack's library. It finds the version for any
@@ -230,10 +240,10 @@ cp samples/bad.py /tmp/bad.py && target/release/pdx check /tmp/bad.py --fix --un
 
 The files in `samples/pandas/` mark each line a rule reports with a comment that names the rules.
 
-A pack may also have a `packages.json`, a list of package checks. Each entry has an `id`, the
-`package` to look for, a `message`, and optionally `only_with`, a list of tools. pdx warns when
-the venv has the pack's library and lacks the package. With `only_with`, it warns only when the
-project also uses one of the tools.
+`pack.yml` may list package checks under `packages`. Each entry has an `id`, the `package` to
+look for, a `message`, and optionally `onlyWith`, a list of tools. pdx warns when the venv has the
+pack's library and lacks the package. With `onlyWith`, it warns only when the project also uses
+one of the tools.
 
 A new folder under `rules/` is a new pack, with no Rust change. Its rules run only on files that
 import the module.

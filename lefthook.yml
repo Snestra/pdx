@@ -8,6 +8,10 @@ pre-commit:
     - name: clippy
       glob: "*.rs"
       run: cargo clippy --all-targets --all-features -- -D warnings
+    # Rules are parsed when pdx starts, so a rule file that does not parse only shows in a run.
+    - name: rules load
+      glob: ["rules/**/*.yml", "*.rs"]
+      run: cargo run --quiet -- check samples/good.py --format text
     - name: ruff format
       glob: "py/*.py"
       run: ruff format {staged_files}

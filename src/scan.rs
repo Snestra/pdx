@@ -1,31 +1,37 @@
 //! Walks paths, fixes and lints each Python file with the rule packs for the libraries it imports.
 
-use std::{
-    collections::HashSet,
-    fs,
-    path::{Path, PathBuf},
-};
+use std::collections::HashSet;
+use std::fs;
+use std::path::{Path, PathBuf};
 
 use anyhow::{Context, Result};
-use ast_grep_core::{
-    AstGrep, NodeMatch,
-    source::Edit,
-    tree_sitter::{LanguageExt, StrDoc},
-};
+use ast_grep_core::source::Edit;
+use ast_grep_core::tree_sitter::StrDoc;
+use ast_grep_core::{AstGrep, NodeMatch};
 use ast_grep_language::SupportLang;
-use rayon::iter::{IntoParallelRefIterator, ParallelIterator};
 
-use crate::{
-    report::Issue,
-    rules::{Applicability, Pack, Rule},
-};
+use crate::pack::Pack;
+use crate::report::{Issue, Position};
+use crate::rule::{Applicability, Rule};
 
+/// A parsed Python file.
 type Root = AstGrep<StrDoc<SupportLang>>;
 
-/// Short names a fix may write, each with the module it must be imported as. A fix that writes
-/// `pd.` applies only in a file with `import pandas as pd`. Elsewhere its issue has no fix.
-const IMPORT_NAMES: &[(&str, &str)] = &[("pd", "pandas"), ("np", "numpy")];
+/// Parses Python source. A syntax error gives a tree with error nodes, not a failure.
+fn parse(src: &str) -> Root {
+    use ast_grep_core::tree_sitter::LanguageExt;
 
+    SupportLang::Python.ast_grep(src)
+}
+
+/// One `import <module> as <alias>` in a file.
+#[derive(Debug)]
+struct AliasedImport {
+    module: String,
+    alias: String,
+}
+
+/// Whether `path` has the `.py` extension.
 pub(crate) fn is_python(path: &Path) -> bool {
     path.extension()
         .is_some_and(|x| x.eq_ignore_ascii_case("py"))
@@ -35,6 +41,7 @@ fn cannot_read(path: &Path) -> String {
     format!("cannot read {}", path.display())
 }
 
+/// The Python files under `paths`, each once. Folders respect `.gitignore`.
 pub(crate) fn collect_files(paths: &[PathBuf]) -> Result<Vec<PathBuf>> {
     let mut files = Vec::new();
     let mut seen = HashSet::new();
@@ -62,6 +69,7 @@ pub(crate) fn collect_files(paths: &[PathBuf]) -> Result<Vec<PathBuf>> {
 }
 
 /// What a scan found, after any fixes it wrote.
+#[derive(Debug)]
 pub(crate) struct Scanned {
     pub(crate) issues: Vec<Issue>,
     /// Number of fixes written to disk.
@@ -78,6 +86,8 @@ pub(crate) fn scan(
     packs: &[Pack],
     fix: Option<Applicability>,
 ) -> Result<Scanned> {
+    use rayon::iter::{IntoParallelRefIterator, ParallelIterator};
+
     let per_file: Vec<(Vec<Issue>, usize)> = files
         .par_iter()
         .map(|path| {
@@ -102,7 +112,7 @@ pub(crate) fn scan(
         .collect::<Result<_>>()?;
     let fixed = per_file.iter().map(|(_, n)| n).sum();
     let mut issues: Vec<Issue> = per_file.into_iter().flat_map(|(i, _)| i).collect();
-    issues.sort_by(|a, b| (&a.file, a.line, a.column).cmp(&(&b.file, b.line, b.column)));
+    issues.sort_by(|a, b| (&a.file, a.position).cmp(&(&b.file, b.position)));
     Ok(Scanned { issues, fixed })
 }
 
@@ -115,24 +125,30 @@ fn imported<'p>(root: &Root, src: &str, packs: &'p [Pack]) -> impl Iterator<Item
         .filter(move |p| src.contains(p.module) && root.root().find(&p.gate.matcher).is_some())
 }
 
+/// The issues in one file's source.
 fn lint(path: &Path, src: &str, packs: &[Pack]) -> Vec<Issue> {
     if !packs.iter().any(|p| src.contains(p.module)) {
         return Vec::new();
     }
-    let root = SupportLang::Python.ast_grep(src);
-    let names = bound_names(&root);
+    let root = parse(src);
+    let imports = aliased_imports(&root);
     let mut found = Vec::new();
     for pack in imported(&root, src, packs) {
+        let unbound = unbound_aliases(pack, &imports);
         for rule in &pack.rules {
             for m in root.root().find_all(&rule.config.matcher) {
-                let pos = m.start_pos();
-                let fix = rule.fix.filter(|_| usable_edit(rule, &m, &names).is_some());
+                let start = m.start_pos();
+                let fix = rule
+                    .fix
+                    .filter(|_| usable_edit(rule, &m, &unbound).is_some());
                 found.push(Issue {
                     package: pack.module,
                     rule: rule.config.id.clone(),
                     file: path.to_path_buf(),
-                    line: pos.line() + 1,
-                    column: pos.column(&m) + 1,
+                    position: Some(Position {
+                        line: start.line() + 1,
+                        column: start.column(&m) + 1,
+                    }),
                     severity: rule.config.severity.clone(),
                     message: rule.config.get_message(&m),
                     fix,
@@ -149,16 +165,17 @@ fn fix_pass(src: &str, packs: &[Pack], allowed: Applicability) -> (String, usize
     if !packs.iter().any(|p| src.contains(p.module)) {
         return (src.to_owned(), 0);
     }
-    let root = SupportLang::Python.ast_grep(src);
-    let names = bound_names(&root);
+    let root = parse(src);
+    let imports = aliased_imports(&root);
     let mut edits = Vec::new();
     for pack in imported(&root, src, packs) {
+        let unbound = unbound_aliases(pack, &imports);
         for rule in &pack.rules {
             if rule.fix.is_none_or(|a| a > allowed) {
                 continue;
             }
             for m in root.root().find_all(&rule.config.matcher) {
-                let Some(edit) = usable_edit(rule, &m, &names) else {
+                let Some(edit) = usable_edit(rule, &m, &unbound) else {
                     continue;
                 };
                 let old = &src.as_bytes()[edit.position..edit.position + edit.deleted_length];
@@ -186,39 +203,47 @@ fn fix_pass(src: &str, packs: &[Pack], allowed: Applicability) -> (String, usize
     (out, applied)
 }
 
-/// The names from `IMPORT_NAMES` that the file binds with `import <module> as <name>`.
-fn bound_names(root: &Root) -> Vec<&'static str> {
-    let aliases: Vec<(String, String)> = root
-        .root()
+/// Every aliased import in the file, at any depth.
+fn aliased_imports(root: &Root) -> Vec<AliasedImport> {
+    root.root()
         .dfs()
-        .filter(|n| n.kind() == "aliased_import")
-        .filter_map(|n| {
-            Some((
-                n.field("name")?.text().into(),
-                n.field("alias")?.text().into(),
-            ))
+        .filter(|node| node.kind() == "aliased_import")
+        .filter_map(|node| {
+            Some(AliasedImport {
+                module: node.field("name")?.text().into_owned(),
+                alias: node.field("alias")?.text().into_owned(),
+            })
         })
-        .collect();
-    IMPORT_NAMES
-        .iter()
-        .filter(|(name, module)| aliases.iter().any(|(m, a)| m == module && a == name))
-        .map(|(name, _)| *name)
         .collect()
 }
 
-/// The edit `rule` makes for `m`, or `None` when the rule has no fix or its fix writes a name
-/// from `IMPORT_NAMES` that is not in `bound`.
+/// The pack's aliases that the file does not bind to their module. A fix that writes `pd.`
+/// applies only in a file with `import pandas as pd`.
+fn unbound_aliases<'p>(pack: &'p Pack, imports: &[AliasedImport]) -> Vec<&'p str> {
+    pack.aliases
+        .iter()
+        .filter(|(alias, module)| {
+            !imports
+                .iter()
+                .any(|import| import.module == **module && import.alias == **alias)
+        })
+        .map(|(alias, _)| alias.as_str())
+        .collect()
+}
+
+/// The edit `rule` makes for `m`, or `None` when the rule has no fix or its fix writes one of
+/// the `unbound` aliases.
 fn usable_edit(
     rule: &Rule,
     m: &NodeMatch<'_, StrDoc<SupportLang>>,
-    bound: &[&str],
+    unbound: &[&str],
 ) -> Option<Edit<String>> {
     let fixer = rule.config.fixer.first()?;
     let edit = m.make_edit(&rule.config.matcher, fixer);
-    let unbound = IMPORT_NAMES
+    let writes_unbound = unbound
         .iter()
-        .any(|(name, _)| !bound.contains(name) && writes_name(&edit.inserted_text, name));
-    (!unbound).then_some(edit)
+        .any(|alias| writes_name(&edit.inserted_text, alias));
+    (!writes_unbound).then_some(edit)
 }
 
 /// Whether `text` uses `name` as the start of a dotted name, such as `pd.col`.

@@ -1,0 +1,22 @@
+# The pandas pack. Every other .yml file in this folder is a rule.
+
+# Short names a fix may write, each with the module it must be imported as. A fix that writes
+# `pd.` applies only in a file with `import pandas as pd`. Elsewhere the issue has no fix.
+aliases:
+  pd: pandas
+  np: numpy
+
+# Packages pandas works better with. `pdx check` warns once per run when the project's venv has
+# pandas and lacks the package. With onlyWith, it warns only in a project that uses one of the
+# tools. The numbers are in research/pandas-rules/optional-packages.
+packages:
+  - id: missing-pyarrow
+    package: pyarrow
+    message: pyarrow is not installed, so text columns are stored as Python strings. With pyarrow the .str methods ran 3 to 11 times faster on 1,000,000 rows. Add pyarrow to the project.
+  - id: missing-bottleneck
+    package: bottleneck
+    message: bottleneck is not installed. With it std ran 4 times faster and median 1.7 times faster on 10,000,000 rows. Add bottleneck to the project.
+  - id: missing-pandas-stubs
+    package: pandas-stubs
+    onlyWith: [mypy, pyright, basedpyright, ty, pyrefly]
+    message: The project has a type checker but not pandas-stubs, so calls to pandas are not type checked. Add pandas-stubs as a development dependency.

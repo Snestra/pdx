@@ -25,7 +25,8 @@ fix may change it, for example because another name still points at the old obje
 
 Output is text on a terminal and JSON otherwise. The JSON has `fixed`, the number of fixes
 written, and `issues`, each with `package`, `rule`, `file`, `line`, `column`, `severity`,
-`message` and `fix`: `safe`, `unsafe` or `null`.
+`message` and `fix`: `safe`, `unsafe` or `null`. A package warning is about the project and not
+about a place in a file, so its `line` and `column` are `null`.
 
 | Exit code | Meaning |
 | --- | --- |

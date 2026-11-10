@@ -26,7 +26,12 @@ ast-grep-language = { version = "0.51.1", default-features = false, features = [
 clap = { version = "4.6.7", features = ["derive"] }
 ignore = "0.4.34"
 rayon = "1.12.0"
+# ast-grep-config already builds serde with derive, so this adds no package to the build.
+serde = { version = "1.0.229", features = ["derive"] }
 serde_json = "1.0.154"
+
+[build-dependencies]
+anyhow = "1.0.104"
 
 [lints.rust]
 unsafe_op_in_unsafe_fn = "warn"          # each unsafe op needs its own unsafe block

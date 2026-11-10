@@ -5,16 +5,24 @@ use std::path::PathBuf;
 use ast_grep_config::Severity;
 use serde_json::{Value, json};
 
-use crate::rules::Applicability;
+use crate::rule::Applicability;
 
+/// Where in a file an issue starts. Lines and columns count from 1.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
+pub(crate) struct Position {
+    pub(crate) line: usize,
+    pub(crate) column: usize,
+}
+
+/// One thing a rule or a package check found.
 #[derive(Debug)]
 pub(crate) struct Issue {
     /// Module name of the pack the rule belongs to.
     pub(crate) package: &'static str,
     pub(crate) rule: String,
     pub(crate) file: PathBuf,
-    pub(crate) line: usize,
-    pub(crate) column: usize,
+    /// `None` for an issue about the project as a whole, such as a missing package.
+    pub(crate) position: Option<Position>,
     pub(crate) severity: Severity,
     pub(crate) message: String,
     /// `None` when the rule has no fix.
@@ -33,17 +41,18 @@ fn severity_name(severity: &Severity) -> &'static str {
 
 impl Issue {
     fn fixable(&self, allowed: Applicability) -> bool {
-        self.fix.is_some_and(|a| a <= allowed)
+        self.fix.is_some_and(|fix| fix <= allowed)
     }
 
     /// One line per issue. `[*]` marks an issue that `--fix` fixes at the `allowed` level.
     pub(crate) fn line(&self, allowed: Applicability) -> String {
+        let place = match self.position {
+            Some(Position { line, column }) => format!("{}:{line}:{column}", self.file.display()),
+            None => self.file.display().to_string(),
+        };
         let mark = if self.fixable(allowed) { " [*]" } else { "" };
         format!(
-            "{}:{}:{}: {} [{}/{}]{mark} {}",
-            self.file.display(),
-            self.line,
-            self.column,
+            "{place}: {} [{}/{}]{mark} {}",
             severity_name(&self.severity),
             self.package,
             self.rule,
@@ -52,12 +61,21 @@ impl Issue {
     }
 
     fn to_json(&self) -> Value {
-        json!({"package": self.package, "rule": self.rule, "file": self.file.display().to_string(), "line": self.line,
-               "column": self.column, "severity": severity_name(&self.severity), "message": self.message,
-               "fix": self.fix.map(Applicability::as_str)})
+        json!({
+            "package": self.package,
+            "rule": self.rule,
+            "file": self.file.display().to_string(),
+            "line": self.position.map(|at| at.line),
+            "column": self.position.map(|at| at.column),
+            "severity": severity_name(&self.severity),
+            "message": self.message,
+            "fix": self.fix.map(Applicability::as_str),
+        })
     }
 }
 
+/// Everything one run found.
+#[derive(Debug)]
 pub(crate) struct Report {
     pub(crate) issues: Vec<Issue>,
     /// Number of fixes `--fix` wrote.
@@ -65,6 +83,7 @@ pub(crate) struct Report {
 }
 
 impl Report {
+    /// Whether any issue has error severity, which makes `check` exit 1.
     pub(crate) fn has_errors(&self) -> bool {
         self.issues.iter().any(|i| i.severity == Severity::Error)
     }
