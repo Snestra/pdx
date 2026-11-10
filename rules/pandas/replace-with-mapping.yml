@@ -1,0 +1,9 @@
+# Only a mapping held in a name is reported. With a few literal keys replace is fast enough.
+id: replace-with-mapping
+language: python
+severity: warning
+message: 'replace takes longer with every key in the mapping. Write $S.map(lambda v: $M.get(v, v)), which keeps the values and the dtype.'
+rule: { pattern: $S.replace($M) }
+constraints:
+  M: { kind: identifier }
+  S: { not: { regex: '\.str$' } }

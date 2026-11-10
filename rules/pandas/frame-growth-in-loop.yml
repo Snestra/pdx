@@ -1,0 +1,9 @@
+id: frame-growth-in-loop
+language: python
+severity: warning
+message: Adding one row at a time copies the frame each time. Collect the rows in a list and build the frame once, as in pd.DataFrame(rows, columns=cols).
+rule:
+  pattern: $DF.loc[len($DF)] = $ROW
+  inside:
+    stopBy: end
+    any: [{ kind: for_statement }, { kind: while_statement }]

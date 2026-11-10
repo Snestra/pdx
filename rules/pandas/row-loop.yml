@@ -1,0 +1,34 @@
+# A for loop or comprehension over the rows of a frame runs Python once per row.
+id: row-loop
+language: python
+severity: warning
+message: A loop over rows runs Python once per row. Compute on whole columns instead, such as df["a"] * df["w"].
+rule:
+  any:
+    - pattern: $DF.iterrows()
+    - pattern: $DF.itertuples($$$)
+    - pattern: $DF.to_dict("records")
+    - pattern: $DF.to_dict('records')
+    - pattern: $DF.to_dict(orient="records")
+    - pattern: $DF.to_dict(orient='records')
+  inside:
+    any: [{ kind: for_statement }, { kind: for_in_clause }]
+    field: right
+---
+id: row-loop
+language: python
+severity: warning
+message: A loop over row numbers runs Python once per row. Compute on whole columns instead, such as df["a"] * df["w"].
+rule:
+  kind: for_statement
+  all:
+    - has: { field: right, pattern: range(len($DF)) }
+    - has:
+        field: body
+        stopBy: end
+        any:
+          - pattern: $DF.iloc[$$$]
+          - pattern: $DF.loc[$$$]
+          - pattern: $DF.at[$$$]
+          - pattern: $DF.iat[$$$]
+          - pattern: $DF[$C][$I]

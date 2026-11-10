@@ -6,7 +6,7 @@ fixes what it can, and it is built to run after every edit a coding agent makes.
 
 ```console
 $ pdx check samples/bad.py
-samples/bad.py:5:15: warning [pandas/no-iterrows] Row-wise loop. Prefer vectorized ops; itertuples() if a loop is unavoidable.
+samples/bad.py:5:15: warning [pandas/row-loop] A loop over rows runs Python once per row. Compute on whole columns instead, such as df["a"] * df["w"].
 samples/bad.py:6:5: error [pandas/chained-assignment] Chained assignment writes to a copy under copy-on-write, so the frame keeps its old values. Assign to df.loc[i, "a"] instead.
 samples/bad.py:7:1: warning [pandas/no-inplace] inplace=True gives no speedup and blocks chaining. Reassign instead.
 samples/bad.py:8:5: warning [pandas/merge-without-validate] merge without validate= can silently duplicate rows.

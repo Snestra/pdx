@@ -1,0 +1,26 @@
+# Arithmetic of a group column with one of its own reductions can use transform with the name of
+# the reduction. Unsafe: rows whose key is missing get a missing result in both forms, but the
+# sums use compensated summation, and the result name can change.
+id: groupby-lambda-arithmetic
+language: python
+severity: warning
+message: Divide the column by transform("sum") instead. A lambda in transform runs in Python once per group.
+rule: { pattern: "$DF.groupby($$$K)[$C].transform(lambda $X: $X / $X.sum())" }
+fix: $DF[$C] / $DF.groupby($$$K)[$C].transform("sum")
+metadata: { fix: unsafe }
+---
+id: groupby-lambda-arithmetic
+language: python
+severity: warning
+message: Compute the z-score from transform("mean") and transform("std") instead. A lambda in transform runs in Python once per group.
+rule: { pattern: "$DF.groupby($$$K)[$C].transform(lambda $X: ($X - $X.mean()) / $X.std())" }
+fix: ($DF[$C] - $DF.groupby($$$K)[$C].transform("mean")) / $DF.groupby($$$K)[$C].transform("std")
+metadata: { fix: unsafe }
+---
+id: groupby-lambda-arithmetic
+language: python
+severity: warning
+message: Fill the gaps from transform("mean") instead. A lambda in transform runs in Python once per group.
+rule: { pattern: "$DF.groupby($$$K)[$C].transform(lambda $X: $X.fillna($X.mean()))" }
+fix: $DF[$C].fillna($DF.groupby($$$K)[$C].transform("mean"))
+metadata: { fix: unsafe }

@@ -1,0 +1,12 @@
+# Unsafe: the result is named proportion instead of count, and missing values are left out of
+# the total.
+id: value-counts-share
+language: python
+severity: warning
+message: value_counts(normalize=True) returns the shares directly. Write $S.value_counts(normalize=True).
+rule:
+  any:
+    - pattern: $S.value_counts() / len($S)
+    - pattern: $S.value_counts() / $S.size
+fix: $S.value_counts(normalize=True)
+metadata: { fix: unsafe }

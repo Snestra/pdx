@@ -1,0 +1,21 @@
+id: apply-condition
+language: python
+severity: warning
+message: A condition per value runs in Python. Use np.where(condition, a, b) on the whole column, or clip for min and max.
+rule:
+  any:
+    - pattern: "$S.apply(lambda $X: $A if $C else $B)"
+    - pattern: "$S.map(lambda $X: $A if $C else $B)"
+    - pattern: "$S.apply(lambda $X: $F($$$ARGS))"
+  all:
+    - not: { has: { field: arguments, has: { kind: keyword_argument } } }
+    - any:
+        - has: { field: arguments, has: { kind: lambda, has: { field: body, kind: conditional_expression } } }
+        - has:
+            field: arguments
+            has:
+              kind: lambda
+              has:
+                field: body
+                kind: call
+                has: { field: function, regex: ^(min|max)$ }

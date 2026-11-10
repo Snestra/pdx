@@ -1,0 +1,12 @@
+id: rename-after-agg
+language: python
+severity: warning
+message: Name the result columns in agg itself, as in agg(b_mean=("b", "mean")), instead of renaming them afterwards.
+rule:
+  pattern: $G.$AGG($D).rename($$$R)
+  has:
+    field: arguments
+    has: { kind: keyword_argument, has: { field: name, regex: ^columns$ } }
+constraints:
+  AGG: { regex: ^(agg|aggregate)$ }
+  D: { kind: dictionary }

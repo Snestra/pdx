@@ -110,3 +110,64 @@ def range_mask(df):
 def range_that_stays(df):
     x = df["a"].to_numpy()
     return ((x >= 10) & (x <= 20)).sum(), df[(df["a"] >= 10) & (df["b"] <= 20)]
+
+
+@case
+def groupby_then_reset_index(df):
+    return (
+        df.groupby("k")[["a", "b"]].sum().reset_index(),  # pdx: groupby-then-reset-index
+        df.groupby(["k", "s"]).mean(numeric_only=True).reset_index(),  # pdx: groupby-then-reset-index
+    )
+
+
+@case
+def groupby_as_index(df):
+    return df.groupby("k", as_index=False)[["a", "b"]].sum(), df.groupby("k").size().reset_index()
+
+
+@case
+def rename_after_agg(df):
+    g = df.groupby("k")
+    return g.agg({"b": "mean", "w": "sum"}).rename(columns={"b": "b_mean", "w": "w_total"})  # pdx: rename-after-agg
+
+
+@case
+def named_agg(df):
+    g = df.groupby("k")
+    return g.agg(b_mean=("b", "mean"), w_total=("w", "sum")), g.agg({"b": "mean"}).rename(index=str.upper)
+
+
+@case
+def merge_indicator_anti_join(df):
+    other = df[df["a"] > 50][["k"]].drop_duplicates()
+    m = df.merge(other, on="k", how="left", indicator=True, validate="many_to_one")
+    return m[m["_merge"] == "left_only"]  # pdx: merge-indicator-anti-join
+
+
+@case
+def merge_indicator_kept(df):
+    other = df[df["a"] > 50][["k"]].drop_duplicates()
+    m = df.merge(other, on="k", how="left", indicator=True, validate="many_to_one")
+    return m["_merge"].value_counts()
+
+
+@case
+def value_counts_share(df):
+    return df["k"].value_counts() / len(df["k"])  # pdx: value-counts-share
+
+
+@case
+def value_counts_normalized(df):
+    return df["k"].value_counts(normalize=True), df["k"].value_counts() / len(df)
+
+
+@case
+def nested_np_where(df):
+    a = df["a"]
+    return pd.Series(np.where(a < 20, "low", np.where(a < 70, "mid", "high")))  # pdx: nested-np-where
+
+
+@case
+def single_np_where(df):
+    a = df["a"]
+    return pd.Series(np.where(a < 20, "low", "high")), pd.Series("high", index=a.index).case_when([(a < 20, "low"), (a < 70, "mid")])

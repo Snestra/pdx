@@ -1,0 +1,31 @@
+# Unsafe: with as_index=False, a key that is also a selected column, or a key that is not a
+# column, can give other columns than reset_index did.
+id: groupby-then-reset-index
+language: python
+severity: warning
+message: Pass as_index=False to groupby instead of resetting the index afterwards.
+rule:
+  pattern: $X.groupby($$$K)[$SEL].$AGG($$$A).reset_index()
+  not: { matches: has-as-index }
+constraints:
+  AGG: { regex: ^(sum|mean|min|max|median|std|var|count|nunique|prod|first|last)$ }
+utils:
+  has-as-index:
+    has: { stopBy: end, kind: keyword_argument, has: { field: name, regex: ^as_index$ } }
+fix: $X.groupby($$$K, as_index=False)[$SEL].$AGG($$$A)
+metadata: { fix: unsafe }
+---
+id: groupby-then-reset-index
+language: python
+severity: warning
+message: Pass as_index=False to groupby instead of resetting the index afterwards.
+rule:
+  pattern: $X.groupby($$$K).$AGG($$$A).reset_index()
+  not: { matches: has-as-index }
+constraints:
+  AGG: { regex: ^(sum|mean|min|max|median|std|var|count|nunique|prod|first|last)$ }
+utils:
+  has-as-index:
+    has: { stopBy: end, kind: keyword_argument, has: { field: name, regex: ^as_index$ } }
+fix: $X.groupby($$$K, as_index=False).$AGG($$$A)
+metadata: { fix: unsafe }

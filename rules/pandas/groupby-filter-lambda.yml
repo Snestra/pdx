@@ -1,0 +1,29 @@
+# Unsafe: rows whose key is missing are dropped by filter, and the mask drops them too, but a
+# key that is not a column, or a group size that is compared with another column, behaves
+# differently.
+id: groupby-filter-lambda
+language: python
+severity: warning
+message: Compare transform("size") with the limit instead of filtering group by group. Write $DF[$NEW].
+rule:
+  pattern: "$DF.groupby($K).filter(lambda $G: $CMP)"
+  has:
+    field: arguments
+    has:
+      kind: lambda
+      has:
+        field: body
+        kind: comparison_operator
+        all:
+          - has: { nthChild: 1, pattern: len($G) }
+          - has: { nthChild: 2, kind: integer }
+constraints:
+  K: { kind: string }
+rewriters:
+  - id: size
+    rule: { pattern: len($G) }
+    fix: $DF.groupby($K)[$K].transform("size")
+transform:
+  NEW: { rewrite: { source: $CMP, rewriters: [size] } }
+fix: $DF[$NEW]
+metadata: { fix: unsafe }

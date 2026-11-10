@@ -1,0 +1,18 @@
+id: merge-without-on
+language: python
+severity: warning
+message: Without on=, merge joins on every column name the two frames share, so a new shared column changes the join. Name the keys with on=.
+rule:
+  any:
+    - pattern: $A.merge($$$ARGS)
+    - pattern: pd.merge($$$ARGS)
+  not:
+    has:
+      field: arguments
+      has:
+        kind: keyword_argument
+        any:
+          - has: { field: name, regex: ^(on|left_on|right_on|left_index|right_index)$ }
+          - all:
+              - has: { field: name, regex: ^how$ }
+              - has: { field: value, regex: '^["'']cross["'']$' }

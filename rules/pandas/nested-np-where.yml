@@ -1,0 +1,9 @@
+id: nested-np-where
+language: python
+severity: warning
+message: Nested np.where reads inside out and builds an array per level. Use Series.case_when, or pd.cut for numeric bins.
+rule:
+  pattern: np.where($C, $A, $B)
+  has:
+    field: arguments
+    has: { pattern: np.where($$$) }

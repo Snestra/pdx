@@ -1,0 +1,13 @@
+id: apply-axis-1
+language: python
+severity: warning
+message: apply(axis=1) calls a Python function once per row. Compute on whole columns instead, such as df["a"] + df["b"].
+rule:
+  pattern: $DF.apply($$$A)
+  has:
+    field: arguments
+    has:
+      kind: keyword_argument
+      all:
+        - has: { field: name, regex: ^axis$ }
+        - has: { field: value, regex: '^(1|["'']columns["''])$' }

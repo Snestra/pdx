@@ -1,0 +1,10 @@
+id: to-csv-index
+language: python
+severity: warning
+message: 'to_csv writes the index as a first column with no name, and read_csv returns it as "Unnamed: 0". Pass index=False, or index=True if the index holds data.'
+rule:
+  pattern: $X.to_csv($$$ARGS)
+  not:
+    has:
+      field: arguments
+      has: { kind: keyword_argument, has: { field: name, regex: ^index$ } }

@@ -1,0 +1,11 @@
+id: list-over-column
+language: python
+severity: warning
+message: A list comprehension over a column runs Python once per value. Use a column method such as .str.upper() instead.
+rule:
+  kind: list_comprehension
+  has:
+    kind: for_in_clause
+    has: { field: right, pattern: "$DF[$C]" }
+constraints:
+  C: { kind: string }

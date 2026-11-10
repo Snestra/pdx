@@ -70,3 +70,66 @@ def groupby_window_that_stays(df):
 def groupby_window_by_time(df):
     g = df.set_index("d").sort_index().groupby("k")["b"]
     return g.transform(lambda v: v.shift(1, freq="D"))
+
+
+@case
+def groupby_lambda_arithmetic(df):
+    return (
+        df.groupby("k")["w"].transform(lambda v: v / v.sum()),  # pdx: groupby-lambda-arithmetic
+        df.groupby("k")["b"].transform(lambda v: (v - v.mean()) / v.std()),  # pdx: groupby-lambda-arithmetic
+        df.groupby("k")["b"].transform(lambda v: v.fillna(v.mean())),  # pdx: groupby-lambda-arithmetic
+    )
+
+
+@case
+def groupby_arithmetic_that_stays(df):
+    return df["w"] / df.groupby("k")["w"].transform("sum"), df.groupby("k")["w"].transform(lambda v: v / v.max() + 1)
+
+
+@case
+def groupby_filter_lambda(df):
+    return df.groupby("k").filter(lambda g: len(g) > 400)  # pdx: groupby-filter-lambda
+
+
+@case
+def groupby_filter_that_stays(df):
+    return df.groupby("k").filter(lambda g: g["b"].mean() > 0), df[df.groupby("k")["k"].transform("size") > 400]
+
+
+@case
+def groupby_apply(df):
+    return df.groupby("k").apply(lambda g: g.loc[g["b"].idxmax()])  # pdx: groupby-apply
+
+
+@case
+def groupby_without_apply(df):
+    return df.loc[df.groupby("k")["b"].idxmax()], df.apply(lambda c: c.iloc[0])
+
+
+@case
+def aggregate_then_merge_back(df):
+    totals = df.groupby("k")["b"].sum().rename("total").reset_index()
+    return (
+        df.merge(df.groupby("k")["b"].sum().rename("total").reset_index(), on="k", how="left", validate="many_to_one"),  # pdx: aggregate-then-merge-back
+        df["k"].map(df.groupby("k")["b"].sum()),  # pdx: aggregate-then-merge-back
+        totals,
+    )
+
+
+@case
+def transform_instead(df):
+    other = df.head(10)
+    return (
+        df.assign(total=df.groupby("k")["b"].transform("sum")),
+        df.merge(other.groupby("k")["b"].sum().reset_index(), on="k", validate="many_to_one"),  # pdx: groupby-then-reset-index
+    )
+
+
+@case
+def groupby_first_skips_missing(df):
+    return df.sort_values("d").groupby("k").first(), df.groupby("k")["b"].last()  # pdx: groupby-first-skips-missing
+
+
+@case
+def groupby_first_row(df):
+    return df.sort_values("d").groupby("k").first(skipna=False), df.sort_values("d").groupby("k").head(1), df.iloc[[0]]

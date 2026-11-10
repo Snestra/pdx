@@ -1,0 +1,9 @@
+id: groupby-first-skips-missing
+language: python
+severity: warning
+message: $M() takes the first value that is not missing in each column, so one result row can mix rows. Pass skipna=False for the whole first row.
+rule:
+  pattern: $G.$M()
+  has: { field: function, regex: '\.groupby\(' }
+constraints:
+  M: { regex: ^(first|last)$ }

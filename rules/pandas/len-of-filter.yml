@@ -1,0 +1,17 @@
+# Unsafe: the result is a numpy integer from the sum, converted back with int, and a mask with
+# missing values counts differently.
+id: len-of-filter
+language: python
+severity: warning
+message: Sum the mask instead of building the filtered frame to count it. Write int(($MASK).sum()).
+rule: { pattern: "len($DF[$MASK])" }
+constraints:
+  MASK:
+    any:
+      - kind: comparison_operator
+      - kind: binary_operator
+        has: { field: operator, regex: '^[&|]$' }
+      - kind: unary_operator
+        has: { field: operator, regex: ^~$ }
+fix: int(($MASK).sum())
+metadata: { fix: unsafe }
