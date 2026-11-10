@@ -10,6 +10,8 @@ Use `pdx` whenever you write or change Python code that uses a library pdx has r
 
 - `pdx check <paths…> --format json`: lint. Fix every `error`. Fix `warning`s
   unless you can state why the pattern is right here. Don't silence rules.
+  A `missing-<package>` warning names a package the project lacks. Ask the user
+  before you add a dependency.
 - `pdx check <paths…> --fix`: apply safe fixes. Add `--unsafe-fixes` for fixes
   that may change behavior, then read the diff.
 - `pdx profile <data file>`: dtypes, nulls, cardinality, memory. Run it before

@@ -1,6 +1,7 @@
 //! pdx is an opinionated linter for Python library habits that give slow or wrong results, for
 //! humans and coding agents. Each library gets one rule pack; pandas is the first.
 
+mod packages;
 mod pyenv;
 mod report;
 mod rules;
@@ -18,7 +19,7 @@ use serde_json::Value;
 
 use crate::{
     report::Report,
-    rules::{Applicability, Version},
+    rules::{Applicability, Pack, Version},
 };
 
 const SKILL: &str = include_str!("../SKILL.md");
@@ -116,20 +117,32 @@ fn main() -> ExitCode {
     }
 }
 
-/// Lints `paths`, after writing fixes up to `fix` when it is set. Each pack keeps the rules for
-/// the library version installed in the project.
-fn lint(paths: &[PathBuf], fix: Option<Applicability>) -> Result<Report> {
+/// The rule packs, each keeping the rules for the library version installed in the project.
+fn load_packs() -> Result<Vec<Pack>> {
     let mut packs = rules::load().context("invalid embedded rules")?;
     for pack in &mut packs {
         let installed = pyenv::installed_version(pack.module).and_then(|v| Version::parse(&v));
         pack.keep_rules_for(installed.as_ref());
     }
+    Ok(packs)
+}
+
+/// Lints `paths`, after writing fixes up to `fix` when it is set.
+fn lint(paths: &[PathBuf], packs: &[Pack], fix: Option<Applicability>) -> Result<Report> {
     let files = scan::collect_files(paths)?;
-    let scanned = scan::scan(&files, &packs, fix)?;
+    let scanned = scan::scan(&files, packs, fix)?;
     Ok(Report {
         issues: scanned.issues,
         fixed: scanned.fixed,
     })
+}
+
+/// Lints `paths` and adds the package checks, which look at the project and not at one file.
+fn lint_project(paths: &[PathBuf], fix: Option<Applicability>) -> Result<Report> {
+    let packs = load_packs()?;
+    let mut report = lint(paths, &packs, fix)?;
+    report.issues.extend(packages::missing(&packs));
+    Ok(report)
 }
 
 /// `allowed` is the fix level that `[*]` and the summary count as fixable.
@@ -139,7 +152,7 @@ fn check(
     fix: Option<Applicability>,
     allowed: Applicability,
 ) -> ExitCode {
-    let report = match lint(paths, fix) {
+    let report = match lint_project(paths, fix) {
         Ok(r) => r,
         Err(e) => {
             eprintln!("pdx: {e:#}");
@@ -184,7 +197,8 @@ fn hook() -> ExitCode {
     if !scan::is_python(Path::new(path)) {
         return ExitCode::SUCCESS;
     }
-    let report = match lint(&[PathBuf::from(path)], None) {
+    // The hook runs after every edit, so it leaves the package checks to `pdx check`.
+    let report = match load_packs().and_then(|packs| lint(&[PathBuf::from(path)], &packs, None)) {
         Ok(r) => r,
         Err(e) => {
             eprintln!("pdx hook: {e:#}");

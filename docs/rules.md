@@ -6,11 +6,11 @@ The rules follow pandas 3, where copy-on-write is always on. A fix that writes `
 applies only in a file that imports pandas as `pd` or numpy as `np`. In any other file pdx
 reports the issue without a fix.
 
-Four rules ask for an API that pandas 3.1 added: `query-string`, `assign-then-select`,
-`filter-items` and `concat-then-category`. pdx reads the installed pandas version from the name
-of the `pandas-<version>.dist-info` folder in the project's venv, which is `$VIRTUAL_ENV` or the
-nearest `.venv` above the working directory, without starting Python. On pandas 3.0 it skips
-those four rules. When the venv has no pandas, or there is no venv, every rule runs.
+One rule asks for an API that pandas 3.1 added, `concat-then-category`. pdx reads the installed
+pandas version from the name of the `pandas-<version>.dist-info` folder in the project's venv,
+which is `$VIRTUAL_ENV` or the nearest `.venv` above the working directory, without starting
+Python. On pandas 3.0 it skips that rule. When the venv has no pandas, or there is no venv, every
+rule runs.
 
 ### Code that is wrong or broken on pandas 3
 
@@ -60,7 +60,6 @@ These rules are warnings. Most of them make code shorter and do not change its s
 
 | Rule | Severity | Catches | Fix |
 | --- | --- | --- | --- |
-| `lambda-column` | warning | `df.assign(c=lambda d: d["a"] + 1)` and `df.loc[lambda d: d["a"] > 50]` | safe: `pd.col("a") + 1` |
 | `sort-then-reset-index` | warning | `df.sort_values("b").reset_index(drop=True)`, also after `sort_index`, `dropna`, `drop_duplicates`, `explode` and `sample` | safe: `df.sort_values("b", ignore_index=True)` |
 | `set-index-then-resample` | warning | `df.set_index("d").resample("D").sum()` | safe: `df.resample("D", on="d").sum()` |
 | `subtract-shift` | warning | `df["b"] - df["b"].shift()` | unsafe: `df["b"].diff()` |
@@ -70,13 +69,13 @@ These rules are warnings. Most of them make code shorter and do not change its s
 | `merge-indicator-anti-join` | warning | `m[m["_merge"] == "left_only"]` after `merge(..., indicator=True)` | none |
 | `value-counts-share` | warning | `df["k"].value_counts() / len(df["k"])` | unsafe: `df["k"].value_counts(normalize=True)` |
 | `nested-np-where` | warning | `np.where(a < 20, "low", np.where(a < 70, "mid", "high"))` | none |
-| `query-string` | warning | `df.query("a > 50 and b < 0")`, on pandas 3.1 | none |
-| `assign-then-select` | warning | `df[["k", "a"]].assign(c=pd.col("a") * 2)`, on pandas 3.1 | unsafe: `df.select("k", "a", c=pd.col("a") * 2)` |
-| `filter-items` | warning | `df.filter(items=cols)`, on pandas 3.1 | unsafe: `df.select(cols)` |
+| `query-string` | warning | `df.query("a > 50 and b < 0")` | none |
+| `filter-items` | warning | `df.filter(items=cols)` | unsafe: `df[cols]` |
+| `inline-column-list` | warning | `df[["k", "a", "b"]]` and `df.groupby(["k", "s", "raw"])`, three or more names written inside the expression | none |
 | `concat-then-category` | warning | `pd.concat(parts).astype("category")`, on pandas 3.1 | unsafe: `pd.concat(parts, union_categories=True)` |
 
-`lambda-column` rewrites a lambda only when every use of its parameter is `d["name"]` and the body
-has no plain function call such as `len(d)`, and no `if`, `and`, `or`, `not` or `in`.
+pdx has no rule for or against a lambda in `assign`. A lambda and `pd.col` gave the same result
+at the same speed, and a lambda also works with `np.where` and with calculations across columns.
 `set-index-then-resample` applies only when a named aggregation such as `sum` or `mean` follows,
 because upsampling with `asfreq` raises with `on=`, and a function passed to `agg` sees other
 data. The `range-mask` fix is unsafe, because the operand may be a numpy array, which has no
@@ -84,10 +83,15 @@ data. The `range-mask` fix is unsafe, because the operand may be a numpy array, 
 column and returns booleans for a boolean column. The `groupby-then-reset-index` fix is unsafe,
 because a key that is not a column comes back in another place. The `value-counts-share` fix names
 the result proportion instead of count and leaves missing values out of the total.
-`query-string` leaves a string that reads like SQL alone, such as `conn.query("SELECT ...")`. The
-`assign-then-select` fix is unsafe, because `select` returns a name twice when a computed column
-reuses a selected name. The `filter-items` fix is unsafe, because `select` raises on a label that
-is absent, where `filter` skipped it, and a Series has no `select`. The `concat-then-category`
+`query-string` leaves a string that reads like SQL alone, such as `conn.query("SELECT ...")`, and
+it asks for `df.loc[pd.col("a") > 50]`, which type checkers accept. The `filter-items` fix is
+unsafe, because `df[cols]` raises on a label that is absent, where `filter` skipped it.
+`inline-column-list` reports a list of three or more text literals in `df[[...]]`, in
+`df.loc[rows, [...]]`, as an argument of `groupby`, `sort_values`, `set_index`, `select` or
+`drop_duplicates`, and in `by=`, `subset=`, `on=`, `left_on=`, `right_on=`, `columns=`,
+`id_vars=`, `value_vars=` or `usecols=`. It leaves `pd.DataFrame(data, columns=[...])` alone,
+because the list there defines the frame. It asks for a named list, such as
+`output_columns = ["k", "a", "b"]`, passed by name. The `concat-then-category`
 fix is unsafe, because the category order differs, and parts that are not categorical stay so.
 
 ### Python work per row or per value
@@ -160,7 +164,8 @@ values such as 1e16, 1, 1 and -1e16 the sum changes from 0 to 2. `groupby-lambda
 | `index-year-mask` | warning | `df[df.index.year == 2023]` | none |
 
 The `rolling-apply` fixes for sum, mean, std and var are unsafe, because the window methods keep
-running totals, so values far apart in size can give another result. `apply-on-dates` writes
+running totals, so values far apart in size can give another result. For a function with no
+window method the message names `raw=True` and `engine="numba"`. `apply-on-dates` writes
 `df["d"] - pd.to_timedelta(df["d"].dt.day - 1, unit="D")` for `replace(day=1)`, which keeps the
 time of day. Its fixes are unsafe, because a missing date gives a missing result where the
 lambda raised.
@@ -181,6 +186,23 @@ lambda raised.
 
 `read-csv-slow-option` leaves `engine="python"` alone when the call needs it, for `skipfooter` or
 a separator of several characters other than `\s+`.
+
+### Packages
+
+`pdx check` also looks at the project's venv once per run. When the venv has pandas, it warns
+about each package below that the venv lacks. The warning points at the project's
+`pyproject.toml`, or at the venv when there is none. A project without a venv gets no package
+warning, and `pdx hook` never gives one.
+
+| Rule | Warns when | Why |
+| --- | --- | --- |
+| `missing-pyarrow` | pyarrow is not installed | Text columns are stored as Python strings without it. The `.str` methods ran 3 to 11 times faster with it on 1,000,000 rows |
+| `missing-bottleneck` | bottleneck is not installed | `std` ran 4 times faster and `median` 1.7 times faster with it on 10,000,000 rows |
+| `missing-pandas-stubs` | pandas-stubs is not installed, and the project uses mypy, pyright, basedpyright, ty or pyrefly | Without the stubs a type checker does not check calls to pandas |
+
+A project uses a type checker when the venv has it or `pyproject.toml` has a `[tool.<name>]`
+table for it. numexpr and numba have no check. numexpr changed little in measurements, and numba
+only helps a function passed to `rolling(...).apply`, where the `rolling-apply` message names it.
 
 ## Write a rule
 
@@ -207,6 +229,11 @@ cp samples/bad.py /tmp/bad.py && target/release/pdx check /tmp/bad.py --fix --un
 ```
 
 The files in `samples/pandas/` mark each line a rule reports with a comment that names the rules.
+
+A pack may also have a `packages.json`, a list of package checks. Each entry has an `id`, the
+`package` to look for, a `message`, and optionally `only_with`, a list of tools. pdx warns when
+the venv has the pack's library and lacks the package. With `only_with`, it warns only when the
+project also uses one of the tools.
 
 A new folder under `rules/` is a new pack, with no Rust change. Its rules run only on files that
 import the module.

@@ -1,0 +1,25 @@
+# Three or more names written as a list inside an indexing step or a call. A list with any
+# element that is not a text literal is left alone, and so is a list passed to a call that does
+# not take column names, such as isin, agg or subprocess.run. The DataFrame constructor is left
+# alone too, because columns= there defines the frame.
+id: inline-column-list
+language: python
+severity: warning
+message: This list of names is written inside the expression. Give the list a name first, such as output_columns, and pass the name.
+rule:
+  kind: list
+  all:
+    - has: { kind: string, nthChild: { position: 3, ofRule: { kind: string } } }
+    - not: { has: { not: { any: [{ kind: string }, { kind: comment }, { regex: '^[\[\],]$' }] } } }
+    - any:
+        # df[[...]] and df.loc[rows, [...]], but not a list that is itself indexed.
+        - inside: { kind: subscript, has: { field: value, not: { kind: list } } }
+        - inside:
+            kind: argument_list
+            inside: { kind: call, has: { field: function, regex: '\.(groupby|sort_values|set_index|select|drop_duplicates)$' } }
+        - inside:
+            kind: keyword_argument
+            has: { field: name, regex: '^(by|subset|on|left_on|right_on|columns|id_vars|value_vars|usecols)$' }
+            inside:
+              kind: argument_list
+              inside: { kind: call, has: { field: function, kind: attribute, not: { regex: '\.DataFrame$' } } }

@@ -1,8 +1,9 @@
 //! Embeds the rule packs under rules/ into the binary.
 //!
 //! Each folder `rules/<module>/` is the pack for the Python library imported as `<module>`, with
-//! one ast-grep rule per .yml file. This script writes `OUT_DIR/packs.rs`, which src/rules.rs
-//! includes, so adding a rule or a pack needs no Rust change.
+//! one ast-grep rule per .yml file and an optional `packages.json` of package checks. This script
+//! writes `OUT_DIR/packs.rs`, which src/rules.rs includes, so adding a rule, a package check or a
+//! pack needs no Rust change.
 
 use std::{
     env, fs,
@@ -31,7 +32,8 @@ fn pack_source(pack: &Path) -> String {
     );
     let rules = joined_rules(pack);
     assert!(!rules.is_empty(), "rules/{module}: the pack has no rules");
-    format!("    PackSource {{ module: {module:?}, rules: {rules:?} }},\n")
+    let packages = fs::read_to_string(pack.join("packages.json")).ok();
+    format!("    PackSource {{ module: {module:?}, rules: {rules:?}, packages: {packages:?} }},\n")
 }
 
 fn joined_rules(dir: &Path) -> String {

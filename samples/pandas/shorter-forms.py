@@ -31,28 +31,34 @@ def frame(n=2000, seed=0):
 
 
 @case
-def lambda_column_assign(df):
+def assign_with_a_named_list(df):
+    output_columns = ["c", "u", "m"]
     return df.assign(
-        c=lambda d: d["a"] * d["w"] + 1,  # pdx: lambda-column
-        u=lambda d: d["s"].str.strip().str.upper(),  # pdx: lambda-column
+        c=lambda d: d["a"] * d["w"] + 1,
+        u=pd.col("s").str.strip().str.upper(),
+        m=lambda d: np.where(d["a"] > 5, 1, 0),
+    )[output_columns]
+
+
+@case
+def inline_column_list(df):
+    return (
+        df[["k", "a", "b"]],  # pdx: inline-column-list
+        df.loc[df["a"] > 50, ["k", "a", "b"]],  # pdx: inline-column-list
+        df.groupby(["k", "s", "raw"])["b"].sum(),  # pdx: inline-column-list
+        df.drop_duplicates(subset=["k", "s", "raw"]),  # pdx: inline-column-list
     )
 
 
 @case
-def lambda_column_loc(df):
-    return df.loc[lambda d: (d["a"] > 50) & (d["b"] < 0)], df.loc[lambda d: d["a"] > 90, "w"]  # pdx: lambda-column
-
-
-@case
-def lambda_that_needs_data(df):
-    lookup = {"x": 2}
-    return df.assign(
-        n=lambda d: len(d),
-        m=lambda d: np.where(d["a"] > 5, 1, 0),
-        z=lambda d: d["a"] * lookup["x"],
-        y=lambda d: d.a + 1,
-        t=lambda d: d["a"] if len(d) > 5 else 0,
-        f=lambda d: f"{d['a']}",
+def lists_that_stay(df):
+    key_columns = ["k", "s", "raw"]
+    return (
+        df[["k", "a"]],
+        df[key_columns],
+        df.groupby(key_columns)["b"].sum(),
+        df[df["k"].isin(["g1", "g2", "g3"])],
+        df.groupby("k")["b"].agg(["sum", "mean", "max"]),
     )
 
 
@@ -78,7 +84,7 @@ def reset_index_that_stays(df):
 def set_index_then_resample(df):
     return (
         df.set_index("d").resample("D")["b"].sum(),  # pdx: set-index-then-resample
-        df[["a", "b", "d"]].set_index("d").resample("W").mean(),  # pdx: set-index-then-resample
+        df[["a", "d"]].set_index("d").resample("W").mean(),  # pdx: set-index-then-resample
     )
 
 
@@ -184,14 +190,8 @@ def query_with_expressions(df):
 
 
 @case
-def assign_then_select(df):
-    return df[["k", "a"]].assign(c=pd.col("a") * 2)  # pdx: assign-then-select
-
-
-@case
-def assign_that_stays(df):
-    cols = ["k", "a"]
-    return df[cols].assign(c=pd.col("a") * 2), df.assign(c=pd.col("a") * 2)[["k", "c"]]
+def select_then_assign(df):
+    return df[["k", "a"]].assign(c=pd.col("a") * 2), df.assign(c=pd.col("a") * 2)[["k", "c"]]
 
 
 @case

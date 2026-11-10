@@ -4,10 +4,14 @@ use anyhow::{Context, Result, bail};
 use ast_grep_config::{GlobalRules, RuleConfig, Severity, from_yaml_string};
 use ast_grep_language::SupportLang;
 
+use crate::packages::{self, PackageCheck};
+
 /// One pack as build.rs found it under `rules/<module>/`.
 struct PackSource {
     module: &'static str,
     rules: &'static str,
+    /// The text of `packages.json`, when the pack has one.
+    packages: Option<&'static str>,
 }
 
 const SOURCES: &[PackSource] = include!(concat!(env!("OUT_DIR"), "/packs.rs"));
@@ -90,6 +94,8 @@ pub(crate) struct Pack {
     pub(crate) module: &'static str,
     pub(crate) gate: RuleConfig<SupportLang>,
     pub(crate) rules: Vec<Rule>,
+    /// Packages the library works better with, checked once per project.
+    pub(crate) packages: Vec<PackageCheck>,
 }
 
 impl Pack {
@@ -120,10 +126,17 @@ pub(crate) fn load() -> Result<Vec<Pack>> {
             let gate = parse(&gate_yaml(src.module), src.module)?
                 .pop()
                 .with_context(|| format!("rules/{}: the import rule did not parse", src.module))?;
+            let packages = src
+                .packages
+                .map(packages::parse)
+                .transpose()
+                .with_context(|| format!("rules/{}/packages.json", src.module))?
+                .unwrap_or_default();
             Ok(Pack {
                 module: src.module,
                 gate,
                 rules,
+                packages,
             })
         })
         .collect()
