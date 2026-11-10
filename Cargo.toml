@@ -4,6 +4,7 @@ version = "0.1.0"
 edition = "2024"
 rust-version = "1.99"
 description = "Fast linter for Python library habits, starting with pandas"
+publish = false
 
 [dependencies]
 ast-grep-config = "0.51.1"
