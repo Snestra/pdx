@@ -2,10 +2,11 @@
 
 use std::{
     collections::HashSet,
-    fmt, fs, io,
+    fmt, fs,
     path::{Path, PathBuf},
 };
 
+use anyhow::{Context, Result};
 use ast_grep_config::Severity;
 use ast_grep_core::tree_sitter::LanguageExt;
 use ast_grep_language::SupportLang;
@@ -69,53 +70,31 @@ impl Issue {
     }
 }
 
-/// A path pdx was asked to check but could not read.
-#[derive(Debug)]
-pub(crate) struct ReadPathError {
-    path: PathBuf,
-    cause: String,
-}
-
-impl fmt::Display for ReadPathError {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "cannot read {}: {}", self.path.display(), self.cause)
-    }
-}
-
-impl std::error::Error for ReadPathError {}
-
-impl ReadPathError {
-    fn io(path: PathBuf, e: &io::Error) -> Self {
-        Self {
-            path,
-            cause: e.to_string(),
-        }
-    }
+/// The context every read error carries, so the message names the path.
+fn cannot_read(path: &Path) -> String {
+    format!("cannot read {}", path.display())
 }
 
 /// Expands paths into Python files. Directories are walked with .gitignore respected. A file
 /// reached through several paths, such as `a.py ./a.py` or `. src/`, is listed once.
-pub(crate) fn collect_files(paths: &[PathBuf]) -> Result<Vec<PathBuf>, ReadPathError> {
+pub(crate) fn collect_files(paths: &[PathBuf]) -> Result<Vec<PathBuf>> {
     let mut files = Vec::new();
     let mut seen = HashSet::new();
-    let mut add = |path: &Path| -> Result<(), ReadPathError> {
-        let real = fs::canonicalize(path).map_err(|e| ReadPathError::io(path.to_path_buf(), &e))?;
+    let mut add = |path: &Path| -> Result<()> {
+        let real = fs::canonicalize(path).with_context(|| cannot_read(path))?;
         if seen.insert(real) {
             files.push(path.to_path_buf());
         }
         Ok(())
     };
     for p in paths {
-        let meta = fs::metadata(p).map_err(|e| ReadPathError::io(p.clone(), &e))?;
+        let meta = fs::metadata(p).with_context(|| cannot_read(p))?;
         if meta.is_file() {
             add(p)?;
             continue;
         }
         for entry in ignore::WalkBuilder::new(p).build() {
-            let entry = entry.map_err(|e| ReadPathError {
-                path: p.clone(),
-                cause: e.to_string(),
-            })?;
+            let entry = entry.with_context(|| cannot_read(p))?;
             let path = entry.path();
             if entry.file_type().is_some_and(|t| t.is_file())
                 && path
@@ -131,11 +110,11 @@ pub(crate) fn collect_files(paths: &[PathBuf]) -> Result<Vec<PathBuf>, ReadPathE
 
 /// Runs each pack only on files that import its library, because rules match names such as
 /// `merge` and `inplace` that other libraries share.
-pub(crate) fn scan(files: &[PathBuf], packs: &[Pack]) -> Result<Vec<Issue>, ReadPathError> {
+pub(crate) fn scan(files: &[PathBuf], packs: &[Pack]) -> Result<Vec<Issue>> {
     let per_file: Vec<Vec<Issue>> = files
         .par_iter()
         .map(|path| {
-            let src = fs::read_to_string(path).map_err(|e| ReadPathError::io(path.clone(), &e))?;
+            let src = fs::read_to_string(path).with_context(|| cannot_read(path))?;
             // A file that never names the module can't import it, so it is never parsed.
             let mut root = None;
             let mut found = Vec::new();
@@ -164,7 +143,7 @@ pub(crate) fn scan(files: &[PathBuf], packs: &[Pack]) -> Result<Vec<Issue>, Read
             }
             Ok(found)
         })
-        .collect::<Result<_, _>>()?;
+        .collect::<Result<_>>()?;
     let mut issues: Vec<Issue> = per_file.into_iter().flatten().collect();
     issues.sort_by(|a, b| (&a.file, a.line, a.column).cmp(&(&b.file, b.line, b.column)));
     Ok(issues)

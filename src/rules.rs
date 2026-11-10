@@ -1,5 +1,6 @@
 //! Rule packs embedded at compile time by build.rs, one per Python library.
 
+use anyhow::{Context, Result};
 use ast_grep_config::{GlobalRules, RuleConfig, from_yaml_string};
 use ast_grep_language::SupportLang;
 
@@ -32,7 +33,7 @@ pub(crate) struct Pack {
 }
 
 /// Loads every pack, asking `installed` which version of each library the project has.
-pub(crate) fn load(mut installed: impl FnMut(&str) -> Installed) -> Result<Vec<Pack>, String> {
+pub(crate) fn load(mut installed: impl FnMut(&str) -> Installed) -> Result<Vec<Pack>> {
     SOURCES
         .iter()
         .map(|src| {
@@ -44,7 +45,7 @@ pub(crate) fn load(mut installed: impl FnMut(&str) -> Installed) -> Result<Vec<P
             }
             let gate = parse(&gate_yaml(src.module), src.module)?
                 .pop()
-                .ok_or_else(|| format!("{}: the import rule did not parse", src.module))?;
+                .with_context(|| format!("rules/{}: the import rule did not parse", src.module))?;
             Ok(Pack {
                 module: src.module,
                 installed,
@@ -96,9 +97,9 @@ rule:
     )
 }
 
-fn parse(src: &str, module: &str) -> Result<Vec<RuleConfig<SupportLang>>, String> {
+fn parse(src: &str, module: &str) -> Result<Vec<RuleConfig<SupportLang>>> {
     if src.trim().is_empty() {
         return Ok(Vec::new());
     }
-    from_yaml_string(src, &GlobalRules::default()).map_err(|e| format!("rules/{module}: {e}"))
+    from_yaml_string(src, &GlobalRules::default()).with_context(|| format!("rules/{module}"))
 }

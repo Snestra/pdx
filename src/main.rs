@@ -15,6 +15,7 @@ use std::{
     str::FromStr,
 };
 
+use anyhow::{Context, Result, bail};
 use clap::{Parser, Subcommand, ValueEnum};
 use serde_json::{Value, json};
 
@@ -102,16 +103,16 @@ struct Pin {
 }
 
 impl FromStr for Pin {
-    type Err = String;
+    type Err = anyhow::Error;
 
-    fn from_str(s: &str) -> Result<Self, Self::Err> {
+    fn from_str(s: &str) -> Result<Self> {
         let (module, major) = s
             .split_once('=')
-            .ok_or_else(|| format!("expected MODULE=MAJOR, got {s:?}"))?;
+            .with_context(|| format!("expected MODULE=MAJOR, got {s:?}"))?;
         let major = major
             .trim()
             .parse()
-            .map_err(|e| format!("bad major version in {s:?}: {e}"))?;
+            .with_context(|| format!("bad major version in {s:?}"))?;
         Ok(Self {
             module: module.trim().to_owned(),
             major,
@@ -121,22 +122,22 @@ impl FromStr for Pin {
 
 impl Pins {
     /// Merges `PDX_PIN` with the flags; a flag wins over the environment for the same module.
-    fn resolve(&self) -> Result<HashMap<String, u32>, String> {
+    fn resolve(&self) -> Result<HashMap<String, u32>> {
         let from_env = env::var("PDX_PIN").unwrap_or_default();
         let env_pins = from_env
             .split(',')
             .filter(|s| !s.trim().is_empty())
-            .map(Pin::from_str);
+            .map(|s| Pin::from_str(s).context("in PDX_PIN"));
         let mut map = HashMap::new();
         for pin in env_pins.chain(self.pins.iter().cloned().map(Ok)) {
             let pin = pin?;
             if !rules::modules().any(|m| m == pin.module) {
                 let known: Vec<&str> = rules::modules().collect();
-                return Err(format!(
+                bail!(
                     "no rule pack for {:?}; packs: {}",
                     pin.module,
                     known.join(", ")
-                ));
+                );
             }
             map.insert(pin.module, pin.major);
         }
@@ -173,7 +174,7 @@ struct Report {
     issues: Vec<Issue>,
 }
 
-fn lint(paths: &[PathBuf], pins: &Pins) -> Result<Report, String> {
+fn lint(paths: &[PathBuf], pins: &Pins) -> Result<Report> {
     let pins = pins.resolve()?;
     // Finding the site folders can start Python, so it happens only for an unpinned pack.
     let mut site: Option<Option<Site>> = None;
@@ -184,9 +185,9 @@ fn lint(paths: &[PathBuf], pins: &Pins) -> Result<Report, String> {
             .as_ref()
             .map_or_else(Installed::missing, |s| s.installed(module)),
     })
-    .map_err(|e| format!("invalid embedded rules: {e}"))?;
-    let files = scan::collect_files(paths).map_err(|e| e.to_string())?;
-    let issues = scan::scan(&files, &packs).map_err(|e| e.to_string())?;
+    .context("invalid embedded rules")?;
+    let files = scan::collect_files(paths)?;
+    let issues = scan::scan(&files, &packs)?;
     Ok(Report { packs, issues })
 }
 
@@ -200,7 +201,7 @@ fn check(paths: &[PathBuf], format: Format, pins: &Pins) -> ExitCode {
     let report = match lint(paths, pins) {
         Ok(r) => r,
         Err(e) => {
-            eprintln!("pdx: {e}");
+            eprintln!("pdx: {e:#}");
             return ExitCode::from(CHECK_FAILED);
         }
     };
@@ -280,7 +281,7 @@ fn hook(pins: &Pins) -> ExitCode {
     let report = match lint(&[PathBuf::from(path)], pins) {
         Ok(r) => r,
         Err(e) => {
-            eprintln!("pdx hook: {e}");
+            eprintln!("pdx hook: {e:#}");
             return ExitCode::from(HOOK_FAILED);
         }
     };

@@ -13,7 +13,7 @@ from numpy import testing as npt
 from pandas import testing as pdt
 
 
-def run(path):
+def run(path: str) -> object:
     ns = runpy.run_path(path, run_name="__pdx_equiv__")
     if "result" not in ns:
         print(json.dumps({"equivalent": None, "error": f"{path} defines no `result`"}))

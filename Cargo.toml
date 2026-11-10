@@ -4,9 +4,10 @@ version = "0.1.0"
 edition = "2024"
 rust-version = "1.99"
 description = "Fast linter for Python library habits, starting with pandas"
-publish = false
+license = "MIT OR Apache-2.0"
 
 [dependencies]
+anyhow = "1.0.104"
 ast-grep-config = "0.51.1"
 ast-grep-core = "0.51.1"
 ast-grep-language = { version = "0.51.1", default-features = false, features = ["tree-sitter-python"] }

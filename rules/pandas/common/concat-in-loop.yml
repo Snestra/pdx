@@ -3,7 +3,22 @@ language: python
 severity: warning
 message: Concatenating inside a loop is quadratic. Collect frames in a list, concat once.
 rule:
-  pattern: pd.concat($$$)
+  any:
+    - pattern: pd.concat($$$)
+    - pattern: concat($$$)
+      # A bare concat counts only when the file imports it from pandas.
+      inside:
+        stopBy: end
+        kind: module
+        has:
+          kind: import_from_statement
+          all:
+            - has:
+                field: module_name
+                regex: ^pandas$
+            - has:
+                field: name
+                regex: ^concat$
   inside:
     stopBy: end
     any:

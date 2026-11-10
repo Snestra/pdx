@@ -6,7 +6,19 @@ build-backend = "maturin"
 name = "pdx"
 description = "Fast linter for Python library habits, starting with pandas, for humans and coding agents"
 requires-python = ">=3.11"
+license = "MIT OR Apache-2.0"
+license-files = ["LICENSE-MIT", "LICENSE-APACHE"]
 dynamic = ["version"]
 
 [tool.maturin]
 bindings = "bin"
+
+[tool.ruff]
+line-length = 100
+target-version = "py311"
+
+[tool.ruff.lint]
+select = ["ALL"]
+# D: docstrings; COM812, ISC001: clash with ruff format; CPY: no copyright headers;
+# T20: the helpers print their JSON result; INP001: py/ holds scripts, not a package.
+ignore = ["D", "COM812", "ISC001", "CPY", "T20", "INP001"]
