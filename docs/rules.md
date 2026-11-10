@@ -28,9 +28,8 @@ Each old form gives a wrong result, raises, or warns on pandas 3.0 and 3.1.
 
 The `chained-assignment` fix covers the three shapes above. A mask held in a name is fixed when
 the enclosing function assigns that name only masks, such as a comparison or a call to `isin`.
-Any other chain, such as
-`df.iloc[0]["a"] = v`, is reported without a fix. Two plain keys, as in `rows[0]["name"] = v`, are
-left alone, because they are more often a list or a dict.
+Any other chain, such as `df.iloc[0]["a"] = v`, is reported without a fix. Two plain keys, as in
+`rows[0]["name"] = v`, are left alone, because they are more often a list or a dict.
 
 `in-column` and `inplace-on-column` can report a dict, such as `"x" in data["names"]`, because pdx
 cannot tell it from a frame. Their fixes are unsafe for that reason.
