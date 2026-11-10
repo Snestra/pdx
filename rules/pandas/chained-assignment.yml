@@ -1,14 +1,213 @@
+# Each fix replaces only the target on the left, so an augmented assignment such as
+# `df["a"][i] += 1` keeps its operator. The fixes are unsafe: the target may not be a DataFrame.
+
+# df["col"][row] = v
 id: chained-assignment
 language: python
 severity: error
-message: Chained assignment never updates the original under copy-on-write. Use .loc[row, col] = value.
+message: Chained assignment writes to a copy under copy-on-write, so the frame keeps its old values. Assign to $DF.loc[$ROW, $COL] instead.
 rule:
-  pattern: $DF[$A][$B] = $V
-  # A string index on the left separates pandas column access from numeric grids such as grid[i][j].
-  has:
-    field: left
-    stopBy: end
-    kind: string
-# Unsafe: the target may not be a DataFrame, and .loc reads a slice by label, not by position.
-fix: $DF.loc[$B, $A] = $V
+  pattern: $DF[$COL][$ROW]
+  matches: assignment-target
+constraints:
+  COL: { kind: string }
+  # A slice of a column selects by position, and .loc would select by label. A text label
+  # after a text label is more often a nested dict, such as config["db"]["host"].
+  ROW: { not: { any: [{ kind: slice }, { kind: string }] } }
+  DF: { not: { matches: indexer } }
+utils:
+  assignment-target:
+    any:
+      - inside: { kind: assignment, field: left }
+      - inside: { kind: augmented_assignment, field: left }
+  indexer: { kind: attribute, has: { field: attribute, regex: ^(loc|iloc|at|iat)$ } }
+fix: $DF.loc[$ROW, $COL]
 metadata: { fix: unsafe }
+---
+# df[mask]["col"] = v, where the mask is a comparison, a & | ^ ~ expression, or a call such as isin.
+id: chained-assignment
+language: python
+severity: error
+message: Chained assignment writes to a copy under copy-on-write, so the frame keeps its old values. Assign to $DF.loc[$MASK, $COL] instead.
+rule:
+  pattern: $DF[$MASK][$COL]
+  matches: assignment-target
+constraints:
+  COL: { kind: string }
+  MASK: { matches: mask }
+  DF: { not: { matches: indexer } }
+utils:
+  assignment-target:
+    any:
+      - inside: { kind: assignment, field: left }
+      - inside: { kind: augmented_assignment, field: left }
+  indexer: { kind: attribute, has: { field: attribute, regex: ^(loc|iloc|at|iat)$ } }
+  mask:
+    any:
+      - kind: comparison_operator
+      - kind: binary_operator
+        has: { field: operator, regex: '^[&|^]$' }
+      - kind: unary_operator
+        has: { field: operator, regex: ^~$ }
+      - kind: parenthesized_expression
+        has: { matches: mask }
+      - kind: call
+        has:
+          field: function
+          regex: \.(isin|isna|isnull|notna|notnull|between|duplicated|contains|startswith|endswith|match|fullmatch)$
+fix: $DF.loc[$MASK, $COL]
+metadata: { fix: unsafe }
+---
+# df[mask]["col"] = v, where the enclosing function, or the file outside functions, assigns the
+# name only masks, as in mask = df["a"] > 1. Nested functions are other scopes, so the searches
+# stop at them. A name alone is left to the last document, because
+# data[key]["field"] is more often a dict.
+id: chained-assignment
+language: python
+severity: error
+message: Chained assignment writes to a copy under copy-on-write, so the frame keeps its old values. Assign to $DF.loc[$MASK, $COL] instead.
+rule:
+  pattern: $DF[$MASK][$COL]
+  matches: assignment-target
+  inside:
+    stopBy: { any: [{ kind: function_definition }, { kind: module }] }
+    any: [{ kind: function_definition }, { kind: module }]
+    all:
+      - has:
+          kind: assignment
+          stopBy: { kind: function_definition }
+          all:
+            - has: { field: left, pattern: $MASK }
+            - has: { field: right, matches: mask }
+      - not:
+          has:
+            kind: assignment
+            stopBy: { kind: function_definition }
+            all:
+              - has: { field: left, pattern: $MASK }
+              - not: { has: { field: right, matches: mask } }
+constraints:
+  COL: { kind: string }
+  MASK: { kind: identifier }
+  DF: { not: { matches: indexer } }
+utils:
+  assignment-target:
+    any:
+      - inside: { kind: assignment, field: left }
+      - inside: { kind: augmented_assignment, field: left }
+  indexer: { kind: attribute, has: { field: attribute, regex: ^(loc|iloc|at|iat)$ } }
+  mask:
+    any:
+      - kind: comparison_operator
+      - kind: binary_operator
+        has: { field: operator, regex: '^[&|^]$' }
+      - kind: unary_operator
+        has: { field: operator, regex: ^~$ }
+      - kind: parenthesized_expression
+        has: { matches: mask }
+      - kind: call
+        has:
+          field: function
+          regex: \.(isin|isna|isnull|notna|notnull|between|duplicated|contains|startswith|endswith|match|fullmatch)$
+fix: $DF.loc[$MASK, $COL]
+metadata: { fix: unsafe }
+---
+# df.loc[rows]["col"] = v
+id: chained-assignment
+language: python
+severity: error
+message: Chained assignment writes to a copy under copy-on-write, so the frame keeps its old values. Assign to $DF.loc[$ROW, $COL] instead.
+rule:
+  pattern: $DF.loc[$ROW][$COL]
+  matches: assignment-target
+constraints:
+  COL: { kind: string }
+utils:
+  assignment-target:
+    any:
+      - inside: { kind: assignment, field: left }
+      - inside: { kind: augmented_assignment, field: left }
+fix: $DF.loc[$ROW, $COL]
+metadata: { fix: unsafe }
+---
+# Every other chain of two subscripts with a text label, such as df.iloc[0]["col"] = v, is
+# reported without a fix. Two plain keys, as in rows[0]["name"] or config["db"]["host"], are more
+# often a list or dict than a frame, so they are left alone.
+id: chained-assignment
+language: python
+severity: error
+message: Chained assignment writes to a copy under copy-on-write, so the frame keeps its old values. Select the rows and the column in one .loc call.
+rule:
+  pattern: $DF[$A][$B]
+  matches: assignment-target
+  # A text label separates pandas column access from numeric grids such as grid[i][j].
+  has: { stopBy: end, kind: string }
+  not:
+    any:
+      - matches: column-then-row
+      - matches: mask-then-column
+      - matches: named-mask-then-column
+      - matches: loc-then-column
+      - matches: plain-keys
+utils:
+  assignment-target:
+    any:
+      - inside: { kind: assignment, field: left }
+      - inside: { kind: augmented_assignment, field: left }
+  indexer: { kind: attribute, has: { field: attribute, regex: ^(loc|iloc|at|iat)$ } }
+  mask:
+    any:
+      - kind: comparison_operator
+      - kind: binary_operator
+        has: { field: operator, regex: '^[&|^]$' }
+      - kind: unary_operator
+        has: { field: operator, regex: ^~$ }
+      - kind: parenthesized_expression
+        has: { matches: mask }
+      - kind: call
+        has:
+          field: function
+          regex: \.(isin|isna|isnull|notna|notnull|between|duplicated|contains|startswith|endswith|match|fullmatch)$
+  # The three shapes the documents above fix.
+  column-then-row:
+    all:
+      - has: { field: value, has: { field: subscript, kind: string } }
+      - not: { has: { field: subscript, kind: slice } }
+      - not: { has: { field: value, has: { field: value, matches: indexer } } }
+  mask-then-column:
+    all:
+      - has: { field: subscript, kind: string }
+      - has: { field: value, has: { field: subscript, matches: mask } }
+      - not: { has: { field: value, has: { field: value, matches: indexer } } }
+  plain-key: { any: [{ kind: string }, { kind: identifier }, { kind: integer }] }
+  plain-keys:
+    all:
+      - has: { field: subscript, matches: plain-key }
+      - has: { field: value, has: { field: subscript, matches: plain-key } }
+      - not: { has: { field: value, has: { field: value, matches: indexer } } }
+  named-mask-then-column:
+    all:
+      - has: { field: subscript, kind: string }
+      - has: { field: value, has: { field: subscript, kind: identifier, pattern: $NAME } }
+      - not: { has: { field: value, has: { field: value, matches: indexer } } }
+      - inside:
+          stopBy: { any: [{ kind: function_definition }, { kind: module }] }
+          any: [{ kind: function_definition }, { kind: module }]
+          all:
+            - has:
+                kind: assignment
+                stopBy: { kind: function_definition }
+                all:
+                  - has: { field: left, pattern: $NAME }
+                  - has: { field: right, matches: mask }
+            - not:
+                has:
+                  kind: assignment
+                  stopBy: { kind: function_definition }
+                  all:
+                    - has: { field: left, pattern: $NAME }
+                    - not: { has: { field: right, matches: mask } }
+  loc-then-column:
+    all:
+      - has: { field: subscript, kind: string }
+      - has: { field: value, has: { field: value, pattern: $L.loc } }

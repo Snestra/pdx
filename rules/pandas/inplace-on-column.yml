@@ -1,0 +1,46 @@
+# An inplace call on a selection such as df["b"] or df.loc[:, "b"] changes a copy under
+# copy-on-write, so the frame keeps its old values. pandas 3 only warns.
+# Unsafe: the subscript may be a dict of frames, where the inplace call did work.
+id: inplace-on-column
+language: python
+severity: error
+message: An inplace call on a selected column changes a copy under copy-on-write, so the frame keeps its old values. Assign the result back, as in $OBJ = $OBJ.$M(...).
+rule:
+  pattern: $OBJ.$M($$$ARGS)
+  inside: { kind: expression_statement }
+  has: { field: arguments, has: { matches: inplace-true } }
+constraints:
+  OBJ: { matches: selection }
+utils:
+  selection:
+    kind: subscript
+    any:
+      - has: { field: subscript, any: [{ kind: string }, { kind: list }] }
+      - has: { field: value, kind: attribute, has: { field: attribute, regex: ^(loc|iloc)$ } }
+  inplace-true:
+    kind: keyword_argument
+    all:
+      - has: { field: name, regex: ^inplace$ }
+      - has: { field: value, regex: ^True$ }
+# Keep every argument but inplace=True, each followed by ", ", then trim the last separator.
+# Comments between the arguments are dropped.
+rewriters:
+  - id: drop-inplace
+    rule: { kind: keyword_argument, has: { field: name, regex: ^inplace$ } }
+    fix: ""
+  - id: keep-argument
+    rule:
+      pattern: $ARG
+      not:
+        any:
+          - kind: comment
+          - kind: keyword_argument
+            has: { field: name, regex: ^inplace$ }
+    fix: "$ARG, "
+transform:
+  KEPT:
+    rewrite: { source: $$$ARGS, rewriters: [drop-inplace, keep-argument], joinBy: "" }
+  REST:
+    replace: { source: $KEPT, replace: ", $", by: "" }
+fix: $OBJ = $OBJ.$M($REST)
+metadata: { fix: unsafe }

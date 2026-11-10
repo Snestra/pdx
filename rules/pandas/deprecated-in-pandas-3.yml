@@ -1,0 +1,113 @@
+# Each document finds one API that raises Pandas4Warning on pandas 3.0 and 3.1.
+
+id: deprecated-in-pandas-3
+language: python
+severity: warning
+message: Timestamp.utcnow is deprecated. Write pd.Timestamp.now("UTC"), which returns the same time.
+rule: { pattern: pd.Timestamp.utcnow() }
+fix: pd.Timestamp.now("UTC")
+metadata: { fix: safe }
+---
+# The fix deletes the statement, so it applies only at the top level of the file, where an
+# empty file is still valid. Inside a block it is reported without a fix.
+id: deprecated-in-pandas-3
+language: python
+severity: warning
+message: Copy-on-write is always on in pandas 3, and this option is deprecated. Delete the line.
+rule:
+  matches: copy-on-write-option
+  inside: { kind: module }
+utils:
+  copy-on-write-option:
+    kind: expression_statement
+    has:
+      any:
+        - pattern: pd.set_option("mode.copy_on_write", $V)
+        - pattern: pd.set_option('mode.copy_on_write', $V)
+        - pattern: pd.options.mode.copy_on_write = $V
+fix: ""
+metadata: { fix: safe }
+---
+id: deprecated-in-pandas-3
+language: python
+severity: warning
+message: Copy-on-write is always on in pandas 3, and this option is deprecated. Delete the line.
+rule:
+  matches: copy-on-write-option
+  not: { inside: { kind: module } }
+utils:
+  copy-on-write-option:
+    kind: expression_statement
+    has:
+      any:
+        - pattern: pd.set_option("mode.copy_on_write", $V)
+        - pattern: pd.set_option('mode.copy_on_write', $V)
+        - pattern: pd.options.mode.copy_on_write = $V
+---
+# copy= on the methods where pandas 3 deprecated it. Copy-on-write decides when data is copied,
+# so the keyword changes nothing. to_numpy and the constructors keep their copy keyword.
+id: deprecated-in-pandas-3
+language: python
+severity: warning
+message: The copy keyword is deprecated, because copy-on-write decides when pandas copies data. Drop copy=.
+rule:
+  pattern: $F($$$ARGS)
+  has:
+    field: arguments
+    has: { kind: keyword_argument, has: { field: name, regex: ^copy$ } }
+constraints:
+  F: { regex: '\.(rename|rename_axis|merge|reindex|reindex_like|set_axis|infer_objects|align|tz_localize|tz_convert|transpose|to_timestamp|to_period|concat)$' }
+rewriters:
+  - id: drop-copy
+    rule: { kind: keyword_argument, has: { field: name, regex: ^copy$ } }
+    fix: ""
+  - id: keep-argument
+    rule:
+      pattern: $ARG
+      not:
+        any:
+          - kind: comment
+          - kind: keyword_argument
+            has: { field: name, regex: ^copy$ }
+    fix: "$ARG, "
+transform:
+  KEPT:
+    rewrite: { source: $$$ARGS, rewriters: [drop-copy, keep-argument], joinBy: "" }
+  REST:
+    replace: { source: $KEPT, replace: ", $", by: "" }
+fix: $F($REST)
+metadata: { fix: safe }
+---
+# copy= on astype. Unsafe: on a numpy array or an Index, astype(copy=False) is not deprecated,
+# and on a numpy array it can return the same array, so a later write reaches both names.
+id: deprecated-in-pandas-3
+language: python
+severity: warning
+message: The copy keyword is deprecated, because copy-on-write decides when pandas copies data. Drop copy=.
+rule:
+  pattern: $F($$$ARGS)
+  has:
+    field: arguments
+    has: { kind: keyword_argument, has: { field: name, regex: ^copy$ } }
+constraints:
+  F: { regex: '\.astype$' }
+rewriters:
+  - id: drop-copy
+    rule: { kind: keyword_argument, has: { field: name, regex: ^copy$ } }
+    fix: ""
+  - id: keep-argument
+    rule:
+      pattern: $ARG
+      not:
+        any:
+          - kind: comment
+          - kind: keyword_argument
+            has: { field: name, regex: ^copy$ }
+    fix: "$ARG, "
+transform:
+  KEPT:
+    rewrite: { source: $$$ARGS, rewriters: [drop-copy, keep-argument], joinBy: "" }
+  REST:
+    replace: { source: $KEPT, replace: ", $", by: "" }
+fix: $F($REST)
+metadata: { fix: unsafe }

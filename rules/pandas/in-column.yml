@@ -1,0 +1,21 @@
+# `value in df["a"]` asks whether value is an index label of the column. The fixes are unsafe,
+# because the subscript may be a dict of lists, where `in` was right.
+id: in-column
+language: python
+severity: error
+message: The in operator on a column checks its index labels, not its values. Write ($DF[$COL] == $V).any(), or $DF[$COL].isin(values) for many values.
+rule: { pattern: "$V in $DF[$COL]" }
+constraints:
+  COL: { kind: string }
+fix: ($DF[$COL] == $V).any()
+metadata: { fix: unsafe }
+---
+id: in-column
+language: python
+severity: error
+message: The not in operator on a column checks its index labels, not its values. Write not ($DF[$COL] == $V).any().
+rule: { pattern: "$V not in $DF[$COL]" }
+constraints:
+  COL: { kind: string }
+fix: not ($DF[$COL] == $V).any()
+metadata: { fix: unsafe }

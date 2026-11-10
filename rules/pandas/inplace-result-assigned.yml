@@ -1,0 +1,35 @@
+# Unsafe: with the fix, the receiver keeps its old value and the name gets the result. Before,
+# the receiver changed and the name was None.
+id: inplace-result-assigned
+language: python
+severity: error
+message: A call with inplace=True returns None, so $NAME is None after this line. Drop inplace=True and keep the assignment.
+rule:
+  pattern: $NAME = $OBJ.$M($$$ARGS)
+  has: { field: right, has: { field: arguments, has: { matches: inplace-true } } }
+utils:
+  inplace-true:
+    kind: keyword_argument
+    all:
+      - has: { field: name, regex: ^inplace$ }
+      - has: { field: value, regex: ^True$ }
+rewriters:
+  - id: drop-inplace
+    rule: { kind: keyword_argument, has: { field: name, regex: ^inplace$ } }
+    fix: ""
+  - id: keep-argument
+    rule:
+      pattern: $ARG
+      not:
+        any:
+          - kind: comment
+          - kind: keyword_argument
+            has: { field: name, regex: ^inplace$ }
+    fix: "$ARG, "
+transform:
+  KEPT:
+    rewrite: { source: $$$ARGS, rewriters: [drop-inplace, keep-argument], joinBy: "" }
+  REST:
+    replace: { source: $KEPT, replace: ", $", by: "" }
+fix: $NAME = $OBJ.$M($REST)
+metadata: { fix: unsafe }

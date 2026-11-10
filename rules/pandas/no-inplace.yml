@@ -1,3 +1,6 @@
+# inplace-on-column reports an inplace call on a selected column, and inplace-result-assigned
+# reports one whose result is assigned. This rule reports every other inplace call.
+
 # A call that stands alone as a statement, on a receiver that can be assigned to, can be
 # rewritten to reassign its result.
 id: no-inplace
@@ -9,10 +12,15 @@ rule:
   inside: { kind: expression_statement }
   has: { field: arguments, has: { matches: inplace-true } }
 constraints:
-  OBJ: { matches: assignable }
+  OBJ: { all: [{ matches: assignable }, { not: { matches: selection } }] }
 utils:
   assignable:
     any: [{ kind: identifier }, { kind: attribute }, { kind: subscript }]
+  selection:
+    kind: subscript
+    any:
+      - has: { field: subscript, any: [{ kind: string }, { kind: list }] }
+      - has: { field: value, kind: attribute, has: { field: attribute, regex: ^(loc|iloc)$ } }
   inplace-true:
     kind: keyword_argument
     all:
@@ -42,7 +50,7 @@ transform:
 fix: $OBJ = $OBJ.$M($REST)
 metadata: { fix: unsafe }
 ---
-# Any other call with inplace=True, such as one whose None result is assigned, has no fix.
+# Any other call with inplace=True, such as one passed to another function, has no fix.
 id: no-inplace
 language: python
 severity: warning
@@ -51,9 +59,13 @@ rule:
   kind: call
   has: { field: arguments, has: { matches: inplace-true } }
   not:
-    all:
-      - has: { field: function, kind: attribute, has: { field: object, matches: assignable } }
-      - inside: { kind: expression_statement }
+    any:
+      - all:
+          - has: { field: function, kind: attribute, has: { field: object, matches: assignable } }
+          - inside: { kind: expression_statement }
+      - all:
+          - has: { field: function, kind: attribute }
+          - inside: { kind: assignment, field: right }
 utils:
   assignable:
     any: [{ kind: identifier }, { kind: attribute }, { kind: subscript }]

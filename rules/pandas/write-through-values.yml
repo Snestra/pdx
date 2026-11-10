@@ -1,0 +1,14 @@
+id: write-through-values
+language: python
+severity: error
+message: The array behind a column is read-only under copy-on-write, so this write raises ValueError. Assign with .loc instead, as in df.loc[df.index[0], "a"] = value.
+rule:
+  any:
+    - pattern: $X.values[$$$I]
+    - pattern: $X.to_numpy()[$$$I]
+  matches: assignment-target
+utils:
+  assignment-target:
+    any:
+      - inside: { kind: assignment, field: left }
+      - inside: { kind: augmented_assignment, field: left }

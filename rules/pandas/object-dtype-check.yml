@@ -1,0 +1,63 @@
+# Text columns have dtype str in pandas 3, so a check against object is False for them. The fixes
+# are unsafe: is_string_dtype is False for an object column of mixed values, and "str" in
+# select_dtypes leaves out object columns that hold other Python objects.
+
+id: object-dtype-check
+language: python
+severity: error
+message: Text columns have dtype str in pandas 3, so this comparison with object is False for them. Write pd.api.types.is_string_dtype($X).
+rule: { pattern: $X.dtype == $O }
+constraints:
+  O: { matches: object-dtype }
+utils:
+  object-dtype: { regex: '^(object|["'']object["'']|["'']O["'']|np\.object_|np\.dtype\(["'']O["'']\))$' }
+fix: pd.api.types.is_string_dtype($X)
+metadata: { fix: unsafe }
+---
+id: object-dtype-check
+language: python
+severity: error
+message: Text columns have dtype str in pandas 3, so this comparison with object is True for them. Write not pd.api.types.is_string_dtype($X).
+rule: { pattern: $X.dtype != $O }
+constraints:
+  O: { matches: object-dtype }
+utils:
+  object-dtype: { regex: '^(object|["'']object["'']|["'']O["'']|np\.object_|np\.dtype\(["'']O["'']\))$' }
+fix: not pd.api.types.is_string_dtype($X)
+metadata: { fix: unsafe }
+---
+id: object-dtype-check
+language: python
+severity: error
+message: Text columns have dtype str in pandas 3, so comparing dtypes with object leaves them out. Select text columns with select_dtypes(include="str").
+rule:
+  any:
+    - pattern: $X.dtypes == $O
+    - pattern: $X.dtypes != $O
+constraints:
+  O: { matches: object-dtype }
+utils:
+  object-dtype: { regex: '^(object|["'']object["'']|["'']O["'']|np\.object_|np\.dtype\(["'']O["'']\))$' }
+---
+# The object dtype in include= or exclude= of select_dtypes, alone or in a list.
+id: object-dtype-check
+language: python
+severity: error
+message: Text columns have dtype str in pandas 3. select_dtypes still matches them with object, but it warns that this will stop. Write "str".
+rule:
+  all:
+    - any: [{ kind: string }, { kind: identifier }, { kind: attribute }]
+    - regex: '^(object|["'']object["'']|["'']O["'']|np\.object_)$'
+    - any:
+        - matches: select-argument
+        - inside: { any: [{ kind: list }, { kind: tuple }], matches: select-argument }
+utils:
+  select-argument:
+    inside:
+      kind: keyword_argument
+      has: { field: name, regex: ^(include|exclude)$ }
+      inside:
+        kind: argument_list
+        inside: { kind: call, has: { field: function, regex: \.select_dtypes$ } }
+fix: '"str"'
+metadata: { fix: unsafe }
