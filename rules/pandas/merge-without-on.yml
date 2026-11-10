@@ -7,12 +7,20 @@ rule:
     - pattern: $A.merge($$$ARGS)
     - pattern: pd.merge($$$ARGS)
   not:
-    has:
-      field: arguments
-      has:
-        kind: keyword_argument
-        any:
-          - has: { field: name, regex: ^(on|left_on|right_on|left_index|right_index)$ }
-          - all:
-              - has: { field: name, regex: ^how$ }
-              - has: { field: value, regex: '^["'']cross["'']$' }
+    any:
+      # on given by position: merge(right, how, on) or pd.merge(left, right, how, on).
+      - all:
+          - not: { pattern: pd.merge($$$ARGS) }
+          - has: { field: arguments, has: { nthChild: 3, not: { kind: keyword_argument } } }
+      - all:
+          - pattern: pd.merge($$$ARGS)
+          - has: { field: arguments, has: { nthChild: 4, not: { kind: keyword_argument } } }
+      - has:
+          field: arguments
+          has:
+            kind: keyword_argument
+            any:
+              - has: { field: name, regex: ^(on|left_on|right_on|left_index|right_index)$ }
+              - all:
+                  - has: { field: name, regex: ^how$ }
+                  - has: { field: value, regex: '^["'']cross["'']$' }

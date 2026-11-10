@@ -1,4 +1,5 @@
-# Unsafe: nsmallest and nlargest raise on a text column, and they order ties differently.
+# Unsafe: nsmallest and nlargest raise on a text column, and they order ties differently. The
+# row form uses argmin, a position, so a repeated index label still gives one row.
 id: sort-then-head
 language: python
 severity: warning
@@ -30,21 +31,21 @@ metadata: { fix: unsafe }
 id: sort-then-head
 language: python
 severity: warning
-message: idxmin finds the row without sorting the whole frame. Write $X.loc[$X[$C].idxmin()].
+message: argmin finds the row without sorting the whole frame. Write $X.iloc[$X[$C].argmin()].
 rule: { pattern: "$X.sort_values($C).iloc[0]" }
 constraints:
   C: { kind: string }
   X: { any: [{ kind: identifier }, { kind: attribute }] }
-fix: $X.loc[$X[$C].idxmin()]
+fix: $X.iloc[$X[$C].argmin()]
 metadata: { fix: unsafe }
 ---
 id: sort-then-head
 language: python
 severity: warning
-message: idxmax finds the row without sorting the whole frame. Write $X.loc[$X[$C].idxmax()].
+message: argmax finds the row without sorting the whole frame. Write $X.iloc[$X[$C].argmax()].
 rule: { pattern: "$X.sort_values($C, ascending=False).iloc[0]" }
 constraints:
   C: { kind: string }
   X: { any: [{ kind: identifier }, { kind: attribute }] }
-fix: $X.loc[$X[$C].idxmax()]
+fix: $X.iloc[$X[$C].argmax()]
 metadata: { fix: unsafe }

@@ -92,7 +92,7 @@ the result proportion instead of count and leaves missing values out of the tota
 | `list-over-column` | warning | `[v.upper() for v in df["s"]]` | none |
 | `frame-growth-in-loop` | warning | `out.loc[len(out)] = row` inside a loop | none |
 | `len-of-filter` | warning | `len(df[df["a"] > 50])` | unsafe: `int((df["a"] > 50).sum())` |
-| `sort-then-head` | warning | `df.sort_values("b").head(10)` and `df.sort_values("b").iloc[0]` | unsafe: `df.nsmallest(10, "b")`, `df.loc[df["b"].idxmin()]` |
+| `sort-then-head` | warning | `df.sort_values("b").head(10)` and `df.sort_values("b").iloc[0]` | unsafe: `df.nsmallest(10, "b")`, `df.iloc[df["b"].argmin()]` |
 | `replace-with-mapping` | warning | `df["k"].replace(mapping)` with a mapping held in a name | none |
 | `concat-in-loop` | warning | `pd.concat` inside a loop, which is quadratic | none |
 
