@@ -128,6 +128,14 @@ impl Pins {
         let mut map = HashMap::new();
         for pin in env_pins.chain(self.pins.iter().cloned().map(Ok)) {
             let pin = pin?;
+            if !rules::modules().any(|m| m == pin.module) {
+                let known: Vec<&str> = rules::modules().collect();
+                bail!(
+                    "no rule pack for {:?}; packs: {}",
+                    pin.module,
+                    known.join(", ")
+                );
+            }
             map.insert(pin.module, pin.major);
         }
         Ok(map)
@@ -163,12 +171,6 @@ fn lint(paths: &[PathBuf], pins: &Pins) -> Result<Report> {
     let versions = Versions::new(&pins);
     let packs =
         rules::load(|module| versions.installed(module)).context("invalid embedded rules")?;
-    for module in pins.keys() {
-        if !packs.iter().any(|p| p.module == module) {
-            let known: Vec<&str> = packs.iter().map(|p| p.module).collect();
-            bail!("no rule pack for {module:?}; packs: {}", known.join(", "));
-        }
-    }
     let files = scan::collect_files(paths)?;
     let issues = scan::scan(&files, &packs)?;
     Ok(Report { packs, issues })

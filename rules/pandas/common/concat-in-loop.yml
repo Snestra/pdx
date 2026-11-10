@@ -6,7 +6,6 @@ rule:
   any:
     - pattern: pd.concat($$$)
     - pattern: concat($$$)
-      # A bare concat counts only when the file imports it from pandas.
       inside:
         stopBy: end
         kind: module

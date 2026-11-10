@@ -16,6 +16,10 @@ struct PackSource {
 
 const SOURCES: &[PackSource] = include!(concat!(env!("OUT_DIR"), "/packs.rs"));
 
+pub(crate) fn modules() -> impl Iterator<Item = &'static str> {
+    SOURCES.iter().map(|s| s.module)
+}
+
 /// One library's rules, chosen for the version the project has installed.
 pub(crate) struct Pack {
     pub(crate) module: &'static str,
