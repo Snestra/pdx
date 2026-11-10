@@ -59,7 +59,8 @@ fix: $DF.loc[$MASK, $COL]
 metadata: { fix: unsafe }
 ---
 # df[mask]["col"] = v, where the enclosing function, or the file outside functions, assigns the
-# name only masks, as in mask = df["a"] > 1. A name alone is left to the last document, because
+# name only masks, as in mask = df["a"] > 1. Nested functions are other scopes, so the searches
+# stop at them. A name alone is left to the last document, because
 # data[key]["field"] is more often a dict.
 id: chained-assignment
 language: python
@@ -74,14 +75,14 @@ rule:
     all:
       - has:
           kind: assignment
-          stopBy: end
+          stopBy: { kind: function_definition }
           all:
             - has: { field: left, pattern: $MASK }
             - has: { field: right, matches: mask }
       - not:
           has:
             kind: assignment
-            stopBy: end
+            stopBy: { kind: function_definition }
             all:
               - has: { field: left, pattern: $MASK }
               - not: { has: { field: right, matches: mask } }
@@ -195,14 +196,14 @@ utils:
           all:
             - has:
                 kind: assignment
-                stopBy: end
+                stopBy: { kind: function_definition }
                 all:
                   - has: { field: left, pattern: $NAME }
                   - has: { field: right, matches: mask }
             - not:
                 has:
                   kind: assignment
-                  stopBy: end
+                  stopBy: { kind: function_definition }
                   all:
                     - has: { field: left, pattern: $NAME }
                     - not: { has: { field: right, matches: mask } }
