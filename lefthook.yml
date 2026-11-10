@@ -16,6 +16,9 @@ pre-commit:
       glob: "py/*.py"
       run: uvx ruff@0.17.4 check --fix {staged_files}
       stage_fixed: true
+    - name: jactionlint
+      glob: ".github/**/*.yml"
+      run: jactionlint
 
 pre-push:
   jobs:

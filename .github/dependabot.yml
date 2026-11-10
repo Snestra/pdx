@@ -1,0 +1,13 @@
+# Keeps the commit SHAs that pin each GitHub Action up to date, one grouped PR a week.
+version: 2
+updates:
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: weekly
+    # Wait a week after a release, so a hijacked or broken tag is likely caught first.
+    cooldown:
+      default-days: 7
+    groups:
+      actions:
+        patterns: ["*"]
