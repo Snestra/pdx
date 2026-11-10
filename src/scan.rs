@@ -1,6 +1,10 @@
 //! Walks paths, parses each Python file once, and runs the rule packs for the libraries it imports.
 
-use std::{fmt, fs, io, path::PathBuf};
+use std::{
+    collections::HashSet,
+    fmt, fs, io,
+    path::{Path, PathBuf},
+};
 
 use ast_grep_config::Severity;
 use ast_grep_core::tree_sitter::LanguageExt;
@@ -51,7 +55,7 @@ pub(crate) struct Issue {
     /// Module name of the pack the rule belongs to.
     pub(crate) package: &'static str,
     pub(crate) rule: String,
-    pub(crate) file: String,
+    pub(crate) file: PathBuf,
     pub(crate) line: usize,
     pub(crate) column: usize,
     pub(crate) level: Level,
@@ -60,7 +64,7 @@ pub(crate) struct Issue {
 
 impl Issue {
     pub(crate) fn to_json(&self) -> Value {
-        json!({"package": self.package, "rule": self.rule, "file": self.file, "line": self.line,
+        json!({"package": self.package, "rule": self.rule, "file": self.file.display().to_string(), "line": self.line,
                "column": self.column, "severity": self.level.as_str(), "message": self.message})
     }
 }
@@ -89,13 +93,22 @@ impl ReadPathError {
     }
 }
 
-/// Expands paths into Python files. Directories are walked with .gitignore respected.
+/// Expands paths into Python files. Directories are walked with .gitignore respected. A file
+/// reached through several paths, such as `a.py ./a.py` or `. src/`, is listed once.
 pub(crate) fn collect_files(paths: &[PathBuf]) -> Result<Vec<PathBuf>, ReadPathError> {
     let mut files = Vec::new();
+    let mut seen = HashSet::new();
+    let mut add = |path: &Path| -> Result<(), ReadPathError> {
+        let real = fs::canonicalize(path).map_err(|e| ReadPathError::io(path.to_path_buf(), &e))?;
+        if seen.insert(real) {
+            files.push(path.to_path_buf());
+        }
+        Ok(())
+    };
     for p in paths {
         let meta = fs::metadata(p).map_err(|e| ReadPathError::io(p.clone(), &e))?;
         if meta.is_file() {
-            files.push(p.clone());
+            add(p)?;
             continue;
         }
         for entry in ignore::WalkBuilder::new(p).build() {
@@ -109,7 +122,7 @@ pub(crate) fn collect_files(paths: &[PathBuf]) -> Result<Vec<PathBuf>, ReadPathE
                     .extension()
                     .is_some_and(|x| x.eq_ignore_ascii_case("py"))
             {
-                files.push(path.to_path_buf());
+                add(path)?;
             }
         }
     }
@@ -140,7 +153,7 @@ pub(crate) fn scan(files: &[PathBuf], packs: &[Pack]) -> Result<Vec<Issue>, Read
                         found.push(Issue {
                             package: pack.module,
                             rule: rule.id.clone(),
-                            file: path.display().to_string(),
+                            file: path.clone(),
                             line: pos.line() + 1,
                             column: pos.column(&m) + 1,
                             level,

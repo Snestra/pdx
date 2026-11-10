@@ -221,7 +221,13 @@ fn check(paths: &[PathBuf], format: Format, pins: &Pins) -> ExitCode {
             for i in issues {
                 println!(
                     "{}:{}:{}: {} [{}/{}] {}",
-                    i.file, i.line, i.column, i.level, i.package, i.rule, i.message
+                    i.file.display(),
+                    i.line,
+                    i.column,
+                    i.level,
+                    i.package,
+                    i.rule,
+                    i.message
                 );
             }
             let packages: Vec<String> = packs
@@ -284,7 +290,12 @@ fn hook(pins: &Pins) -> ExitCode {
     for i in &report.issues {
         eprintln!(
             "{}:{}: {} [{}/{}] {}",
-            i.file, i.line, i.level, i.package, i.rule, i.message
+            i.file.display(),
+            i.line,
+            i.level,
+            i.package,
+            i.rule,
+            i.message
         );
     }
     ExitCode::from(HOOK_BLOCK)

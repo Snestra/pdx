@@ -14,7 +14,7 @@ use std::{
 
 /// Prints the folders Python imports installed packages from, one per line, in the order
 /// Python searches them: the user site folder comes before the interpreter's own.
-const SITE_DIRS_PY: &str = "import site, sysconfig; print(site.getusersitepackages()); print(sysconfig.get_paths()['purelib'])";
+const SITE_DIRS_PY: &str = "import site; user = [site.getusersitepackages()] if site.ENABLE_USER_SITE else []; print(*user, *site.getsitepackages(), sep='\\n')";
 
 /// Where a library's version came from, reported in pdx output.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -182,13 +182,17 @@ fn ask_site_dirs(python: &Path) -> Option<Vec<PathBuf>> {
 /// Remembers each Python's site folders, so only the first run per interpreter starts Python.
 mod cache {
     use super::{PathBuf, UNIX_EPOCH, env, fs};
-    use std::path::Path;
+    use std::{io::Read, path::Path};
 
-    /// An entry stays valid while the interpreter file, its modification time, and the
-    /// working directory are unchanged. The directory is part of the key because version
-    /// managers such as mise point one `python3` shim at different interpreters per project.
+    /// An entry stays valid while the interpreter file and its modification time are unchanged.
+    /// Returns `None`, so nothing is cached, when `python3` is a shim: a link to a version
+    /// manager such as mise, or a launcher script such as pyenv's. A shim picks an interpreter
+    /// per project or environment, which no file on disk records.
     fn key(python: &Path) -> Option<String> {
         let real = fs::canonicalize(python).ok()?;
+        if !is_interpreter(&real) {
+            return None;
+        }
         let mtime = fs::metadata(&real)
             .ok()?
             .modified()
@@ -196,8 +200,21 @@ mod cache {
             .duration_since(UNIX_EPOCH)
             .ok()?
             .as_secs();
-        let cwd = env::current_dir().ok()?;
-        Some(format!("{}|{mtime}|{}", real.display(), cwd.display()))
+        Some(format!("{}|{mtime}", real.display()))
+    }
+
+    /// A real interpreter is a binary named python*, not a script starting with `#!`.
+    fn is_interpreter(real: &Path) -> bool {
+        let named_python = real
+            .file_name()
+            .and_then(|n| n.to_str())
+            .is_some_and(|n| n.starts_with("python"));
+        let mut magic = [0_u8; 2];
+        let is_script = fs::File::open(real)
+            .and_then(|mut f| f.read_exact(&mut magic))
+            .is_ok()
+            && magic == *b"#!";
+        named_python && !is_script
     }
 
     fn file() -> Option<PathBuf> {

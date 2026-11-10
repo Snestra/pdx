@@ -70,7 +70,9 @@ fn choose(versions: &[(u32, &'static str)], major: Option<u32>) -> Option<(u32, 
     chosen.copied()
 }
 
-/// An ast-grep rule matching `import <module>`, `import <module>.sub` and `from <module> import x`.
+/// An ast-grep rule matching `import <module>`, `import <module>.sub as x` and
+/// `from <module> import x`. It checks only the imported module, so `from other import <module>`
+/// and `import os as <module>` don't match.
 fn gate_yaml(module: &str) -> String {
     format!(
         "id: {module}-import
@@ -78,11 +80,18 @@ language: python
 rule:
   any:
     - kind: import_statement
+      has:
+        any:
+          - kind: dotted_name
+            regex: ^{module}(\\.|$)
+          - kind: aliased_import
+            has:
+              field: name
+              regex: ^{module}(\\.|$)
     - kind: import_from_statement
-  has:
-    stopBy: end
-    kind: dotted_name
-    regex: ^{module}(\\.|$)
+      has:
+        field: module_name
+        regex: ^{module}(\\.|$)
 "
     )
 }

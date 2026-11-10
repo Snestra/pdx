@@ -6,10 +6,12 @@ rule:
   any:
     - pattern: $A.merge($$$ARGS)
     - pattern: pd.merge($$$ARGS)
+  # Only the call's own arguments count, so validate= inside a nested call doesn't hide it.
   not:
     has:
-      stopBy: end
-      kind: keyword_argument
+      field: arguments
       has:
-        field: name
-        regex: ^validate$
+        kind: keyword_argument
+        has:
+          field: name
+          regex: ^validate$
