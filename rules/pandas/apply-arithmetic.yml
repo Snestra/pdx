@@ -1,0 +1,104 @@
+# The lambda body uses only its parameter, numbers and arithmetic, so the same expression runs on
+# the whole column. Unsafe: a column of Python objects can behave differently, and dtypes can
+# change.
+id: apply-arithmetic
+language: python
+severity: warning
+message: Arithmetic per value runs in Python. Write $NEW on the whole column.
+rule:
+  not: { matches: operand }
+  any:
+    - pattern: "$S.apply(lambda $X: $BODY)"
+    - pattern: "$S.map(lambda $X: $BODY)"
+  has:
+    field: arguments
+    has:
+      kind: lambda
+      has:
+        field: body
+        any: [{ kind: binary_operator }, { kind: unary_operator }]
+        not:
+          has:
+            stopBy: end
+            not:
+              any:
+                - kind: binary_operator
+                - kind: unary_operator
+                - kind: parenthesized_expression
+                - kind: integer
+                - kind: float
+                - pattern: $X
+                - regex: '^(\+|-|\*|/|//|%|\*\*|\(|\))$'
+constraints:
+  S: { any: [{ kind: subscript }, { kind: attribute }, { kind: call }, { kind: identifier }, { kind: parenthesized_expression }] }
+utils:
+  # The call is an operand, or the object of an attribute or a subscript, so the expression that
+  # replaces it needs parentheses.
+  operand:
+    inside:
+      any:
+        - kind: binary_operator
+        - kind: unary_operator
+        - kind: comparison_operator
+        - kind: attribute
+        - kind: subscript
+        - kind: await
+rewriters:
+  - id: parameter
+    rule: { kind: identifier, pattern: $X }
+    fix: $S
+transform:
+  NEW: { rewrite: { source: $BODY, rewriters: [parameter] } }
+fix: $NEW
+metadata: { fix: unsafe }
+---
+id: apply-arithmetic
+language: python
+severity: warning
+message: Arithmetic per value runs in Python. Write ($NEW) on the whole column.
+rule:
+  matches: operand
+  any:
+    - pattern: "$S.apply(lambda $X: $BODY)"
+    - pattern: "$S.map(lambda $X: $BODY)"
+  has:
+    field: arguments
+    has:
+      kind: lambda
+      has:
+        field: body
+        any: [{ kind: binary_operator }, { kind: unary_operator }]
+        not:
+          has:
+            stopBy: end
+            not:
+              any:
+                - kind: binary_operator
+                - kind: unary_operator
+                - kind: parenthesized_expression
+                - kind: integer
+                - kind: float
+                - pattern: $X
+                - regex: '^(\+|-|\*|/|//|%|\*\*|\(|\))$'
+constraints:
+  S: { any: [{ kind: subscript }, { kind: attribute }, { kind: call }, { kind: identifier }, { kind: parenthesized_expression }] }
+utils:
+  # The call is an operand, or the object of an attribute or a subscript, so the expression that
+  # replaces it needs parentheses.
+  operand:
+    inside:
+      any:
+        - kind: binary_operator
+        - kind: unary_operator
+        - kind: comparison_operator
+        - kind: attribute
+        - kind: subscript
+        - kind: await
+rewriters:
+  - id: parameter
+    rule: { kind: identifier, pattern: $X }
+    fix: $S
+transform:
+  NEW: { rewrite: { source: $BODY, rewriters: [parameter] } }
+fix: ($NEW)
+metadata: { fix: unsafe }

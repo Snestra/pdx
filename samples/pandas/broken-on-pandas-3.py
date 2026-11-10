@@ -168,12 +168,12 @@ def string_dtype_check(df):
 
 @case
 def groupby_apply_reads_key(df):
-    return df.groupby("k").apply(lambda g: g["k"].iloc[0] + str(len(g)))  # pdx: groupby-apply-reads-key
+    return df.groupby("k").apply(lambda g: g["k"].iloc[0] + str(len(g)))  # pdx: groupby-apply-reads-key, groupby-apply
 
 
 @case
 def groupby_apply_reads_name(df):
-    return df.groupby("k").apply(lambda g: g.name + str(len(g))), df.groupby("k").apply(lambda g: g["a"].sum())
+    return df.groupby("k").apply(lambda g: g.name + str(len(g))), df.groupby("k").apply(lambda g: g["a"].sum())  # pdx: groupby-apply
 
 
 @case

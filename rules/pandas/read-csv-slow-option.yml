@@ -1,0 +1,37 @@
+# pandas 3.1 reads a large file on several threads, and these options turn that off. The python
+# engine is left alone when the call needs it, for skipfooter or a separator of several
+# characters other than \s+.
+id: read-csv-slow-option
+language: python
+severity: warning
+message: engine="python" reads the file on one thread and in Python. Drop it unless an option needs it.
+rule:
+  kind: keyword_argument
+  all:
+    - has: { field: name, regex: ^engine$ }
+    - has: { field: value, regex: '^["'']python["'']$' }
+  inside:
+    kind: argument_list
+    inside: { kind: call, has: { field: function, regex: '(^|\.)(read_csv|read_table)$' } }
+    not:
+      has:
+        kind: keyword_argument
+        any:
+          - has: { field: name, regex: ^skipfooter$ }
+          - all:
+              - has: { field: name, regex: ^(sep|delimiter)$ }
+              - has: { field: value, regex: '^r?["''](..+)["'']$' }
+              - not: { has: { field: value, regex: '^r?["'']\\s\+["'']$' } }
+---
+id: read-csv-slow-option
+language: python
+severity: warning
+message: low_memory=False reads the whole file before it infers types, which turns off reading on several threads. Pass dtype= for the columns that need it instead.
+rule:
+  kind: keyword_argument
+  all:
+    - has: { field: name, regex: ^low_memory$ }
+    - has: { field: value, regex: ^False$ }
+  inside:
+    kind: argument_list
+    inside: { kind: call, has: { field: function, regex: '(^|\.)(read_csv|read_table)$' } }

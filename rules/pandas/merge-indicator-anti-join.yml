@@ -1,0 +1,11 @@
+id: merge-indicator-anti-join
+language: python
+severity: warning
+message: pandas 3 has anti joins. Write merge(..., how="left_anti") or how="right_anti" instead of filtering on the _merge column.
+rule:
+  any:
+    - pattern: $M[$C] == $V
+    - pattern: $M[$C] != $V
+constraints:
+  C: { regex: '^["'']_merge["'']$' }
+  V: { regex: '^["''](left_only|right_only|both)["'']$' }

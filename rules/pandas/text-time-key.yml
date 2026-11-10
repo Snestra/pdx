@@ -1,0 +1,10 @@
+id: text-time-key
+language: python
+severity: warning
+message: Grouping on formatted text is slow. Group on dt.to_period("M") or dt.floor("h") instead.
+rule:
+  pattern: $X.dt.strftime($F)
+  inside:
+    stopBy: end
+    kind: argument_list
+    inside: { kind: call, has: { field: function, regex: '\.groupby$' } }

@@ -1,0 +1,52 @@
+# Unsafe: nsmallest and nlargest raise on a text column, and they order ties differently. The
+# row form uses argmin, a position, so a repeated index label still gives one row, and it raises
+# when every value in the column is missing, where the sort returned the first row.
+id: sort-then-head
+language: python
+severity: warning
+message: nsmallest finds the rows without sorting the whole frame. Write $X.nsmallest($N, $C).
+rule: { pattern: "$X.sort_values($C).head($N)" }
+constraints:
+  C: { kind: string }
+fix: $X.nsmallest($N, $C)
+metadata: { fix: unsafe }
+---
+id: sort-then-head
+language: python
+severity: warning
+message: nlargest finds the rows without sorting the whole frame. Write $X.nlargest($N, $C).
+rule: { pattern: "$X.sort_values($C, ascending=False).head($N)" }
+constraints:
+  C: { kind: string }
+fix: $X.nlargest($N, $C)
+metadata: { fix: unsafe }
+---
+id: sort-then-head
+language: python
+severity: warning
+message: nsmallest finds the values without sorting the whole column. Write $X.nsmallest($N).
+rule: { pattern: "$X.sort_values().head($N)" }
+fix: $X.nsmallest($N)
+metadata: { fix: unsafe }
+---
+id: sort-then-head
+language: python
+severity: warning
+message: argmin finds the row without sorting the whole frame. Write $X.iloc[$X[$C].argmin()].
+rule: { pattern: "$X.sort_values($C).iloc[0]" }
+constraints:
+  C: { kind: string }
+  X: { any: [{ kind: identifier }, { kind: attribute }] }
+fix: $X.iloc[$X[$C].argmin()]
+metadata: { fix: unsafe }
+---
+id: sort-then-head
+language: python
+severity: warning
+message: argmax finds the row without sorting the whole frame. Write $X.iloc[$X[$C].argmax()].
+rule: { pattern: "$X.sort_values($C, ascending=False).iloc[0]" }
+constraints:
+  C: { kind: string }
+  X: { any: [{ kind: identifier }, { kind: attribute }] }
+fix: $X.iloc[$X[$C].argmax()]
+metadata: { fix: unsafe }

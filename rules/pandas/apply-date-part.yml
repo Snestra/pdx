@@ -1,0 +1,13 @@
+# Unsafe: the .dt parts have dtype int32, and the lambda gave int64.
+id: apply-date-part
+language: python
+severity: warning
+message: Use $S.dt.$P instead of a Python function per value.
+rule:
+  any:
+    - pattern: "$S.apply(lambda $X: $X.$P)"
+    - pattern: "$S.map(lambda $X: $X.$P)"
+constraints:
+  P: { regex: ^(year|month|day|hour|minute|second|quarter|dayofweek|day_of_week|dayofyear|day_of_year|days|seconds)$ }
+fix: $S.dt.$P
+metadata: { fix: unsafe }

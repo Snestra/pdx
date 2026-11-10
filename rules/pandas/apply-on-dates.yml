@@ -1,0 +1,55 @@
+# Unsafe: the column forms return missing for a missing value, where the lambda raised, and the
+# result dtype can differ.
+id: apply-on-dates
+language: python
+severity: warning
+message: Date arithmetic per value runs in Python. Write $S + $D on the whole column.
+rule:
+  any:
+    - pattern: "$S.apply(lambda $X: $X + $D)"
+    - pattern: "$S.map(lambda $X: $X + $D)"
+  not:
+    has: { field: arguments, has: { kind: lambda, has: { field: body, has: { field: right, has: { stopBy: end, pattern: $X } } } } }
+constraints:
+  D: { regex: '^(pd\.(Timedelta|DateOffset|offsets\.[A-Za-z]+)|timedelta)\(' }
+fix: $S + $D
+metadata: { fix: unsafe }
+---
+id: apply-on-dates
+language: python
+severity: warning
+message: Date arithmetic per value runs in Python. Write $S - $D on the whole column.
+rule:
+  any:
+    - pattern: "$S.apply(lambda $X: $X - $D)"
+    - pattern: "$S.map(lambda $X: $X - $D)"
+  not:
+    has: { field: arguments, has: { kind: lambda, has: { field: body, has: { field: right, has: { stopBy: end, pattern: $X } } } } }
+constraints:
+  D: { regex: '^(pd\.(Timedelta|DateOffset|offsets\.[A-Za-z]+)|timedelta)\(' }
+fix: $S - $D
+metadata: { fix: unsafe }
+---
+# The fix subtracts the days since the first of the month, so the time of day stays, as it did
+# with replace(day=1).
+id: apply-on-dates
+language: python
+severity: warning
+message: replace per value runs in Python. Write $S - pd.to_timedelta($S.dt.day - 1, unit="D") for the same day and time in the first of the month.
+rule:
+  any:
+    - pattern: "$S.apply(lambda $X: $X.replace(day=1))"
+    - pattern: "$S.map(lambda $X: $X.replace(day=1))"
+fix: $S - pd.to_timedelta($S.dt.day - 1, unit="D")
+metadata: { fix: unsafe }
+---
+id: apply-on-dates
+language: python
+severity: warning
+message: strftime per value runs in Python. Write $S.dt.strftime($F).
+rule:
+  any:
+    - pattern: "$S.apply(lambda $X: $X.strftime($F))"
+    - pattern: "$S.map(lambda $X: $X.strftime($F))"
+fix: $S.dt.strftime($F)
+metadata: { fix: unsafe }

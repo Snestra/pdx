@@ -1,0 +1,27 @@
+# Unsafe: the .str methods return missing for a missing value, where the lambda raised, and the
+# result dtype can differ. split is left out, because the lambda was faster.
+id: apply-text-method
+language: python
+severity: warning
+message: Use $S.str.$M(...) instead of a Python function per value.
+rule:
+  any:
+    - pattern: "$S.apply(lambda $X: $X.$M($$$A))"
+    - pattern: "$S.map(lambda $X: $X.$M($$$A))"
+  # The arguments must not use the value, and keywords such as replace(day=1) belong to dates.
+  not:
+    has:
+      field: arguments
+      has:
+        kind: lambda
+        has:
+          field: body
+          has:
+            field: arguments
+            any:
+              - has: { stopBy: end, pattern: $X }
+              - has: { kind: keyword_argument }
+constraints:
+  M: { regex: ^(lower|upper|strip|lstrip|rstrip|title|capitalize|startswith|endswith|replace|zfill|isdigit|isnumeric|isalpha)$ }
+fix: $S.str.$M($$$A)
+metadata: { fix: unsafe }

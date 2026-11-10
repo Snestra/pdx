@@ -1,0 +1,7 @@
+id: object-dates
+language: python
+severity: warning
+message: dt.$P makes a column of Python objects. Use dt.normalize() or dt.floor("D") to keep datetime64.
+rule: { pattern: $X.dt.$P }
+constraints:
+  P: { regex: ^(date|time)$ }

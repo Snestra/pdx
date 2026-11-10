@@ -1,0 +1,21 @@
+# Unsafe: the methods skip missing values, and the builtins did not.
+id: builtin-on-column
+language: python
+severity: warning
+message: A Python builtin walks the column one value at a time. Write $DF[$C].$F().
+rule: { pattern: "$F($DF[$C])" }
+constraints:
+  F: { regex: ^(sum|min|max)$ }
+  C: { kind: string }
+fix: $DF[$C].$F()
+metadata: { fix: unsafe }
+---
+id: builtin-on-column
+language: python
+severity: warning
+message: len(set(...)) walks the column one value at a time. Write $DF[$C].nunique().
+rule: { pattern: "len(set($DF[$C]))" }
+constraints:
+  C: { kind: string }
+fix: $DF[$C].nunique()
+metadata: { fix: unsafe }

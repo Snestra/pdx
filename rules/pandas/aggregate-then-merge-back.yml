@@ -1,0 +1,11 @@
+id: aggregate-then-merge-back
+language: python
+severity: warning
+message: transform returns the group result on every row, so the merge is not needed. Write df.groupby(key)[col].transform("sum").
+rule:
+  any:
+    - pattern: $DF.merge($$$ARGS)
+    - pattern: $DF[$C].map($$$ARGS)
+  has:
+    field: arguments
+    has: { stopBy: end, pattern: $DF.groupby($$$K) }

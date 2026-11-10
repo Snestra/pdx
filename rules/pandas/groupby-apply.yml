@@ -1,0 +1,9 @@
+id: groupby-apply
+language: python
+severity: warning
+message: groupby.apply runs a Python function once per group. Use agg or transform with named methods, df.loc[df.groupby(key)[col].idxmax()] for the row with the largest value, or sums of products for weighted means.
+rule:
+  pattern: $G.apply($$$A)
+  all:
+    - has: { field: arguments, has: { kind: lambda } }
+    - has: { field: function, regex: '\.groupby\(' }
