@@ -12,9 +12,8 @@ The rules follow pandas 3, where copy-on-write is always on.
 | `concat-in-loop` | warning | `pd.concat` inside a loop, which is quadratic | none |
 | `chained-assignment` | error | `df["a"][i] = v`, which writes to a copy | unsafe: `df.loc[i, "a"] = v` |
 
-The `no-inplace` fix applies only to a call that stands alone as a statement on a name, attribute or
-subscript, and drops comments
-between its arguments.
+The `no-inplace` fix applies only to a call that stands alone as a statement, on a name, attribute
+or subscript. It drops comments between the call's arguments.
 
 ## Write a rule
 
