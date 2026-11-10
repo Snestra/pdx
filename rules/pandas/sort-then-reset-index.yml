@@ -1,0 +1,37 @@
+# These methods take ignore_index=True on DataFrame and Series, so a following
+# reset_index(drop=True) is not needed. groupby(...).sample has no ignore_index, so a receiver
+# that is a groupby call is left alone.
+id: sort-then-reset-index
+language: python
+severity: warning
+message: Pass ignore_index=True to $M instead of calling reset_index(drop=True) afterwards.
+rule:
+  pattern: $X.$M($$$A).reset_index(drop=True)
+  # The first call has an argument other than ignore_index and inplace.
+  has:
+    field: function
+    has: { field: object, has: { field: arguments, has: { regex: '^[^(),]' } } }
+  not:
+    has:
+      field: function
+      has:
+        field: object
+        has:
+          field: arguments
+          has: { kind: keyword_argument, has: { field: name, regex: ^(ignore_index|inplace)$ } }
+constraints:
+  M: { regex: ^(sort_values|sort_index|drop_duplicates|dropna|explode|sample)$ }
+  X: { not: { kind: call, has: { field: function, regex: '\.groupby$' } } }
+fix: $X.$M($$$A, ignore_index=True)
+metadata: { fix: safe }
+---
+id: sort-then-reset-index
+language: python
+severity: warning
+message: Pass ignore_index=True to $M instead of calling reset_index(drop=True) afterwards.
+rule: { pattern: $X.$M().reset_index(drop=True) }
+constraints:
+  M: { regex: ^(sort_values|sort_index|drop_duplicates|dropna|explode|sample)$ }
+  X: { not: { kind: call, has: { field: function, regex: '\.groupby$' } } }
+fix: $X.$M(ignore_index=True)
+metadata: { fix: safe }

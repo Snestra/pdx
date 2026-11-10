@@ -1,0 +1,41 @@
+# between() is defined as the two comparisons joined with &. A plain name is left alone, because
+# it may be a numpy array, which has no between.
+id: range-mask
+language: python
+severity: warning
+message: between() states the range once. Write $S.between($LO, $HI).
+rule: { pattern: ($S >= $LO) & ($S <= $HI) }
+constraints:
+  S: { any: [{ kind: subscript }, { kind: attribute }] }
+fix: $S.between($LO, $HI)
+metadata: { fix: safe }
+---
+id: range-mask
+language: python
+severity: warning
+message: between() states the range once. Write $S.between($LO, $HI, inclusive="left").
+rule: { pattern: ($S >= $LO) & ($S < $HI) }
+constraints:
+  S: { any: [{ kind: subscript }, { kind: attribute }] }
+fix: $S.between($LO, $HI, inclusive="left")
+metadata: { fix: safe }
+---
+id: range-mask
+language: python
+severity: warning
+message: between() states the range once. Write $S.between($LO, $HI, inclusive="right").
+rule: { pattern: ($S > $LO) & ($S <= $HI) }
+constraints:
+  S: { any: [{ kind: subscript }, { kind: attribute }] }
+fix: $S.between($LO, $HI, inclusive="right")
+metadata: { fix: safe }
+---
+id: range-mask
+language: python
+severity: warning
+message: between() states the range once. Write $S.between($LO, $HI, inclusive="neither").
+rule: { pattern: ($S > $LO) & ($S < $HI) }
+constraints:
+  S: { any: [{ kind: subscript }, { kind: attribute }] }
+fix: $S.between($LO, $HI, inclusive="neither")
+metadata: { fix: safe }

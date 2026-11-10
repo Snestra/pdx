@@ -1,0 +1,80 @@
+# A lambda or numpy function that only reduces, passed to agg, aggregate, transform or
+# pivot_table, can be the name of the reduction, which pandas runs without Python per group.
+# Only a function passed alone, by keyword, as a dict value or in a named aggregation is
+# rewritten, because in a list the name of the result column would change. np.median, np.std and
+# np.var are left alone: they treat missing values and ddof differently from the named methods.
+id: groupby-lambda
+language: python
+severity: warning
+message: Pass the name "$R" in place of a lambda. A lambda runs in Python once per group.
+rule:
+  pattern: "lambda $X: $X.$R()"
+  matches: function-argument
+constraints:
+  R: { regex: ^(sum|mean|min|max|median|std|var|count|nunique|prod)$ }
+utils:
+  reducer-call:
+    kind: call
+    has: { field: function, regex: '\.(agg|aggregate|transform)$' }
+    not: { has: { field: function, regex: '\.(rolling|expanding|ewm|resample)\(' } }
+  function-argument:
+    any:
+      - inside: { kind: argument_list, inside: { matches: reducer-call } }
+      - inside:
+          kind: keyword_argument
+          has: { field: name, regex: ^(func|aggfunc)$ }
+          inside:
+            kind: argument_list
+            inside:
+              any:
+                - matches: reducer-call
+                - kind: call
+                  has: { field: function, regex: '(^|\.)pivot_table$' }
+      - inside:
+          kind: pair
+          field: value
+          inside: { kind: dictionary, inside: { kind: argument_list, inside: { matches: reducer-call } } }
+      - nthChild: 2
+        inside:
+          kind: tuple
+          inside: { kind: keyword_argument, inside: { kind: argument_list, inside: { matches: reducer-call } } }
+fix: '"$R"'
+metadata: { fix: safe }
+---
+id: groupby-lambda
+language: python
+severity: warning
+message: Pass the name "$R" in place of np.$R. A numpy function runs once per group.
+rule:
+  pattern: np.$R
+  matches: function-argument
+constraints:
+  R: { regex: ^(sum|mean|min|max|prod)$ }
+utils:
+  reducer-call:
+    kind: call
+    has: { field: function, regex: '\.(agg|aggregate|transform)$' }
+    not: { has: { field: function, regex: '\.(rolling|expanding|ewm|resample)\(' } }
+  function-argument:
+    any:
+      - inside: { kind: argument_list, inside: { matches: reducer-call } }
+      - inside:
+          kind: keyword_argument
+          has: { field: name, regex: ^(func|aggfunc)$ }
+          inside:
+            kind: argument_list
+            inside:
+              any:
+                - matches: reducer-call
+                - kind: call
+                  has: { field: function, regex: '(^|\.)pivot_table$' }
+      - inside:
+          kind: pair
+          field: value
+          inside: { kind: dictionary, inside: { kind: argument_list, inside: { matches: reducer-call } } }
+      - nthChild: 2
+        inside:
+          kind: tuple
+          inside: { kind: keyword_argument, inside: { kind: argument_list, inside: { matches: reducer-call } } }
+fix: '"$R"'
+metadata: { fix: safe }

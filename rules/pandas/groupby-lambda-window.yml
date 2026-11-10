@@ -1,0 +1,18 @@
+# transform with a lambda that calls one window method gives the same result as calling that
+# method on the groupby, which runs without Python per group. A resample receiver is left alone,
+# because a resampler has no cumsum or rank.
+id: groupby-lambda-window
+language: python
+severity: warning
+message: Call $G.$W(...) directly. A lambda in transform runs in Python once per group.
+rule:
+  pattern: "$G.transform(lambda $X: $X.$W($$$A))"
+  not:
+    has:
+      field: arguments
+      has: { kind: lambda, has: { field: body, has: { field: arguments, has: { stopBy: end, pattern: $X } } } }
+constraints:
+  W: { regex: ^(cumsum|cumprod|cummax|cummin|shift|diff|ffill|bfill|rank|pct_change)$ }
+  G: { not: { regex: '\.(resample|rolling|expanding|ewm)\(' } }
+fix: $G.$W($$$A)
+metadata: { fix: safe }

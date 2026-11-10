@@ -1,0 +1,31 @@
+# rolling(...).apply with a lambda that calls one window method gives the same result as the
+# method, which runs without Python per window. count is left alone, because rolling count
+# counts windows with fewer values than min_periods, and apply skips them.
+id: rolling-apply
+language: python
+severity: warning
+message: Call $R.$K($$$W).$F() directly. rolling.apply runs a Python function once per window.
+rule:
+  pattern: "$R.$K($$$W).apply(lambda $X: $X.$F())"
+constraints:
+  K: { regex: ^(rolling|expanding)$ }
+  F: { regex: ^(sum|mean|min|max|median|std|var)$ }
+fix: $R.$K($$$W).$F()
+metadata: { fix: safe }
+---
+# Any other function passed to rolling(...).apply gets a Series per window unless raw=True. The
+# change is not a fix, because the function then receives a numpy array.
+id: rolling-apply
+language: python
+severity: warning
+message: Without raw=True, rolling.apply builds a Series for every window. Pass raw=True if the function works on a numpy array.
+rule:
+  pattern: $R.$K($$$W).apply($$$A)
+  not:
+    any:
+      - has:
+          field: arguments
+          has: { kind: keyword_argument, has: { field: name, regex: ^(raw|engine)$ } }
+      - pattern: "$R.$K($$$W).apply(lambda $X: $X.$F())"
+constraints:
+  K: { regex: ^(rolling|expanding)$ }

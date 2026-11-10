@@ -1,0 +1,68 @@
+# A column method or a whole-column function in place of a Python call per value. The receiver
+# must be a column taken by a text label, because on a DataFrame apply works per column.
+
+# Unsafe: a call per value parses each text on its own, and pd.to_datetime on the column infers
+# one format from the first value, so a column of mixed formats raises after the fix.
+id: apply-known-function
+language: python
+severity: warning
+message: pd.to_datetime takes the whole column, and calling it per value is much slower. Write pd.to_datetime($S).
+rule:
+  any:
+    - pattern: $S.apply(pd.to_datetime)
+    - pattern: $S.map(pd.to_datetime)
+constraints:
+  S: { matches: column }
+utils:
+  column: { kind: subscript, has: { field: subscript, kind: string } }
+fix: pd.to_datetime($S)
+metadata: { fix: unsafe }
+---
+id: apply-known-function
+language: python
+severity: warning
+message: Use the column method $S.$M() in place of a call per value.
+rule:
+  any:
+    - pattern: $S.apply($F)
+    - pattern: $S.map($F)
+constraints:
+  S: { matches: column }
+  F: { regex: '^pd\.(isna|isnull|notna|notnull)$' }
+utils:
+  column: { kind: subscript, has: { field: subscript, kind: string } }
+transform:
+  M: { replace: { source: $F, replace: '^pd\.', by: '' } }
+fix: $S.$M()
+metadata: { fix: safe }
+---
+id: apply-known-function
+language: python
+severity: warning
+message: Use $S.str.len() in place of len per value.
+rule:
+  any:
+    - pattern: $S.apply(len)
+    - pattern: $S.map(len)
+constraints:
+  S: { matches: column }
+utils:
+  column: { kind: subscript, has: { field: subscript, kind: string } }
+fix: $S.str.len()
+metadata: { fix: safe }
+---
+# Unsafe: Python's round and numpy's round differ on some halfway values.
+id: apply-known-function
+language: python
+severity: warning
+message: Use $S.round($N) in place of round per value.
+rule:
+  any:
+    - pattern: "$S.apply(lambda $X: round($X, $N))"
+    - pattern: "$S.map(lambda $X: round($X, $N))"
+constraints:
+  S: { matches: column }
+utils:
+  column: { kind: subscript, has: { field: subscript, kind: string } }
+fix: $S.round($N)
+metadata: { fix: unsafe }

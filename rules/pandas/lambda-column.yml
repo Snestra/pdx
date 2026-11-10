@@ -1,0 +1,70 @@
+# A lambda passed to assign or .loc that only reads columns as d["name"] can be written with
+# pd.col, which pandas 3 added. Only bodies made of operators, attribute access and method calls
+# are rewritten, because a plain function call such as len(d) or np.where(...) needs real data,
+# and `if`, `and`, `or`, `not` and `in` ask an expression for a single truth value.
+id: lambda-column
+language: python
+severity: warning
+message: This lambda only reads columns. Write pd.col("name") in place of d["name"], as in $NEW.
+rule:
+  pattern: "lambda $D: $BODY"
+  any:
+    - inside:
+        kind: keyword_argument
+        inside:
+          kind: argument_list
+          inside: { kind: call, has: { field: function, regex: '\.assign$' } }
+    - inside:
+        kind: subscript
+        has: { field: value, regex: '\.loc$' }
+  all:
+    - has: { field: body, stopBy: end, kind: subscript, pattern: "$D[$_]" }
+    # Every use of the parameter is d["name"].
+    - not:
+        has:
+          field: body
+          stopBy: end
+          kind: identifier
+          pattern: $D
+          not:
+            inside:
+              kind: subscript
+              all:
+                - has: { field: value, pattern: $D }
+                - has: { field: subscript, kind: string }
+                - not: { has: { field: subscript, not: { kind: string } } }
+    # No other object is indexed by a string, because the rewriter cannot tell them apart.
+    - not:
+        has:
+          field: body
+          stopBy: end
+          kind: subscript
+          has: { field: subscript, kind: string }
+          not: { has: { field: value, pattern: $D } }
+    - not:
+        has:
+          field: body
+          stopBy: end
+          any:
+            - kind: call
+              has: { field: function, any: [{ kind: identifier }, { regex: '^(np|numpy|pd|pandas)\.' }] }
+            - kind: lambda
+            - kind: conditional_expression
+            - kind: boolean_operator
+            - kind: not_operator
+            - kind: comparison_operator
+              has: { field: operators, regex: ^(in|not in|is|is not)$ }
+            - kind: list_comprehension
+            - kind: generator_expression
+rewriters:
+  - id: to-col
+    rule:
+      kind: subscript
+      pattern: $OBJ[$K]
+      has: { field: subscript, kind: string }
+    fix: pd.col($K)
+transform:
+  NEW:
+    rewrite: { source: $BODY, rewriters: [to-col] }
+fix: $NEW
+metadata: { fix: safe }

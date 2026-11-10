@@ -1,0 +1,23 @@
+# diff() is s - s.shift(1) for numbers, datetimes and timedeltas. A comparison is left alone,
+# because diff on booleans returns booleans, and subtraction returned numbers.
+id: subtract-shift
+language: python
+severity: warning
+message: diff() is the difference from the previous row. Write $S.diff().
+rule:
+  any:
+    - pattern: $S - $S.shift()
+    - pattern: $S - $S.shift(1)
+    - pattern: $S - $S.shift(periods=1)
+constraints:
+  S: { not: { matches: boolean } }
+utils:
+  boolean:
+    any:
+      - kind: comparison_operator
+      - kind: not_operator
+      - kind: boolean_operator
+      - kind: parenthesized_expression
+        has: { matches: boolean }
+fix: $S.diff()
+metadata: { fix: safe }
