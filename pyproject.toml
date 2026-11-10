@@ -4,7 +4,7 @@ build-backend = "maturin"
 
 [project]
 name = "pdx"
-description = "Fast pandas linter and helpers for humans and coding agents"
+description = "Fast linter for Python library habits, starting with pandas, for humans and coding agents"
 requires-python = ">=3.9"
 dynamic = ["version"]
 

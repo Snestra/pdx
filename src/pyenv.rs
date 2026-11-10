@@ -1,8 +1,9 @@
-//! Finds the project's Python and its pandas version without starting Python on the hot path.
+//! Finds where the project's Python keeps installed packages, and their versions, without
+//! starting Python on the hot path.
 //!
-//! Order: `--pandas`, `PDX_PANDAS_MAJOR`, a venv (`$VIRTUAL_ENV`, then the nearest `.venv`
-//! above the working directory), the cached site-packages of `python3` on `PATH`, then asking
-//! that Python once and caching its answer.
+//! The site folders come from a venv (`$VIRTUAL_ENV`, then the nearest `.venv` above the working
+//! directory), else from `python3` on `PATH`: first from the cache, then by asking that Python
+//! once and caching its answer. Versions are read from `<module>-<version>.dist-info` folders.
 
 use std::{
     env, fs,
@@ -11,100 +12,119 @@ use std::{
     time::UNIX_EPOCH,
 };
 
-/// Used when no pandas install is found: the newest major pdx has rules for.
-const DEFAULT_MAJOR: u32 = 3;
-
 /// Prints the folders Python imports installed packages from, one per line, in the order
 /// Python searches them: the user site folder comes before the interpreter's own.
 const SITE_DIRS_PY: &str = "import site, sysconfig; print(site.getusersitepackages()); print(sysconfig.get_paths()['purelib'])";
 
-/// Where the pandas version came from, reported in pdx output.
+/// Where a library's version came from, reported in pdx output.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub(crate) enum Source {
-    Flag,
-    Env,
+    /// `--pin` or `PDX_PIN`.
+    Pin,
     Venv,
     Cache,
     Python,
-    Default,
+    /// No install found; the pack's newest rule set applies.
+    Missing,
 }
 
 impl Source {
     pub(crate) fn as_str(self) -> &'static str {
         match self {
-            Self::Flag => "flag",
-            Self::Env => "env",
+            Self::Pin => "pin",
             Self::Venv => "venv",
             Self::Cache => "cache",
             Self::Python => "python",
-            Self::Default => "default",
+            Self::Missing => "missing",
         }
     }
 }
 
-#[derive(Debug)]
-pub(crate) struct Pandas {
+/// The installed version of one library, as far as pdx could tell.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub(crate) struct Installed {
+    /// Full version from the dist-info folder; `None` for a pin or a missing install.
     pub(crate) version: Option<String>,
-    pub(crate) major: u32,
+    pub(crate) major: Option<u32>,
     pub(crate) source: Source,
 }
 
-impl Pandas {
-    fn found(version: String, source: Source) -> Self {
-        let major = version
-            .split('.')
-            .next()
-            .and_then(|s| s.parse().ok())
-            .unwrap_or(DEFAULT_MAJOR);
+impl Installed {
+    pub(crate) fn pinned(major: u32) -> Self {
         Self {
-            version: Some(version),
-            major,
-            source,
+            version: None,
+            major: Some(major),
+            source: Source::Pin,
         }
     }
 
-    fn major_only(major: u32, source: Source) -> Self {
+    pub(crate) fn missing() -> Self {
         Self {
             version: None,
-            major,
-            source,
+            major: None,
+            source: Source::Missing,
         }
     }
 }
 
-pub(crate) fn detect(override_major: Option<u32>) -> Pandas {
-    if let Some(m) = override_major {
-        return Pandas::major_only(m, Source::Flag);
+/// The folders one Python imports installed packages from.
+#[derive(Debug)]
+pub(crate) struct Site {
+    dirs: Vec<PathBuf>,
+    source: Source,
+}
+
+impl Site {
+    /// Finds the site folders, or `None` when there is no venv and no `python3` on `PATH`.
+    pub(crate) fn locate() -> Option<Self> {
+        if let Some(venv) = venv_root() {
+            return Some(Self {
+                dirs: venv_site_dirs(&venv),
+                source: Source::Venv,
+            });
+        }
+        let python = path_python()?;
+        if let Some(dirs) = cache::lookup(&python) {
+            return Some(Self {
+                dirs,
+                source: Source::Cache,
+            });
+        }
+        let dirs = ask_site_dirs(&python)?;
+        cache::store(&python, &dirs);
+        Some(Self {
+            dirs,
+            source: Source::Python,
+        })
     }
-    if let Some(m) = env::var("PDX_PANDAS_MAJOR")
-        .ok()
-        .and_then(|m| m.parse().ok())
-    {
-        return Pandas::major_only(m, Source::Env);
-    }
-    if let Some(venv) = venv_root()
-        && let Some(v) = version_in(&venv_site_dirs(&venv))
-    {
-        return Pandas::found(v, Source::Venv);
-    }
-    let Some(python) = path_python() else {
-        return Pandas::major_only(DEFAULT_MAJOR, Source::Default);
-    };
-    let (dirs, source) = match cache::lookup(&python) {
-        Some(dirs) => (dirs, Source::Cache),
-        None => match ask_site_dirs(&python) {
-            Some(dirs) => {
-                cache::store(&python, &dirs);
-                (dirs, Source::Python)
+
+    /// Reads the installed version of `module`. The folders are scanned on every run, so an
+    /// install, upgrade, or removal shows up without asking Python again.
+    pub(crate) fn installed(&self, module: &str) -> Installed {
+        let prefix = format!("{module}-");
+        let version = self
+            .dirs
+            .iter()
+            .filter_map(|d| fs::read_dir(d).ok())
+            .flat_map(Iterator::flatten)
+            .find_map(|e| {
+                let name = e.file_name();
+                let name = name.to_str()?;
+                name.strip_prefix(&prefix)?
+                    .strip_suffix(".dist-info")
+                    .map(str::to_owned)
+            });
+        match version {
+            Some(version) => {
+                let major = version.split('.').next().and_then(|s| s.parse().ok());
+                Installed {
+                    version: Some(version),
+                    major,
+                    source: self.source,
+                }
             }
-            None => return Pandas::major_only(DEFAULT_MAJOR, Source::Default),
-        },
-    };
-    // The site folders are scanned on every run, so installing, upgrading, or removing pandas
-    // shows up without asking Python again.
-    match version_in(&dirs) {
-        Some(v) => Pandas::found(v, source),
-        None => Pandas::major_only(DEFAULT_MAJOR, Source::Default),
+            None => Installed::missing(),
+        }
     }
 }
 
@@ -137,20 +157,6 @@ fn venv_site_dirs(venv: &Path) -> Vec<PathBuf> {
         dirs.extend(entries.flatten().map(|e| e.path().join("site-packages")));
     }
     dirs
-}
-
-/// Reads the version from a `pandas-X.Y.Z.dist-info` folder name in any of `dirs`.
-fn version_in(dirs: &[PathBuf]) -> Option<String> {
-    dirs.iter()
-        .filter_map(|d| fs::read_dir(d).ok())
-        .flat_map(Iterator::flatten)
-        .find_map(|e| {
-            let name = e.file_name();
-            let name = name.to_str()?;
-            name.strip_prefix("pandas-")?
-                .strip_suffix(".dist-info")
-                .map(str::to_owned)
-        })
 }
 
 fn path_python() -> Option<PathBuf> {

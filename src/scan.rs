@@ -1,12 +1,14 @@
-//! Walks paths, parses each Python file that imports pandas once, and runs every rule.
+//! Walks paths, parses each Python file once, and runs the rule packs for the libraries it imports.
 
 use std::{fmt, fs, io, path::PathBuf};
 
-use ast_grep_config::{RuleConfig, Severity};
+use ast_grep_config::Severity;
 use ast_grep_core::tree_sitter::LanguageExt;
 use ast_grep_language::SupportLang;
-use rayon::prelude::*;
+use rayon::iter::{IntoParallelRefIterator, ParallelIterator};
 use serde_json::{Value, json};
+
+use crate::rules::Pack;
 
 /// How serious a finding is. Only `Error` fails `pdx check`.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -46,6 +48,8 @@ impl fmt::Display for Level {
 
 #[derive(Debug)]
 pub(crate) struct Issue {
+    /// Module name of the pack the rule belongs to.
+    pub(crate) package: &'static str,
     pub(crate) rule: String,
     pub(crate) file: String,
     pub(crate) line: usize,
@@ -56,7 +60,7 @@ pub(crate) struct Issue {
 
 impl Issue {
     pub(crate) fn to_json(&self) -> Value {
-        json!({"rule": self.rule, "file": self.file, "line": self.line,
+        json!({"package": self.package, "rule": self.rule, "file": self.file, "line": self.line,
                "column": self.column, "severity": self.level.as_str(), "message": self.message})
     }
 }
@@ -112,39 +116,37 @@ pub(crate) fn collect_files(paths: &[PathBuf]) -> Result<Vec<PathBuf>, ReadPathE
     Ok(files)
 }
 
-/// Runs every rule over every file that imports pandas. Files without a pandas import are skipped,
-/// because the rules match names such as `merge` and `inplace` that other libraries share.
-pub(crate) fn scan(
-    files: &[PathBuf],
-    rules: &[RuleConfig<SupportLang>],
-    pandas_import: &RuleConfig<SupportLang>,
-) -> Result<Vec<Issue>, ReadPathError> {
+/// Runs each pack only on files that import its library, because rules match names such as
+/// `merge` and `inplace` that other libraries share.
+pub(crate) fn scan(files: &[PathBuf], packs: &[Pack]) -> Result<Vec<Issue>, ReadPathError> {
     let per_file: Vec<Vec<Issue>> = files
         .par_iter()
         .map(|path| {
             let src = fs::read_to_string(path).map_err(|e| ReadPathError::io(path.clone(), &e))?;
-            if !src.contains("pandas") {
-                return Ok(Vec::new());
-            }
-            let root = SupportLang::Python.ast_grep(&src);
-            if root.root().find(&pandas_import.matcher).is_none() {
-                return Ok(Vec::new());
-            }
+            // A file that never names the module can't import it, so it is never parsed.
+            let mut root = None;
             let mut found = Vec::new();
-            for rule in rules {
-                let Some(level) = Level::from_severity(&rule.severity) else {
+            for pack in packs.iter().filter(|p| src.contains(p.module)) {
+                let root = root.get_or_insert_with(|| SupportLang::Python.ast_grep(&src));
+                if root.root().find(&pack.gate.matcher).is_none() {
                     continue;
-                };
-                for m in root.root().find_all(&rule.matcher) {
-                    let pos = m.start_pos();
-                    found.push(Issue {
-                        rule: rule.id.clone(),
-                        file: path.display().to_string(),
-                        line: pos.line() + 1,
-                        column: pos.column(&m) + 1,
-                        level,
-                        message: rule.get_message(&m),
-                    });
+                }
+                for rule in &pack.rules {
+                    let Some(level) = Level::from_severity(&rule.severity) else {
+                        continue;
+                    };
+                    for m in root.root().find_all(&rule.matcher) {
+                        let pos = m.start_pos();
+                        found.push(Issue {
+                            package: pack.module,
+                            rule: rule.id.clone(),
+                            file: path.display().to_string(),
+                            line: pos.line() + 1,
+                            column: pos.column(&m) + 1,
+                            level,
+                            message: rule.get_message(&m),
+                        });
+                    }
                 }
             }
             Ok(found)

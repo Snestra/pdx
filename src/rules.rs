@@ -1,54 +1,95 @@
-//! Rule sets embedded at compile time by build.rs.
+//! Rule packs embedded at compile time by build.rs, one per Python library.
 
 use ast_grep_config::{GlobalRules, RuleConfig, from_yaml_string};
 use ast_grep_language::SupportLang;
 
-const COMMON: &str = include_str!(concat!(env!("OUT_DIR"), "/common.yml"));
-const V2: &str = include_str!(concat!(env!("OUT_DIR"), "/v2.yml"));
-const V3: &str = include_str!(concat!(env!("OUT_DIR"), "/v3.yml"));
-const PANDAS_IMPORT: &str = include_str!("pandas-import.yml");
+use crate::pyenv::Installed;
 
-/// Rules for one pandas major version: the common set plus the version set.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub(crate) enum RuleSet {
-    V2,
-    V3,
+/// One pack as build.rs found it under `rules/<module>/`.
+struct PackSource {
+    module: &'static str,
+    common: &'static str,
+    /// Rule sets by major version, sorted ascending.
+    versions: &'static [(u32, &'static str)],
 }
 
-impl RuleSet {
-    /// pandas 3 and later get v3; everything older gets v2.
-    pub(crate) fn for_major(major: u32) -> Self {
-        if major >= 3 { Self::V3 } else { Self::V2 }
-    }
+const SOURCES: &[PackSource] = include!(concat!(env!("OUT_DIR"), "/packs.rs"));
 
-    pub(crate) fn name(self) -> &'static str {
-        match self {
-            Self::V2 => "v2",
-            Self::V3 => "v3",
-        }
-    }
-
-    pub(crate) fn load(self) -> Result<Vec<RuleConfig<SupportLang>>, String> {
-        let specific = match self {
-            Self::V2 => V2,
-            Self::V3 => V3,
-        };
-        let mut rules = parse(COMMON)?;
-        rules.extend(parse(specific)?);
-        Ok(rules)
-    }
+/// Module names of every embedded pack, in folder order.
+pub(crate) fn modules() -> impl Iterator<Item = &'static str> {
+    SOURCES.iter().map(|s| s.module)
 }
 
-/// The rule that decides whether a file imports pandas at all.
-pub(crate) fn pandas_import() -> Result<RuleConfig<SupportLang>, String> {
-    parse(PANDAS_IMPORT)?
-        .pop()
-        .ok_or_else(|| "pandas-import.yml holds no rule".to_owned())
+/// One library's rules, chosen for the version the project has installed.
+pub(crate) struct Pack {
+    pub(crate) module: &'static str,
+    pub(crate) installed: Installed,
+    /// Major version of the chosen `v<N>` set, or `None` when the pack has only common rules.
+    pub(crate) set: Option<u32>,
+    /// Matches an import of the module, so files that don't use the library are skipped.
+    pub(crate) gate: RuleConfig<SupportLang>,
+    pub(crate) rules: Vec<RuleConfig<SupportLang>>,
 }
 
-fn parse(src: &str) -> Result<Vec<RuleConfig<SupportLang>>, String> {
+/// Loads every pack, asking `installed` which version of each library the project has.
+pub(crate) fn load(mut installed: impl FnMut(&str) -> Installed) -> Result<Vec<Pack>, String> {
+    SOURCES
+        .iter()
+        .map(|src| {
+            let installed = installed(src.module);
+            let chosen = choose(src.versions, installed.major);
+            let mut rules = parse(src.common, src.module)?;
+            if let Some((_, docs)) = chosen {
+                rules.extend(parse(docs, src.module)?);
+            }
+            let gate = parse(&gate_yaml(src.module), src.module)?
+                .pop()
+                .ok_or_else(|| format!("{}: the import rule did not parse", src.module))?;
+            Ok(Pack {
+                module: src.module,
+                installed,
+                set: chosen.map(|(major, _)| major),
+                gate,
+                rules,
+            })
+        })
+        .collect()
+}
+
+/// Picks the newest set at or below `major`. An older install than every set gets the oldest
+/// set, and an unknown version gets the newest.
+fn choose(versions: &[(u32, &'static str)], major: Option<u32>) -> Option<(u32, &'static str)> {
+    let chosen = match major {
+        Some(major) => versions
+            .iter()
+            .rev()
+            .find(|(m, _)| *m <= major)
+            .or_else(|| versions.first()),
+        None => versions.last(),
+    };
+    chosen.copied()
+}
+
+/// An ast-grep rule matching `import <module>`, `import <module>.sub` and `from <module> import x`.
+fn gate_yaml(module: &str) -> String {
+    format!(
+        "id: {module}-import
+language: python
+rule:
+  any:
+    - kind: import_statement
+    - kind: import_from_statement
+  has:
+    stopBy: end
+    kind: dotted_name
+    regex: ^{module}(\\.|$)
+"
+    )
+}
+
+fn parse(src: &str, module: &str) -> Result<Vec<RuleConfig<SupportLang>>, String> {
     if src.trim().is_empty() {
         return Ok(Vec::new());
     }
-    from_yaml_string(src, &GlobalRules::default()).map_err(|e| e.to_string())
+    from_yaml_string(src, &GlobalRules::default()).map_err(|e| format!("rules/{module}: {e}"))
 }
