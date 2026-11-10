@@ -1,0 +1,57 @@
+# A call that stands alone as a statement can be rewritten to reassign its result.
+id: no-inplace
+language: python
+severity: warning
+message: inplace=True gives no speedup and blocks chaining. Reassign instead.
+rule:
+  pattern: $OBJ.$M($$$ARGS)
+  inside: { kind: expression_statement }
+  has: { field: arguments, has: { matches: inplace-true } }
+utils:
+  inplace-true:
+    kind: keyword_argument
+    all:
+      - has: { field: name, regex: ^inplace$ }
+      - has: { field: value, regex: ^True$ }
+# Keep every argument but inplace=True, each followed by ", ", then trim the last separator.
+# Comments between the arguments are dropped.
+rewriters:
+  - id: drop-inplace
+    rule: { kind: keyword_argument, has: { field: name, regex: ^inplace$ } }
+    fix: ""
+  - id: keep-argument
+    rule:
+      pattern: $ARG
+      not:
+        any:
+          - kind: comment
+          - kind: keyword_argument
+            has: { field: name, regex: ^inplace$ }
+    fix: "$ARG, "
+transform:
+  KEPT:
+    rewrite: { source: $$$ARGS, rewriters: [drop-inplace, keep-argument], joinBy: "" }
+  REST:
+    replace: { source: $KEPT, replace: ", $", by: "" }
+# Unsafe: other names bound to the same object no longer see the change.
+fix: $OBJ = $OBJ.$M($REST)
+metadata: { fix: unsafe }
+---
+# Any other call with inplace=True, such as one whose None result is assigned, has no fix.
+id: no-inplace
+language: python
+severity: warning
+message: inplace=True gives no speedup and blocks chaining. Reassign instead.
+rule:
+  kind: call
+  has: { field: arguments, has: { matches: inplace-true } }
+  not:
+    all:
+      - has: { field: function, kind: attribute }
+      - inside: { kind: expression_statement }
+utils:
+  inplace-true:
+    kind: keyword_argument
+    all:
+      - has: { field: name, regex: ^inplace$ }
+      - has: { field: value, regex: ^True$ }

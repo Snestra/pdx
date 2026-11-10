@@ -5,20 +5,29 @@
 ## check
 
 ```sh
-pdx check [PATHS]... [--format text|json] [--pin MODULE=MAJOR]
+pdx check [PATHS]... [--format text|json] [--fix] [--unsafe-fixes]
 ```
 
 Lints files and folders. Folders respect `.gitignore`. A library's rules run only on files
 that import it.
 
-Output is text on a terminal and JSON otherwise. The JSON has two lists:
+Some rules have a fix, which is safe or unsafe. A safe fix keeps what the code does. An unsafe
+fix may change it, for example because another name still points at the old object.
 
-- `packages`: for each library, its version, where pdx found it, and the rule set it used.
-- `issues`: `package`, `rule`, `file`, `line`, `column`, `severity`, `message`.
+| Flags | Effect |
+| --- | --- |
+| none | Lint. `[*]` marks an issue with a safe fix |
+| `--fix` | Write the safe fixes, then lint what is left |
+| `--unsafe-fixes` | Lint. `[*]` also marks an issue with an unsafe fix |
+| `--fix --unsafe-fixes` | Write every fix, then lint what is left |
+
+Output is text on a terminal and JSON otherwise. The JSON has `fixed`, the number of fixes
+written, and `issues`, each with `package`, `rule`, `file`, `line`, `column`, `severity`,
+`message` and `fix`: `safe`, `unsafe` or `null`.
 
 | Exit code | Meaning |
 | --- | --- |
-| 0 | No error-severity issue |
+| 0 | No error-severity issue, after fixes |
 | 1 | At least one error |
 | 2 | pdx could not run, for example an unreadable path |
 
