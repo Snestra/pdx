@@ -18,8 +18,11 @@ rule:
             field: arguments
             any:
               - has: { stopBy: end, pattern: $X }
-              # shift(freq=) moves the index instead of the values.
+              # shift(freq=) or shift(1, "D") moves the index instead of the values, and an
+              # unpacked argument may hold a frequency.
               - has: { kind: keyword_argument, has: { field: name, regex: ^freq$ } }
+              - has: { any: [{ kind: string }, { kind: list_splat }, { kind: dictionary_splat }] }
+              - has: { nthChild: 2, not: { kind: keyword_argument } }
 constraints:
   W: { regex: ^(cummax|cummin|shift|diff|ffill|bfill|rank|pct_change)$ }
   G: { not: { regex: '\.(resample|rolling|expanding|ewm)\(' } }
@@ -45,8 +48,11 @@ rule:
             field: arguments
             any:
               - has: { stopBy: end, pattern: $X }
-              # shift(freq=) moves the index instead of the values.
+              # shift(freq=) or shift(1, "D") moves the index instead of the values, and an
+              # unpacked argument may hold a frequency.
               - has: { kind: keyword_argument, has: { field: name, regex: ^freq$ } }
+              - has: { any: [{ kind: string }, { kind: list_splat }, { kind: dictionary_splat }] }
+              - has: { nthChild: 2, not: { kind: keyword_argument } }
 constraints:
   W: { regex: ^(cumsum|cumprod)$ }
   G: { not: { regex: '\.(resample|rolling|expanding|ewm)\(' } }
