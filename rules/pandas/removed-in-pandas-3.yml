@@ -1,0 +1,287 @@
+# Each document finds one API that pandas 3 removed. The forms raise on pandas 3.0 and 3.1.
+
+id: removed-in-pandas-3
+language: python
+severity: error
+message: DataFrame.applymap was removed in pandas 3. Use map, which takes the same arguments.
+rule: { pattern: $X.applymap($$$A) }
+fix: $X.map($$$A)
+metadata: { fix: safe }
+---
+# fillna(method="ffill") whose other arguments are limit, axis or inplace, which ffill takes too.
+id: removed-in-pandas-3
+language: python
+severity: error
+message: fillna(method=) was removed in pandas 3. Call ffill() instead.
+rule:
+  pattern: $X.fillna($$$ARGS)
+  has:
+    field: arguments
+    has:
+      kind: keyword_argument
+      all:
+        - has: { field: name, regex: ^method$ }
+        - has: { field: value, regex: '^["''](ffill|pad)["'']$' }
+  not: { has: { field: arguments, has: { not: { matches: movable } } } }
+utils:
+  # The brackets and commas of the argument list, comments, and the keywords ffill takes.
+  movable:
+    any:
+      - regex: ^[(),]$
+      - kind: comment
+      - kind: keyword_argument
+        has: { field: name, regex: ^(method|limit|axis|inplace)$ }
+rewriters:
+  - id: drop-method
+    rule: { kind: keyword_argument, has: { field: name, regex: ^method$ } }
+    fix: ""
+  - id: keep-argument
+    rule:
+      pattern: $ARG
+      not:
+        any:
+          - kind: comment
+          - kind: keyword_argument
+            has: { field: name, regex: ^method$ }
+    fix: "$ARG, "
+transform:
+  KEPT:
+    rewrite: { source: $$$ARGS, rewriters: [drop-method, keep-argument], joinBy: "" }
+  REST:
+    replace: { source: $KEPT, replace: ", $", by: "" }
+fix: $X.ffill($REST)
+metadata: { fix: safe }
+---
+id: removed-in-pandas-3
+language: python
+severity: error
+message: fillna(method=) was removed in pandas 3. Call bfill() instead.
+rule:
+  pattern: $X.fillna($$$ARGS)
+  has:
+    field: arguments
+    has:
+      kind: keyword_argument
+      all:
+        - has: { field: name, regex: ^method$ }
+        - has: { field: value, regex: '^["''](bfill|backfill)["'']$' }
+  not: { has: { field: arguments, has: { not: { matches: movable } } } }
+utils:
+  # The brackets and commas of the argument list, comments, and the keywords bfill takes.
+  movable:
+    any:
+      - regex: ^[(),]$
+      - kind: comment
+      - kind: keyword_argument
+        has: { field: name, regex: ^(method|limit|axis|inplace)$ }
+rewriters:
+  - id: drop-method
+    rule: { kind: keyword_argument, has: { field: name, regex: ^method$ } }
+    fix: ""
+  - id: keep-argument
+    rule:
+      pattern: $ARG
+      not:
+        any:
+          - kind: comment
+          - kind: keyword_argument
+            has: { field: name, regex: ^method$ }
+    fix: "$ARG, "
+transform:
+  KEPT:
+    rewrite: { source: $$$ARGS, rewriters: [drop-method, keep-argument], joinBy: "" }
+  REST:
+    replace: { source: $KEPT, replace: ", $", by: "" }
+fix: $X.bfill($REST)
+metadata: { fix: safe }
+---
+# Any other fillna(method=), such as one with a value or with a method held in a name, has no fix.
+id: removed-in-pandas-3
+language: python
+severity: error
+message: fillna(method=) was removed in pandas 3. Call ffill() or bfill() instead.
+rule:
+  pattern: $X.fillna($$$ARGS)
+  has:
+    field: arguments
+    has: { kind: keyword_argument, has: { field: name, regex: ^method$ } }
+  not:
+    all:
+      - has:
+          field: arguments
+          has:
+            kind: keyword_argument
+            all:
+              - has: { field: name, regex: ^method$ }
+              - has: { field: value, regex: '^["''](ffill|pad|bfill|backfill)["'']$' }
+      - not: { has: { field: arguments, has: { not: { matches: movable } } } }
+utils:
+  movable:
+    any:
+      - regex: ^[(),]$
+      - kind: comment
+      - kind: keyword_argument
+        has: { field: name, regex: ^(method|limit|axis|inplace)$ }
+---
+# A frequency alias that pandas 3 removed, where the call takes only datetimes, or where the
+# alias means the same for periods. Inside resample, asfreq and shift, "M", "Q" and "Y" remain
+# valid for periods, and "A" becomes "Y" for periods but "YE" for datetimes, so the documents
+# below handle them.
+id: removed-in-pandas-3
+language: python
+severity: error
+message: The frequency $S was removed in pandas 3. Write $NEW.
+rule:
+  pattern: $S
+  kind: string
+  matches: old-alias
+  any:
+    - matches: datetime-argument
+    - all:
+        - matches: either-argument
+        - not: { matches: period-alias }
+        - not: { matches: year-alias }
+utils:
+  old-alias:
+    regex: '^["''](\d*)(C?B?[MQY]|SM|B?AS?|C?B?H|[TSLUN])(-[A-Z]{3})?["'']$'
+  period-alias:
+    regex: '^["'']\d*[MQY](-[A-Z]{3})?["'']$'
+  year-alias:
+    regex: '^["'']\d*A(-[A-Z]{3})?["'']$'
+  # Calls that take only datetimes: the first argument or freq= of these.
+  datetime-argument:
+    any:
+      - nthChild: 1
+        inside:
+          kind: argument_list
+          inside: { kind: call, has: { field: function, regex: '\.(floor|ceil|round|rolling)$' } }
+      - inside:
+          kind: keyword_argument
+          has: { field: name, regex: ^(freq|window)$ }
+          inside:
+            kind: argument_list
+            inside:
+              kind: call
+              has: { field: function, regex: '(^|\.)(date_range|bdate_range|Grouper|floor|ceil|round|rolling)$' }
+  # Calls that take datetimes or periods.
+  either-argument:
+    any:
+      - nthChild: 1
+        inside:
+          kind: argument_list
+          inside: { kind: call, has: { field: function, regex: '\.(resample|asfreq)$' } }
+      - inside:
+          kind: keyword_argument
+          has: { field: name, regex: ^(freq|rule)$ }
+          inside:
+            kind: argument_list
+            inside: { kind: call, has: { field: function, regex: '\.(resample|asfreq|shift)$' } }
+transform:
+  YEAR: { replace: { source: $S, replace: '^(.\d*B?)A(S?.*)$', by: '${1}Y${2}' } }
+  END: { replace: { source: $YEAR, replace: '^(.\d*)(C?B?[MQY]|SM)(-[A-Z]{3})?(.)$', by: '${1}${2}E${3}${4}' } }
+  HOUR: { replace: { source: $END, replace: '^(.\d*)H(.)$', by: '${1}h${2}' } }
+  BHOUR: { replace: { source: $HOUR, replace: '^(.\d*)BH(.)$', by: '${1}bh${2}' } }
+  CBHOUR: { replace: { source: $BHOUR, replace: '^(.\d*)CBH(.)$', by: '${1}cbh${2}' } }
+  MINUTE: { replace: { source: $CBHOUR, replace: '^(.\d*)T(.)$', by: '${1}min${2}' } }
+  SECOND: { replace: { source: $MINUTE, replace: '^(.\d*)S(.)$', by: '${1}s${2}' } }
+  MILLI: { replace: { source: $SECOND, replace: '^(.\d*)L(.)$', by: '${1}ms${2}' } }
+  MICRO: { replace: { source: $MILLI, replace: '^(.\d*)U(.)$', by: '${1}us${2}' } }
+  NEW: { replace: { source: $MICRO, replace: '^(.\d*)N(.)$', by: '${1}ns${2}' } }
+fix: $NEW
+metadata: { fix: safe }
+---
+# "M", "Q" and "Y" inside resample or shift. They raise on a DatetimeIndex and remain valid on a
+# PeriodIndex, where the fix would break the call. asfreq("M") is left alone for the same reason.
+id: removed-in-pandas-3
+language: python
+severity: error
+message: The frequency $S was removed in pandas 3 for datetimes, and it remains valid for periods. Write $NEW if the index holds datetimes.
+rule:
+  pattern: $S
+  kind: string
+  regex: '^["'']\d*[MQY](-[A-Z]{3})?["'']$'
+  any:
+    - nthChild: 1
+      inside:
+        kind: argument_list
+        inside: { kind: call, has: { field: function, regex: '\.resample$' } }
+    - inside:
+        kind: keyword_argument
+        has: { field: name, regex: ^(freq|rule)$ }
+        inside:
+          kind: argument_list
+          inside: { kind: call, has: { field: function, regex: '\.(resample|shift)$' } }
+transform:
+  NEW: { replace: { source: $S, replace: '^(.\d*[MQY])(-[A-Z]{3})?(.)$', by: '${1}E${2}${3}' } }
+fix: $NEW
+metadata: { fix: unsafe }
+---
+# "A" inside resample, asfreq or shift. It raises for datetimes and for periods, and the new
+# alias differs between them.
+id: removed-in-pandas-3
+language: python
+severity: error
+message: The frequency $S was removed in pandas 3. Write "YE" for datetimes or "Y" for periods, with the same number and month.
+rule:
+  pattern: $S
+  kind: string
+  regex: '^["'']\d*A(-[A-Z]{3})?["'']$'
+  any:
+    - nthChild: 1
+      inside:
+        kind: argument_list
+        inside: { kind: call, has: { field: function, regex: '\.(resample|asfreq)$' } }
+    - inside:
+        kind: keyword_argument
+        has: { field: name, regex: ^(freq|rule)$ }
+        inside:
+          kind: argument_list
+          inside: { kind: call, has: { field: function, regex: '\.(resample|asfreq|shift)$' } }
+---
+# delim_whitespace=True, when the call does not also set sep or delimiter.
+id: removed-in-pandas-3
+language: python
+severity: error
+message: The delim_whitespace argument was removed in pandas 3. Write sep=r"\s+" instead.
+rule:
+  pattern: $KW
+  kind: keyword_argument
+  all:
+    - has: { field: name, regex: ^delim_whitespace$ }
+    - has: { field: value, regex: ^True$ }
+  inside:
+    kind: argument_list
+    inside: { kind: call, has: { field: function, regex: '(^|\.)(read_csv|read_table)$' } }
+    not:
+      has: { kind: keyword_argument, has: { field: name, regex: ^(sep|delimiter)$ } }
+fix: sep=r"\s+"
+metadata: { fix: safe }
+---
+id: removed-in-pandas-3
+language: python
+severity: error
+message: The delim_whitespace argument was removed in pandas 3. Pass sep=r"\s+" and drop delim_whitespace.
+rule:
+  kind: keyword_argument
+  has: { field: name, regex: ^delim_whitespace$ }
+  inside:
+    kind: argument_list
+    inside: { kind: call, has: { field: function, regex: '(^|\.)(read_csv|read_table)$' } }
+  not:
+    all:
+      - has: { field: value, regex: ^True$ }
+      - inside:
+          kind: argument_list
+          not:
+            has: { kind: keyword_argument, has: { field: name, regex: ^(sep|delimiter)$ } }
+---
+# Unsafe: isocalendar().week has dtype UInt32, and dt.week had int32.
+id: removed-in-pandas-3
+language: python
+severity: error
+message: Series.dt.week was removed in pandas 3. Use dt.isocalendar().week.
+rule: { pattern: $X.dt.$W }
+constraints:
+  W: { regex: ^(week|weekofyear)$ }
+fix: $X.dt.isocalendar().week
+metadata: { fix: unsafe }

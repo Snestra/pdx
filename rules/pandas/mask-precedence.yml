@@ -1,0 +1,15 @@
+# In `df["a"] > 1 & df["b"] < 3`, & binds first, so Python compares df["a"] with `1 & df["b"]`.
+# Only a & or | to the right of a comparison operator counts, because `flags & 4 == 0` is
+# ordinary bit arithmetic, and `in` or `is` comparisons often take a set union.
+id: mask-precedence
+language: python
+severity: error
+message: The & and | operators bind tighter than comparisons, so this compares against a combined value. Put each comparison in parentheses, as in (df["a"] > 1) & (df["b"] < 3).
+rule:
+  kind: comparison_operator
+  has:
+    kind: binary_operator
+    has: { field: operator, regex: '^[&|]$' }
+    not: { nthChild: 1 }
+  not:
+    has: { field: operators, regex: ^(in|not in|is|is not)$ }

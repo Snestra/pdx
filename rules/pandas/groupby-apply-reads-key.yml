@@ -1,0 +1,23 @@
+# groupby(...).apply drops the grouping columns from each group in pandas 3, so reading one
+# inside the function raises KeyError.
+id: groupby-apply-reads-key
+language: python
+severity: error
+message: groupby.apply no longer passes the grouping column $KEY to the function, so this lookup raises KeyError. Read the group key from $G.name instead.
+rule:
+  pattern: $DF.groupby($$$BY).apply($$$ARGS)
+  all:
+    # The lambda reads a column by a text label.
+    - has:
+        field: arguments
+        has:
+          pattern: "lambda $G: $BODY"
+          has: { field: body, stopBy: end, pattern: "$G[$KEY]" }
+    # The same label is a grouping key, alone or in a list.
+    - has:
+        field: function
+        has:
+          field: object
+          has: { field: arguments, stopBy: end, pattern: $KEY }
+constraints:
+  KEY: { kind: string }

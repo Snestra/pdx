@@ -1,0 +1,14 @@
+# Dividing by 10**9 or 10**6 turns nanoseconds into seconds or milliseconds. A cast to int on a
+# pandas 3 datetime column returns microseconds for most sources, so the result is off by 1,000.
+id: epoch-from-int-cast
+language: python
+severity: error
+message: Datetimes default to microseconds in pandas 3, so this cast no longer gives nanoseconds. Subtract the epoch and divide by a Timedelta, as in (col - pd.Timestamp("1970-01-01")) // pd.Timedelta("1s").
+rule:
+  kind: binary_operator
+  all:
+    - has: { field: operator, regex: ^//?$ }
+    - has: { field: left, pattern: $X.astype($T) }
+    - has: { field: right, regex: '^(10 ?\*\* ?[69]|1e[69]|1_?000_?000(_?000)?)$' }
+constraints:
+  T: { regex: '^(["'']int64["'']|["'']int["'']|int|np\.int64|["'']i8["''])$' }

@@ -8,7 +8,8 @@ use std::{
 
 use anyhow::{Context, Result};
 use ast_grep_core::{
-    AstGrep,
+    AstGrep, NodeMatch,
+    source::Edit,
     tree_sitter::{LanguageExt, StrDoc},
 };
 use ast_grep_language::SupportLang;
@@ -16,8 +17,14 @@ use rayon::iter::{IntoParallelRefIterator, ParallelIterator};
 
 use crate::{
     report::Issue,
-    rules::{Applicability, Pack},
+    rules::{Applicability, Pack, Rule},
 };
+
+type Root = AstGrep<StrDoc<SupportLang>>;
+
+/// Short names a fix may write, each with the module it must be imported as. A fix that writes
+/// `pd.` applies only in a file with `import pandas as pd`. Elsewhere its issue has no fix.
+const IMPORT_NAMES: &[(&str, &str)] = &[("pd", "pandas"), ("np", "numpy")];
 
 pub(crate) fn is_python(path: &Path) -> bool {
     path.extension()
@@ -102,11 +109,7 @@ pub(crate) fn scan(
 /// Parses `src` only when it names a pack's module, and yields each pack whose library the
 /// file imports. Rules run only on those files, because they match names such as `merge` and
 /// `inplace` that other libraries share.
-fn imported<'p>(
-    root: &AstGrep<StrDoc<SupportLang>>,
-    src: &str,
-    packs: &'p [Pack],
-) -> impl Iterator<Item = &'p Pack> {
+fn imported<'p>(root: &Root, src: &str, packs: &'p [Pack]) -> impl Iterator<Item = &'p Pack> {
     packs
         .iter()
         .filter(move |p| src.contains(p.module) && root.root().find(&p.gate.matcher).is_some())
@@ -117,11 +120,13 @@ fn lint(path: &Path, src: &str, packs: &[Pack]) -> Vec<Issue> {
         return Vec::new();
     }
     let root = SupportLang::Python.ast_grep(src);
+    let names = bound_names(&root);
     let mut found = Vec::new();
     for pack in imported(&root, src, packs) {
         for rule in &pack.rules {
             for m in root.root().find_all(&rule.config.matcher) {
                 let pos = m.start_pos();
+                let fix = rule.fix.filter(|_| usable_edit(rule, &m, &names).is_some());
                 found.push(Issue {
                     package: pack.module,
                     rule: rule.config.id.clone(),
@@ -130,7 +135,7 @@ fn lint(path: &Path, src: &str, packs: &[Pack]) -> Vec<Issue> {
                     column: pos.column(&m) + 1,
                     severity: rule.config.severity.clone(),
                     message: rule.config.get_message(&m),
-                    fix: rule.fix,
+                    fix,
                 });
             }
         }
@@ -145,15 +150,17 @@ fn fix_pass(src: &str, packs: &[Pack], allowed: Applicability) -> (String, usize
         return (src.to_owned(), 0);
     }
     let root = SupportLang::Python.ast_grep(src);
+    let names = bound_names(&root);
     let mut edits = Vec::new();
     for pack in imported(&root, src, packs) {
         for rule in &pack.rules {
             if rule.fix.is_none_or(|a| a > allowed) {
                 continue;
             }
-            let fixer = &rule.config.fixer[0];
             for m in root.root().find_all(&rule.config.matcher) {
-                let edit = m.make_edit(&rule.config.matcher, fixer);
+                let Some(edit) = usable_edit(rule, &m, &names) else {
+                    continue;
+                };
                 let old = &src.as_bytes()[edit.position..edit.position + edit.deleted_length];
                 if edit.inserted_text != old {
                     edits.push(edit);
@@ -177,4 +184,49 @@ fn fix_pass(src: &str, packs: &[Pack], allowed: Applicability) -> (String, usize
     out.extend_from_slice(&src.as_bytes()[copied..]);
     let out = String::from_utf8(out).expect("fixes splice UTF-8 text at node boundaries");
     (out, applied)
+}
+
+/// The names from `IMPORT_NAMES` that the file binds with `import <module> as <name>`.
+fn bound_names(root: &Root) -> Vec<&'static str> {
+    let aliases: Vec<(String, String)> = root
+        .root()
+        .dfs()
+        .filter(|n| n.kind() == "aliased_import")
+        .filter_map(|n| {
+            Some((
+                n.field("name")?.text().into(),
+                n.field("alias")?.text().into(),
+            ))
+        })
+        .collect();
+    IMPORT_NAMES
+        .iter()
+        .filter(|(name, module)| aliases.iter().any(|(m, a)| m == module && a == name))
+        .map(|(name, _)| *name)
+        .collect()
+}
+
+/// The edit `rule` makes for `m`, or `None` when the rule has no fix or its fix writes a name
+/// from `IMPORT_NAMES` that is not in `bound`.
+fn usable_edit(
+    rule: &Rule,
+    m: &NodeMatch<'_, StrDoc<SupportLang>>,
+    bound: &[&str],
+) -> Option<Edit<String>> {
+    let fixer = rule.config.fixer.first()?;
+    let edit = m.make_edit(&rule.config.matcher, fixer);
+    let unbound = IMPORT_NAMES
+        .iter()
+        .any(|(name, _)| !bound.contains(name) && writes_name(&edit.inserted_text, name));
+    (!unbound).then_some(edit)
+}
+
+/// Whether `text` uses `name` as the start of a dotted name, such as `pd.col`.
+fn writes_name(text: &[u8], name: &str) -> bool {
+    let needle = format!("{name}.");
+    text.windows(needle.len()).enumerate().any(|(i, w)| {
+        w == needle.as_bytes()
+            && (i == 0
+                || !(text[i - 1].is_ascii_alphanumeric() || matches!(text[i - 1], b'_' | b'.')))
+    })
 }

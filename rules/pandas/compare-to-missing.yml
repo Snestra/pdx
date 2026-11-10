@@ -1,0 +1,83 @@
+# A comparison with a missing value is False for every row, missing or not. The fixes are
+# unsafe, because on a single value instead of a column, .isna() raises AttributeError.
+
+id: compare-to-missing
+language: python
+severity: error
+message: A comparison with a missing value is never true. Write $X.isna() instead.
+rule: { pattern: $X == $M }
+constraints:
+  M: { matches: missing }
+  X: { matches: primary }
+utils:
+  missing: { regex: '^(np\.(nan|NaN|NAN)|pd\.(NA|NaT)|math\.nan|float\(["'']nan["'']\))$' }
+  primary: { any: [{ kind: identifier }, { kind: attribute }, { kind: subscript }, { kind: call }, { kind: parenthesized_expression }] }
+fix: $X.isna()
+metadata: { fix: unsafe }
+---
+id: compare-to-missing
+language: python
+severity: error
+message: A comparison with a missing value is never true. Write ($X).isna() instead.
+rule: { pattern: $X == $M }
+constraints:
+  M: { matches: missing }
+  X: { not: { matches: primary } }
+utils:
+  missing: { regex: '^(np\.(nan|NaN|NAN)|pd\.(NA|NaT)|math\.nan|float\(["'']nan["'']\))$' }
+  primary: { any: [{ kind: identifier }, { kind: attribute }, { kind: subscript }, { kind: call }, { kind: parenthesized_expression }] }
+fix: ($X).isna()
+metadata: { fix: unsafe }
+---
+id: compare-to-missing
+language: python
+severity: error
+message: A comparison with a missing value is always true, missing or not. Write $X.notna() instead.
+rule: { pattern: $X != $M }
+constraints:
+  M: { matches: missing }
+  X: { matches: primary }
+utils:
+  missing: { regex: '^(np\.(nan|NaN|NAN)|pd\.(NA|NaT)|math\.nan|float\(["'']nan["'']\))$' }
+  primary: { any: [{ kind: identifier }, { kind: attribute }, { kind: subscript }, { kind: call }, { kind: parenthesized_expression }] }
+fix: $X.notna()
+metadata: { fix: unsafe }
+---
+id: compare-to-missing
+language: python
+severity: error
+message: A comparison with a missing value is always true, missing or not. Write ($X).notna() instead.
+rule: { pattern: $X != $M }
+constraints:
+  M: { matches: missing }
+  X: { not: { matches: primary } }
+utils:
+  missing: { regex: '^(np\.(nan|NaN|NAN)|pd\.(NA|NaT)|math\.nan|float\(["'']nan["'']\))$' }
+  primary: { any: [{ kind: identifier }, { kind: attribute }, { kind: subscript }, { kind: call }, { kind: parenthesized_expression }] }
+fix: ($X).notna()
+metadata: { fix: unsafe }
+---
+# astype(str) keeps missing values missing in pandas 3, so the text "nan" never appears.
+id: compare-to-missing
+language: python
+severity: error
+message: astype(str) keeps missing values missing in pandas 3, so this text never matches them. Write $X.isna() instead.
+rule: { pattern: $X.astype(str) == $T }
+constraints:
+  T: { matches: missing-text }
+utils:
+  missing-text: { regex: '^["''](nan|NaN|None|<NA>|NaT)["'']$' }
+fix: $X.isna()
+metadata: { fix: unsafe }
+---
+id: compare-to-missing
+language: python
+severity: error
+message: astype(str) keeps missing values missing in pandas 3, so this text never matches them. Write $X.notna() instead.
+rule: { pattern: $X.astype(str) != $T }
+constraints:
+  T: { matches: missing-text }
+utils:
+  missing-text: { regex: '^["''](nan|NaN|None|<NA>|NaT)["'']$' }
+fix: $X.notna()
+metadata: { fix: unsafe }
