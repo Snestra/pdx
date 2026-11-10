@@ -1,0 +1,9 @@
+# Unsafe: select raises on a label that is absent, where filter skipped it, and a Series has no
+# select. axis=, like= and regex= are left alone.
+id: filter-items
+language: python
+severity: warning
+message: The pandas 3.1 documentation says filter(items=) will be deprecated. Write $X.select($L).
+rule: { pattern: $X.filter(items=$L) }
+fix: $X.select($L)
+metadata: { fix: unsafe, since: "3.1" }

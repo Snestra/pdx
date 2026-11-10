@@ -1,0 +1,12 @@
+# Unsafe: select returns a name twice when a computed column reuses a selected name, where assign
+# replaced the column.
+id: assign-then-select
+language: python
+severity: warning
+message: select picks columns and computes new ones in one call. Write $X.select($$$COLS, ...).
+rule: { pattern: "$X[[$$$COLS]].assign($$$KW)" }
+constraints:
+  COLS: { kind: string }
+  KW: { kind: keyword_argument }
+fix: $X.select($$$COLS, $$$KW)
+metadata: { fix: unsafe, since: "3.1" }

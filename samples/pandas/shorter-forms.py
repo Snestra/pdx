@@ -171,3 +171,45 @@ def nested_np_where(df):
 def single_np_where(df):
     a = df["a"]
     return pd.Series(np.where(a < 20, "low", "high")), pd.Series("high", index=a.index).case_when([(a < 20, "low"), (a < 70, "mid")])
+
+
+@case
+def query_string(df):
+    return df.query("a > 50 and b < 0")  # pdx: query-string
+
+
+@case
+def query_with_expressions(df):
+    return df.loc[(pd.col("a") > 50) & (pd.col("b") < 0)]
+
+
+@case
+def assign_then_select(df):
+    return df[["k", "a"]].assign(c=pd.col("a") * 2)  # pdx: assign-then-select
+
+
+@case
+def assign_that_stays(df):
+    cols = ["k", "a"]
+    return df[cols].assign(c=pd.col("a") * 2), df.assign(c=pd.col("a") * 2)[["k", "c"]]
+
+
+@case
+def filter_items(df):
+    return df.filter(items=["a", "b"])  # pdx: filter-items
+
+
+@case
+def filter_that_stays(df):
+    return df.filter(like="a"), df.filter(items=[0, 1], axis=0)
+
+
+@case
+def concat_then_category(df):
+    x, y = df["k"].iloc[:1000].astype("category"), df["k"].iloc[1000:].astype("category")
+    return pd.concat([x, y]).astype("category")  # pdx: concat-then-category
+
+
+@case
+def concat_that_stays(df):
+    return pd.concat([df["k"], df["s"]]).astype("str"), pd.concat([df["k"], df["s"]])

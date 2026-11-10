@@ -16,7 +16,10 @@ use anyhow::{Context, Result};
 use clap::{Parser, Subcommand, ValueEnum};
 use serde_json::Value;
 
-use crate::{report::Report, rules::Applicability};
+use crate::{
+    report::Report,
+    rules::{Applicability, Version},
+};
 
 const SKILL: &str = include_str!("../SKILL.md");
 const PROFILE_PY: &str = include_str!("../py/profile.py");
@@ -113,9 +116,14 @@ fn main() -> ExitCode {
     }
 }
 
-/// Lints `paths`, after writing fixes up to `fix` when it is set.
+/// Lints `paths`, after writing fixes up to `fix` when it is set. Each pack keeps the rules for
+/// the library version installed in the project.
 fn lint(paths: &[PathBuf], fix: Option<Applicability>) -> Result<Report> {
-    let packs = rules::load().context("invalid embedded rules")?;
+    let mut packs = rules::load().context("invalid embedded rules")?;
+    for pack in &mut packs {
+        let installed = pyenv::installed_version(pack.module).and_then(|v| Version::parse(&v));
+        pack.keep_rules_for(installed.as_ref());
+    }
     let files = scan::collect_files(paths)?;
     let scanned = scan::scan(&files, &packs, fix)?;
     Ok(Report {

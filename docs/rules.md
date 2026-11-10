@@ -6,6 +6,12 @@ The rules follow pandas 3, where copy-on-write is always on. A fix that writes `
 applies only in a file that imports pandas as `pd` or numpy as `np`. In any other file pdx
 reports the issue without a fix.
 
+Four rules ask for an API that pandas 3.1 added: `query-string`, `assign-then-select`,
+`filter-items` and `concat-then-category`. pdx reads the installed pandas version from the name
+of the `pandas-<version>.dist-info` folder in the project's venv, which is `$VIRTUAL_ENV` or the
+nearest `.venv` above the working directory, without starting Python. On pandas 3.0 it skips
+those four rules. When the venv has no pandas, or there is no venv, every rule runs.
+
 ### Code that is wrong or broken on pandas 3
 
 Each old form gives a wrong result, raises, or warns on pandas 3.0 and 3.1.
@@ -64,6 +70,10 @@ These rules are warnings. Most of them make code shorter and do not change its s
 | `merge-indicator-anti-join` | warning | `m[m["_merge"] == "left_only"]` after `merge(..., indicator=True)` | none |
 | `value-counts-share` | warning | `df["k"].value_counts() / len(df["k"])` | unsafe: `df["k"].value_counts(normalize=True)` |
 | `nested-np-where` | warning | `np.where(a < 20, "low", np.where(a < 70, "mid", "high"))` | none |
+| `query-string` | warning | `df.query("a > 50 and b < 0")`, on pandas 3.1 | none |
+| `assign-then-select` | warning | `df[["k", "a"]].assign(c=pd.col("a") * 2)`, on pandas 3.1 | unsafe: `df.select("k", "a", c=pd.col("a") * 2)` |
+| `filter-items` | warning | `df.filter(items=cols)`, on pandas 3.1 | unsafe: `df.select(cols)` |
+| `concat-then-category` | warning | `pd.concat(parts).astype("category")`, on pandas 3.1 | unsafe: `pd.concat(parts, union_categories=True)` |
 
 `lambda-column` rewrites a lambda only when every use of its parameter is `d["name"]` and the body
 has no plain function call such as `len(d)`, and no `if`, `and`, `or`, `not` or `in`.
@@ -74,6 +84,11 @@ data. The `range-mask` fix is unsafe, because the operand may be a numpy array, 
 column and returns booleans for a boolean column. The `groupby-then-reset-index` fix is unsafe,
 because a key that is not a column comes back in another place. The `value-counts-share` fix names
 the result proportion instead of count and leaves missing values out of the total.
+`query-string` leaves a string that reads like SQL alone, such as `conn.query("SELECT ...")`. The
+`assign-then-select` fix is unsafe, because `select` returns a name twice when a computed column
+reuses a selected name. The `filter-items` fix is unsafe, because `select` raises on a label that
+is absent, where `filter` skipped it, and a Series has no `select`. The `concat-then-category`
+fix is unsafe, because the category order differs, and parts that are not categorical stay so.
 
 ### Python work per row or per value
 
@@ -177,6 +192,11 @@ same id, one per shape.
 A rule may have one ast-grep `fix:`. It must then say whether the fix keeps what the code does,
 with `metadata: { fix: safe }` or `metadata: { fix: unsafe }`. A fix may write `pd.` or `np.`,
 and pdx applies it only in a file that imports pandas as `pd` or numpy as `np`.
+
+A rule that needs a newer library version says so with `metadata: { since: "3.1" }`. pdx skips it
+when the project's venv holds an older version of the pack's library. It finds the version for any
+pack the same way: from the dist-info folder whose name is the module, or whose `top_level.txt`
+lists the module.
 
 Add a file, rebuild, and check it against a sample:
 

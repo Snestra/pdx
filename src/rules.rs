@@ -30,10 +30,59 @@ impl Applicability {
     }
 }
 
+/// A release number such as `3.1` or `3.1.1`. Missing parts count as zero, so `3.1` equals
+/// `3.1.0`. Anything after the leading numbers, such as `rc1` in `3.2.0rc1`, is ignored.
+#[derive(Debug, Clone)]
+pub(crate) struct Version(Vec<u32>);
+
+impl Version {
+    pub(crate) fn parse(text: &str) -> Option<Self> {
+        let numeric = text
+            .split(|c: char| !(c.is_ascii_digit() || c == '.'))
+            .next()?;
+        let parts = numeric
+            .split('.')
+            .take_while(|p| !p.is_empty())
+            .map(str::parse)
+            .collect::<Result<Vec<u32>, _>>()
+            .ok()?;
+        (!parts.is_empty()).then_some(Self(parts))
+    }
+
+    fn part(&self, i: usize) -> u32 {
+        self.0.get(i).copied().unwrap_or(0)
+    }
+}
+
+impl Ord for Version {
+    fn cmp(&self, other: &Self) -> std::cmp::Ordering {
+        (0..self.0.len().max(other.0.len()))
+            .map(|i| self.part(i).cmp(&other.part(i)))
+            .find(|o| o.is_ne())
+            .unwrap_or(std::cmp::Ordering::Equal)
+    }
+}
+
+impl PartialOrd for Version {
+    fn partial_cmp(&self, other: &Self) -> Option<std::cmp::Ordering> {
+        Some(self.cmp(other))
+    }
+}
+
+impl PartialEq for Version {
+    fn eq(&self, other: &Self) -> bool {
+        self.cmp(other).is_eq()
+    }
+}
+
+impl Eq for Version {}
+
 pub(crate) struct Rule {
     pub(crate) config: RuleConfig<SupportLang>,
     /// `None` when the rule has no fix.
     pub(crate) fix: Option<Applicability>,
+    /// The first library version the rule applies to, from `metadata.since`.
+    since: Option<Version>,
 }
 
 /// One library's rules.
@@ -41,6 +90,17 @@ pub(crate) struct Pack {
     pub(crate) module: &'static str,
     pub(crate) gate: RuleConfig<SupportLang>,
     pub(crate) rules: Vec<Rule>,
+}
+
+impl Pack {
+    /// Drops the rules whose `metadata.since` is newer than `installed`. With no installed
+    /// version every rule stays, so a project without the library gets the newest advice.
+    pub(crate) fn keep_rules_for(&mut self, installed: Option<&Version>) {
+        if let Some(installed) = installed {
+            self.rules
+                .retain(|r| r.since.as_ref().is_none_or(|since| since <= installed));
+        }
+    }
 }
 
 pub(crate) fn load() -> Result<Vec<Pack>> {
@@ -51,9 +111,10 @@ pub(crate) fn load() -> Result<Vec<Pack>> {
                 .into_iter()
                 .filter(|r| r.severity != Severity::Off)
                 .map(|config| {
-                    let fix = applicability(&config)
-                        .with_context(|| format!("rules/{}/{}", src.module, config.id))?;
-                    Ok(Rule { config, fix })
+                    let context = || format!("rules/{}/{}", src.module, config.id);
+                    let fix = applicability(&config).with_context(context)?;
+                    let since = since(&config).with_context(context)?;
+                    Ok(Rule { config, fix, since })
                 })
                 .collect::<Result<_>>()?;
             let gate = parse(&gate_yaml(src.module), src.module)?
@@ -85,6 +146,25 @@ fn applicability(rule: &RuleConfig<SupportLang>) -> Result<Option<Applicability>
         (0, Some(_)) => bail!("metadata.fix is set, but the rule has no fix"),
         (1, _) => bail!("a rule with a fix needs metadata.fix: safe or unsafe"),
         _ => bail!("a rule may have only one fix"),
+    }
+}
+
+/// `metadata: { since: "3.1" }` names the first library version a rule applies to.
+fn since(rule: &RuleConfig<SupportLang>) -> Result<Option<Version>> {
+    let metadata = rule
+        .metadata
+        .as_ref()
+        .map(serde_json::to_value)
+        .transpose()?;
+    match metadata.as_ref().and_then(|m| m.get("since")) {
+        None => Ok(None),
+        Some(value) => value
+            .as_str()
+            .and_then(Version::parse)
+            .map(Some)
+            .with_context(|| {
+                format!("metadata.since must be a version such as \"3.1\", not {value}")
+            }),
     }
 }
 

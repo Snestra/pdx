@@ -9,7 +9,8 @@ pdx check [PATHS]... [--format text|json] [--fix] [--unsafe-fixes]
 ```
 
 Lints files and folders. Folders respect `.gitignore`. A library's rules run only on files
-that import it.
+that import it. A rule for a newer library version than the one installed in the project's venv
+is skipped. See [Rules](rules.md).
 
 Some rules have a fix, which is safe or unsafe. A safe fix keeps what the code does. An unsafe
 fix may change it, for example because another name still points at the old object.
