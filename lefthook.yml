@@ -10,11 +10,11 @@ pre-commit:
       run: cargo clippy --all-targets --all-features -- -D warnings
     - name: ruff format
       glob: "py/*.py"
-      run: uvx ruff@0.17.4 format {staged_files}
+      run: ruff format {staged_files}
       stage_fixed: true
     - name: ruff check
       glob: "py/*.py"
-      run: uvx ruff@0.17.4 check --fix {staged_files}
+      run: ruff check --fix {staged_files}
       stage_fixed: true
     - name: jactionlint
       glob: ".github/**/*.yml"

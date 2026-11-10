@@ -1,4 +1,4 @@
-# Runs the checks lefthook runs locally, so pull requests from anyone get them too.
+# Runs the lefthook checks on every file, so pull requests from anyone get them too.
 name: CI
 on:
   pull_request:
@@ -11,22 +11,13 @@ concurrency:
   group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
   cancel-in-progress: true
 jobs:
-  # Everything mise.toml pins: Rust, cargo-deny and jactionlint.
-  mise-tools:
+  lefthook:
     runs-on: ubuntu-latest
     timeout-minutes: 30
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - uses: jdx/mise-action@5228313ee0372e111a38da051671ca30fc5a96db # v3.6.3
-      - run: cargo fmt --check
-      - run: cargo clippy --all-targets --all-features -- -D warnings
-      - run: cargo deny check
-      - run: jactionlint
-  python:
-    runs-on: ubuntu-latest
-    timeout-minutes: 10
-    steps:
-      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-      - uses: astral-sh/setup-uv@37802adc94f370d6bfd71619e3f0bf239e1f3b78 # v7.6.0
-      - run: uvx ruff@0.17.4 format --check py
-      - run: uvx ruff@0.17.4 check py
+      - run: lefthook run pre-commit --all-files --force --no-auto-install
+      # The formatters fix and stage files, so any change from HEAD means a file was not formatted.
+      - run: git diff --exit-code HEAD
+      - run: lefthook run pre-push --force --no-auto-install

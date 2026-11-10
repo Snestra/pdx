@@ -1,7 +1,7 @@
 //! Rule packs embedded at compile time by build.rs, one per Python library.
 
 use anyhow::{Context, Result};
-use ast_grep_config::{GlobalRules, RuleConfig, from_yaml_string};
+use ast_grep_config::{GlobalRules, RuleConfig, Severity, from_yaml_string};
 use ast_grep_language::SupportLang;
 
 use crate::pyenv::Installed;
@@ -16,7 +16,6 @@ struct PackSource {
 
 const SOURCES: &[PackSource] = include!(concat!(env!("OUT_DIR"), "/packs.rs"));
 
-/// Module names of every embedded pack, in folder order.
 pub(crate) fn modules() -> impl Iterator<Item = &'static str> {
     SOURCES.iter().map(|s| s.module)
 }
@@ -27,12 +26,10 @@ pub(crate) struct Pack {
     pub(crate) installed: Installed,
     /// Major version of the chosen `v<N>` set, or `None` when the pack has only common rules.
     pub(crate) set: Option<u32>,
-    /// Matches an import of the module, so files that don't use the library are skipped.
     pub(crate) gate: RuleConfig<SupportLang>,
     pub(crate) rules: Vec<RuleConfig<SupportLang>>,
 }
 
-/// Loads every pack, asking `installed` which version of each library the project has.
 pub(crate) fn load(mut installed: impl FnMut(&str) -> Installed) -> Result<Vec<Pack>> {
     SOURCES
         .iter()
@@ -43,6 +40,7 @@ pub(crate) fn load(mut installed: impl FnMut(&str) -> Installed) -> Result<Vec<P
             if let Some((_, docs)) = chosen {
                 rules.extend(parse(docs, src.module)?);
             }
+            rules.retain(|r| r.severity != Severity::Off);
             let gate = parse(&gate_yaml(src.module), src.module)?
                 .pop()
                 .with_context(|| format!("rules/{}: the import rule did not parse", src.module))?;
@@ -57,8 +55,6 @@ pub(crate) fn load(mut installed: impl FnMut(&str) -> Installed) -> Result<Vec<P
         .collect()
 }
 
-/// Picks the newest set at or below `major`. An older install than every set gets the oldest
-/// set, and an unknown version gets the newest.
 fn choose(versions: &[(u32, &'static str)], major: Option<u32>) -> Option<(u32, &'static str)> {
     let chosen = match major {
         Some(major) => versions
@@ -98,8 +94,5 @@ rule:
 }
 
 fn parse(src: &str, module: &str) -> Result<Vec<RuleConfig<SupportLang>>> {
-    if src.trim().is_empty() {
-        return Ok(Vec::new());
-    }
     from_yaml_string(src, &GlobalRules::default()).with_context(|| format!("rules/{module}"))
 }
