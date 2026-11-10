@@ -1,0 +1,12 @@
+{"meta": {"pandas": "3.0.6", "pandas_path": "/home/bsa/.cache/uv/archive-v0/3ExmxyuaoiUXO3w_/lib/python3.15/site-packages/pandas/__init__.py", "numpy": "2.5.4", "python": "3.15.2", "pyarrow": "26.0.1"}}
+{"meta": {"pandas": "3.0.6", "pandas_path": "/home/bsa/.cache/uv/archive-v0/3ExmxyuaoiUXO3w_/lib/python3.15/site-packages/pandas/__init__.py", "python": "3.15.2", "pyarrow": true, "cpus": 32, "file_mb": 78.1}}
+{"id": "default", "ms": 477.3, "mem_mb": 81.5}
+{"id": "engine=c", "ms": 457.3, "mem_mb": 81.5}
+{"id": "engine=pyarrow", "ms": 28.0, "mem_mb": 62.5}
+{"id": "engine=python", "ms": 1803.0, "mem_mb": 81.5}
+{"id": "low_memory=False", "ms": 596.7, "mem_mb": 81.5}
+{"id": "parse_dates=[d]", "ms": 509.0, "mem_mb": 62.5}
+{"id": "to_datetime after read", "ms": 541.6, "mem_mb": 62.5}
+{"id": "usecols 2 of 6", "ms": 181.8, "mem_mb": 16.0}
+{"id": "read all then select 2", "ms": 453.4, "mem_mb": 16.0}
+{"id": "dtype category for k and s", "ms": 403.8, "mem_mb": 54.0}

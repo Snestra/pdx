@@ -1,0 +1,42 @@
+{"meta": {"pandas": "3.1.1", "pandas_path": "/home/bsa/.cache/uv/archive-v0/N-2DSvjRRe5MEqYd/lib/python3.15/site-packages/pandas/__init__.py", "numpy": "2.5.4", "python": "3.15.2", "pyarrow": "26.0.1"}}
+{"id": "replace-3key-dict-vs-map-str", "n": 1000000, "before_ms": 44.704, "after_ms": 77.84, "speedup": 0.57, "same": "equal"}
+{"id": "replace-3key-dict-vs-map-int", "n": 1000000, "before_ms": 2.954, "after_ms": 12.326, "speedup": 0.24, "same": "equal values; dtype or name differs: Attributes of Series are different |  Attribute \"dtype\" are different [left]:  int64"}
+{"id": "replace-100key-dict-vs-map-int", "n": 1000000, "before_ms": 69.352, "after_ms": 2.635, "speedup": 26.32, "same": "equal"}
+{"id": "replace-1000key-dict-vs-map-fillna-str", "n": 1000000, "before_ms": 12248.933, "after_ms": 57.073, "speedup": 214.62, "same": "equal"}
+{"id": "apply-ifelse-vs-np-where-numeric", "n": 1000000, "before_ms": 73.198, "after_ms": 3.439, "speedup": 21.28, "same": "equal"}
+{"id": "apply-ifelse-vs-where-method", "n": 1000000, "before_ms": 58.313, "after_ms": 3.246, "speedup": 17.96, "same": "equal"}
+{"id": "apply-min-vs-clip", "n": 1000000, "before_ms": 58.274, "after_ms": 2.209, "speedup": 26.38, "same": "equal"}
+{"id": "apply-round-vs-round", "n": 1000000, "before_ms": 184.83, "after_ms": 1.273, "speedup": 145.17, "same": "equal"}
+{"id": "apply-isnull-vs-isna", "n": 1000000, "before_ms": 66.564, "after_ms": 0.402, "speedup": 165.6, "same": "equal"}
+{"id": "apply-str-vs-astype-str", "n": 1000000, "before_ms": 72.135, "after_ms": 7.908, "speedup": 9.12, "same": "equal"}
+{"id": "apply-len-vs-str-len", "n": 1000000, "before_ms": 204.956, "after_ms": 7.505, "speedup": 27.31, "same": "equal"}
+{"id": "apply-fstring-vs-concat", "n": 1000000, "before_ms": 2386.752, "after_ms": 34.901, "speedup": 68.39, "same": "equal"}
+{"id": "map-lambda-startswith", "n": 1000000, "before_ms": 162.21, "after_ms": 4.89, "speedup": 33.17, "same": "equal"}
+{"id": "map-lambda-replace", "n": 1000000, "before_ms": 120.742, "after_ms": 26.561, "speedup": 4.55, "same": "equal"}
+{"id": "map-lambda-strip", "n": 1000000, "before_ms": 85.673, "after_ms": 4.146, "speedup": 20.66, "same": "equal"}
+{"id": "map-lambda-slice", "n": 1000000, "before_ms": 98.022, "after_ms": 8.578, "speedup": 11.43, "same": "equal"}
+{"id": "map-lambda-contains", "n": 1000000, "before_ms": 167.992, "after_ms": 14.675, "speedup": 11.45, "same": "equal"}
+{"id": "list-comp-str-vs-str", "n": 1000000, "before_ms": 344.099, "after_ms": 9.335, "speedup": 36.86, "same": "equal"}
+{"id": "G100k-agg-lambda-vs-name", "n": 1000000, "before_ms": 671.158, "after_ms": 16.997, "speedup": 39.49, "same": "equal"}
+{"id": "G100k-agg-np-func-vs-name", "n": 1000000, "before_ms": 803.271, "after_ms": 10.975, "speedup": 73.19, "same": "equal"}
+{"id": "G100k-apply-reduce-vs-builtin", "n": 1000000, "before_ms": 1008.468, "after_ms": 15.643, "speedup": 64.47, "same": "equal"}
+{"id": "G100k-transform-lambda-vs-name", "n": 1000000, "before_ms": 2574.993, "after_ms": 13.338, "speedup": 193.05, "same": "equal"}
+{"id": "G100k-transform-share", "n": 1000000, "before_ms": 4838.258, "after_ms": 12.061, "speedup": 401.13, "same": "equal"}
+{"id": "G100k-transform-cumsum", "n": 1000000, "before_ms": 3662.685, "after_ms": 10.78, "speedup": 339.75, "same": "equal"}
+{"id": "G100k-transform-shift", "n": 1000000, "before_ms": 4029.131, "after_ms": 11.06, "speedup": 364.3, "same": "equal"}
+{"id": "G100k-transform-diff", "n": 1000000, "before_ms": 4112.776, "after_ms": 11.664, "speedup": 352.59, "same": "equal"}
+{"id": "G100k-transform-rank", "n": 1000000, "before_ms": 4600.897, "after_ms": 162.441, "speedup": 28.32, "same": "equal"}
+{"id": "G100k-transform-rolling", "n": 1000000, "before_ms": 5301.402, "after_ms": 800.511, "speedup": 6.62, "same": "equal"}
+{"id": "G100k-transform-ffill", "n": 1000000, "before_ms": 3845.519, "after_ms": 10.365, "speedup": 371.01, "same": "equal"}
+{"id": "G100k-filter-lambda-vs-mask", "n": 1000000, "before_ms": 911.092, "after_ms": 16.939, "speedup": 53.79, "same": "equal"}
+{"id": "G100k-apply-top1-vs-idxmax", "n": 1000000, "before_ms": 6276.443, "after_ms": 22.744, "speedup": 275.96, "same": "equal"}
+{"id": "G100k-apply-weighted-mean", "n": 1000000, "before_ms": 6399.276, "after_ms": 17.032, "speedup": 375.71, "same": "equal"}
+{"id": "G100k-agg-first-lambda-vs-name", "n": 1000000, "before_ms": 385.121, "after_ms": 9.779, "speedup": 39.38, "same": "equal"}
+{"id": "G100k-sort-drop-dup-vs-idxmax", "n": 1000000, "before_ms": 75.789, "after_ms": 18.64, "speedup": 4.07, "same": "equal"}
+{"id": "G100k-apply-list-vs-agg-list", "n": 1000000, "before_ms": 339.154, "after_ms": 297.007, "speedup": 1.14, "same": "equal"}
+{"id": "T-gb-dt-date-vs-normalize-key", "n": 1000000, "before_ms": 68.678, "after_ms": 10.345, "speedup": 6.64, "same": "DIFFERS: Series.index are different Series.index values are different (100.0 %) [left]: Index([2022-01-01, 2022-01-02, 2022-01-03, 2022-01-04, 2022-01-05, 2022-01-06, 2022-01-07, 2022-01-08, 2022-01-09, 2022-0"}
+{"id": "T-gb-dt-date-vs-floor-key", "n": 1000000, "before_ms": 68.382, "after_ms": 7.697, "speedup": 8.88, "same": "DIFFERS: Series.index are different Series.index values are different (100.0 %) [left]: Index([2022-01-01, 2022-01-02, 2022-01-03, 2022-01-04, 2022-01-05, 2022-01-06, 2022-01-07, 2022-01-08, 2022-01-09, 2022-0"}
+{"id": "T-gb-normalize-key-vs-resample-unsorted", "n": 1000000, "before_ms": 10.197, "after_ms": 199.988, "speedup": 0.05, "same": "equal values; dtype or name differs: Series.index are different |  Attribute \"freq\" are different [left]:  None"}
+{"id": "T-gb-strftime-hour-vs-floor-h", "n": 1000000, "before_ms": 368.742, "after_ms": 12.354, "speedup": 29.85, "same": "DIFFERS: Series.index are different Series.index values are different (100.0 %) [left]: Index(['2022-01-01 00', '2022-01-01 01', '2022-01-01 02', '2022-01-01 03', '2022-01-01 04', '2022-01-01 05', '2022-01-01 "}
+{"id": "T-gb-year-month-vs-to-period", "n": 1000000, "before_ms": 24.827, "after_ms": 13.865, "speedup": 1.79, "same": "DIFFERS: Series.index are different Series.index levels are different [left]: 2, MultiIndex([(2022, 1), (2022, 2), (2022, 3), (2022, 4), (2022, 5), (2022, 6), (2022, 7), (2022, 8), (2022, 9), (2022, 10), (2022"}
+{"id": "T-gb-key-plus-resample-vs-grouper", "n": 1000000, "before_ms": 286.349, "after_ms": 291.473, "speedup": 0.98, "same": "equal"}

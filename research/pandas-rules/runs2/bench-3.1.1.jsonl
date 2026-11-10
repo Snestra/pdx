@@ -1,0 +1,90 @@
+{"meta": {"pandas": "3.1.1", "pandas_path": "/home/bsa/.cache/uv/archive-v0/ILxPS06oyScCrWgu/lib/python3.15/site-packages/pandas/__init__.py", "numpy": "2.5.4", "python": "3.15.2", "pyarrow": "26.0.1"}}
+{"id": "apply-axis-1", "n": 100000, "before_ms": 228.759, "after_ms": 0.22, "speedup": 1041.06, "same": "equal"}
+{"id": "iterrows-sum", "n": 100000, "before_ms": 776.253, "after_ms": 0.313, "speedup": 2481.48, "same": "equal"}
+{"id": "itertuples-sum", "n": 100000, "before_ms": 93.949, "after_ms": 0.284, "speedup": 331.16, "same": "equal"}
+{"id": "range-len-iloc", "n": 20000, "before_ms": 195.474, "after_ms": 0.089, "speedup": 2204.66, "same": "equal"}
+{"id": "loc-scalar-vs-at", "n": 20000, "before_ms": 121.246, "after_ms": 92.004, "speedup": 1.32, "same": "equal"}
+{"id": "apply-arith-lambda", "n": 1000000, "before_ms": 63.688, "after_ms": 1.237, "speedup": 51.47, "same": "equal"}
+{"id": "apply-numpy-func", "n": 1000000, "before_ms": 0.701, "after_ms": 0.684, "speedup": 1.03, "same": "equal"}
+{"id": "map-lambda-str-method", "n": 1000000, "before_ms": 100.487, "after_ms": 9.315, "speedup": 10.79, "same": "equal"}
+{"id": "apply-lambda-str-split", "n": 1000000, "before_ms": 114.797, "after_ms": 297.688, "speedup": 0.39, "same": "equal values; dtype or name differs: Attributes of Series are different |  Attribute \"dtype\" are different [left]:  <StringDtype(na_value=nan)>"}
+{"id": "str-split-get-vs-partition", "n": 1000000, "before_ms": 332.301, "after_ms": 183.325, "speedup": 1.81, "same": "equal values; dtype or name differs: Attributes of Series are different |  Attribute \"dtype\" are different [left]:  object"}
+{"id": "str-split-vs-extract", "n": 1000000, "before_ms": 327.475, "after_ms": 166.46, "speedup": 1.97, "same": "equal values; dtype or name differs: Attributes of Series are different |  Attribute \"dtype\" are different [left]:  object"}
+{"id": "apply-lambda-dt-attr", "n": 1000000, "before_ms": 213.666, "after_ms": 4.004, "speedup": 53.37, "same": "equal values; dtype or name differs: Attributes of Series are different |  Attribute \"dtype\" are different [left]:  int64"}
+{"id": "apply-ifelse-vs-np-where", "n": 1000000, "before_ms": 51.227, "after_ms": 45.254, "speedup": 1.13, "same": "equal values; dtype or name differs: Series are different |  Attribute \"name\" are different [left]:  a"}
+{"id": "apply-in-set-vs-isin", "n": 1000000, "before_ms": 40.605, "after_ms": 8.007, "speedup": 5.07, "same": "equal"}
+{"id": "builtin-sum-on-column", "n": 1000000, "before_ms": 18.439, "after_ms": 0.274, "speedup": 67.24, "same": "equal"}
+{"id": "builtin-max-on-column", "n": 1000000, "before_ms": 22.734, "after_ms": 0.688, "speedup": 33.06, "same": "equal"}
+{"id": "builtin-len-set", "n": 1000000, "before_ms": 261.595, "after_ms": 8.03, "speedup": 32.58, "same": "equal"}
+{"id": "or-chain-vs-isin", "n": 1000000, "before_ms": 3.305, "after_ms": 10.306, "speedup": 0.32, "same": "equal"}
+{"id": "range-compare-vs-between", "n": 1000000, "before_ms": 3.978, "after_ms": 4.122, "speedup": 0.96, "same": "equal"}
+{"id": "nested-np-where-vs-np-select", "n": 1000000, "before_ms": 5.774, "after_ms": 6.581, "speedup": 0.88, "same": "equal values, different container"}
+{"id": "nested-np-where-vs-case-when", "n": 1000000, "before_ms": 54.063, "after_ms": 27.953, "speedup": 1.93, "same": "equal"}
+{"id": "nested-np-where-vs-cut", "n": 1000000, "before_ms": 53.588, "after_ms": 9.482, "speedup": 5.65, "same": "equal values; dtype or name differs: Attributes of Series are different |  Attribute \"dtype\" are different [left]:  <StringDtype(na_value=nan)>"}
+{"id": "np-where-vs-clip", "n": 1000000, "before_ms": 2.139, "after_ms": 2.275, "speedup": 0.94, "same": "equal"}
+{"id": "len-filter-vs-mask-sum", "n": 1000000, "before_ms": 6.5, "after_ms": 0.56, "speedup": 11.62, "same": "equal"}
+{"id": "len-unique-vs-nunique", "n": 1000000, "before_ms": 7.977, "after_ms": 8.01, "speedup": 1.0, "same": "equal"}
+{"id": "value-counts-div-len-vs-normalize", "n": 1000000, "before_ms": 10.958, "after_ms": 10.947, "speedup": 1.0, "same": "equal values; dtype or name differs: Series are different |  Attribute \"name\" are different [left]:  count"}
+{"id": "sort-head-vs-nsmallest", "n": 1000000, "before_ms": 47.689, "after_ms": 5.076, "speedup": 9.39, "same": "equal"}
+{"id": "sort-desc-head-vs-nlargest", "n": 1000000, "before_ms": 48.982, "after_ms": 5.305, "speedup": 9.23, "same": "equal"}
+{"id": "sort-iloc0-vs-idxmin", "n": 1000000, "before_ms": 47.618, "after_ms": 0.608, "speedup": 78.38, "same": "equal"}
+{"id": "replace-dict-vs-map", "n": 1000000, "before_ms": 10178.125, "after_ms": 165.007, "speedup": 61.68, "same": "equal values; dtype or name differs: Attributes of Series are different |  Attribute \"dtype\" are different [left]:  object"}
+{"id": "sub-shift-vs-diff", "n": 1000000, "before_ms": 1.607, "after_ms": 0.78, "speedup": 2.06, "same": "equal"}
+{"id": "div-shift-vs-pct-change", "n": 1000000, "before_ms": 1.862, "after_ms": 1.826, "speedup": 1.02, "same": "equal"}
+{"id": "reset-index-after-sort-vs-ignore-index", "n": 1000000, "before_ms": 47.943, "after_ms": 50.255, "speedup": 0.95, "same": "equal"}
+{"id": "str-contains-literal-regex", "n": 1000000, "before_ms": 32.077, "after_ms": 14.962, "speedup": 2.14, "same": "equal"}
+{"id": "in-values-vs-eq-any", "n": 1000000, "before_ms": 0.285, "after_ms": 0.321, "speedup": 0.89, "same": "equal"}
+{"id": "gb-apply-reduce-vs-builtin", "n": 1000000, "before_ms": 28.746, "after_ms": 14.233, "speedup": 2.02, "same": "equal"}
+{"id": "gb-agg-lambda-vs-name", "n": 1000000, "before_ms": 26.909, "after_ms": 14.542, "speedup": 1.85, "same": "equal"}
+{"id": "gb-agg-np-func-vs-name", "n": 1000000, "before_ms": 28.187, "after_ms": 14.704, "speedup": 1.92, "same": "equal"}
+{"id": "gb-agg-builtin-sum-vs-name", "n": 1000000, "before_ms": 40.484, "after_ms": 14.25, "speedup": 2.84, "same": "equal"}
+{"id": "gb-agg-lambda-range", "n": 1000000, "before_ms": 31.456, "after_ms": 15.849, "speedup": 1.98, "same": "equal"}
+{"id": "gb-agg-lambda-nunique", "n": 1000000, "before_ms": 30.081, "after_ms": 21.486, "speedup": 1.4, "same": "equal"}
+{"id": "gb-transform-lambda-vs-name", "n": 1000000, "before_ms": 66.974, "after_ms": 15.39, "speedup": 4.35, "same": "equal"}
+{"id": "gb-transform-zscore", "n": 1000000, "before_ms": 129.888, "after_ms": 19.422, "speedup": 6.69, "same": "equal"}
+{"id": "gb-transform-share", "n": 1000000, "before_ms": 94.072, "after_ms": 15.57, "speedup": 6.04, "same": "equal"}
+{"id": "gb-apply-fillna-mean", "n": 1000000, "before_ms": 90.528, "after_ms": 16.086, "speedup": 5.63, "same": "equal"}
+{"id": "gb-apply-shift", "n": 1000000, "before_ms": 63.888, "after_ms": 14.802, "speedup": 4.32, "same": "DIFFERS: Series.index are different Series.index levels are different [left]: 2, MultiIndex([('g0000', 292), ('g0000', 719), ('g0000', 1500), ('g0000', 2547), ('g0000', 3793), ('g0000', 8511), ('g0000', 10224)"}
+{"id": "gb-transform-lambda-cumsum", "n": 1000000, "before_ms": 82.478, "after_ms": 14.865, "speedup": 5.55, "same": "equal"}
+{"id": "gb-transform-lambda-rank", "n": 1000000, "before_ms": 127.935, "after_ms": 144.0, "speedup": 0.89, "same": "equal"}
+{"id": "gb-transform-lambda-rolling", "n": 1000000, "before_ms": 106.502, "after_ms": 98.462, "speedup": 1.08, "same": "equal"}
+{"id": "gb-apply-weighted-mean", "n": 1000000, "before_ms": 96.94, "after_ms": 18.274, "speedup": 5.3, "same": "equal"}
+{"id": "gb-apply-top1-vs-idxmax", "n": 1000000, "before_ms": 91.724, "after_ms": 15.534, "speedup": 5.9, "same": "equal"}
+{"id": "gb-apply-nlargest-vs-sort-head", "n": 1000000, "before_ms": 435.486, "after_ms": 75.236, "speedup": 5.79, "same": "DIFFERS: DataFrame are different DataFrame shape mismatch [left]: (3000, 5) [right]: (3000, 6)"}
+{"id": "gb-filter-lambda-vs-transform-mask", "n": 1000000, "before_ms": 63.909, "after_ms": 19.84, "speedup": 3.22, "same": "equal"}
+{"id": "gb-sum-reset-index-vs-as-index", "n": 1000000, "before_ms": 17.224, "after_ms": 16.971, "speedup": 1.01, "same": "equal"}
+{"id": "gb-dict-agg-rename-vs-named", "n": 1000000, "before_ms": 17.153, "after_ms": 18.526, "speedup": 0.93, "same": "equal"}
+{"id": "gb-size-vs-value-counts", "n": 1000000, "before_ms": 13.179, "after_ms": 11.102, "speedup": 1.19, "same": "equal values; dtype or name differs: Series are different |  Attribute \"name\" are different [left]:  None"}
+{"id": "gb-str-key-vs-category-key", "n": 1000000, "before_ms": 14.345, "after_ms": 18.459, "speedup": 0.78, "same": "equal values; dtype or name differs: Series.index are different |  Series.index classes are different [left]:  Index(['g0000', 'g0001', 'g0002', 'g0003', 'g0004', 'g0005', 'g0006', 'g0007',"}
+{"id": "pivot-table-lambda-vs-name", "n": 1000000, "before_ms": 60.898, "after_ms": 30.566, "speedup": 1.99, "same": "equal"}
+{"id": "dt-date-vs-normalize", "n": 1000000, "before_ms": 36.835, "after_ms": 4.661, "speedup": 7.9, "same": "DIFFERS: Series are different Series values are different (100.0 %) [index]: [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32, 33, 34, 3"}
+{"id": "gb-dt-date-vs-grouper", "n": 1000000, "before_ms": 74.987, "after_ms": 199.296, "speedup": 0.38, "same": "DIFFERS: Series.index are different Series.index values are different (100.0 %) [left]: Index([2022-01-01, 2022-01-02, 2022-01-03, 2022-01-04, 2022-01-05, 2022-01-06, 2022-01-07, 2022-01-08, 2022-01-09, 2022-0"}
+{"id": "gb-strftime-month-vs-grouper", "n": 1000000, "before_ms": 237.896, "after_ms": 205.384, "speedup": 1.16, "same": "DIFFERS: Series.index are different Series.index values are different (100.0 %) [left]: Index(['2022-01', '2022-02', '2022-03', '2022-04', '2022-05', '2022-06', '2022-07', '2022-08', '2022-09', '2022-10', '202"}
+{"id": "gb-strftime-month-vs-to-period", "n": 1000000, "before_ms": 236.597, "after_ms": 14.862, "speedup": 15.92, "same": "DIFFERS: Series.index are different Series.index values are different (100.0 %) [left]: Index(['2022-01', '2022-02', '2022-03', '2022-04', '2022-05', '2022-06', '2022-07', '2022-08', '2022-09', '2022-10', '202"}
+{"id": "gb-year-month-vs-resample", "n": 1000000, "before_ms": 23.026, "after_ms": 196.244, "speedup": 0.12, "same": "DIFFERS: Series.index are different Series.index levels are different [left]: 2, MultiIndex([(2022, 1), (2022, 2), (2022, 3), (2022, 4), (2022, 5), (2022, 6), (2022, 7), (2022, 8), (2022, 9), (2022, 10), (2022"}
+{"id": "set-index-resample-vs-on", "n": 1000000, "before_ms": 194.662, "after_ms": 195.607, "speedup": 1.0, "same": "equal"}
+{"id": "apply-strftime-vs-dt-strftime", "n": 200000, "before_ms": 292.076, "after_ms": 17.929, "speedup": 16.29, "same": "equal"}
+{"id": "astype-str-slice-vs-dt-strftime", "n": 1000000, "before_ms": 177.458, "after_ms": 106.282, "speedup": 1.67, "same": "equal"}
+{"id": "timedelta-apply-days-vs-dt-days", "n": 200000, "before_ms": 102.932, "after_ms": 1.445, "speedup": 71.25, "same": "equal"}
+{"id": "to-datetime-no-format-vs-format", "n": 1000000, "before_ms": 1199.776, "after_ms": 1154.312, "speedup": 1.04, "same": "equal"}
+{"id": "to-datetime-iso-no-format-vs-format", "n": 1000000, "before_ms": 233.066, "after_ms": 225.411, "speedup": 1.03, "same": "equal"}
+{"id": "apply-to-datetime-per-element", "n": 100000, "before_ms": 10220.268, "after_ms": 23.805, "speedup": 429.33, "same": "equal"}
+{"id": "rolling-apply-lambda-vs-builtin", "n": 200000, "before_ms": 1391.505, "after_ms": 1.316, "speedup": 1057.28, "same": "equal"}
+{"id": "rolling-apply-no-raw-vs-raw", "n": 200000, "before_ms": 2066.292, "after_ms": 135.389, "speedup": 15.26, "same": "equal"}
+{"id": "rolling-apply-range-vs-two-builtins", "n": 200000, "before_ms": 2065.731, "after_ms": 4.68, "speedup": 441.39, "same": "equal"}
+{"id": "expanding-manual-cumsum-vs-expanding-mean", "n": 1000000, "before_ms": 3.545, "after_ms": 4.799, "speedup": 0.74, "same": "equal"}
+{"id": "filter-dt-year-vs-between", "n": 1000000, "before_ms": 9.209, "after_ms": 6.8, "speedup": 1.35, "same": "equal"}
+{"id": "loc-append-in-loop-vs-list", "n": 3000, "before_ms": 469.271, "after_ms": 0.685, "speedup": 685.14, "same": "equal"}
+{"id": "concat-in-loop-vs-once", "n": 200000, "before_ms": 41.208, "after_ms": 3.583, "speedup": 11.5, "same": "equal"}
+{"id": "dummy-key-merge-vs-cross", "n": 2000, "before_ms": 18.815, "after_ms": 11.521, "speedup": 1.63, "same": "equal"}
+{"id": "merge-lookup-vs-map", "n": 1000000, "before_ms": 37.871, "after_ms": 153.928, "speedup": 0.25, "same": "equal values; dtype or name differs: Series are different |  Attribute \"name\" are different [left]:  v"}
+{"id": "copy-after-filter", "n": 1000000, "before_ms": 7.468, "after_ms": 6.469, "speedup": 1.15, "same": "equal"}
+{"id": "copy-after-column-select", "n": 1000000, "before_ms": 2.238, "after_ms": 0.289, "speedup": 7.76, "same": "equal"}
+{"id": "values-vs-to-numpy", "n": 1000000, "before_ms": 0.048, "after_ms": 0.048, "speedup": 1.0, "same": "equal values, different container"}
+{"id": "query-string-vs-col-expr", "n": 1000000, "before_ms": 7.925, "after_ms": 5.272, "speedup": 1.5, "same": "equal"}
+{"id": "mask-vs-col-expr", "n": 1000000, "before_ms": 5.057, "after_ms": 5.168, "speedup": 0.98, "same": "equal"}
+{"id": "assign-lambda-vs-col", "n": 1000000, "before_ms": 1.671, "after_ms": 1.718, "speedup": 0.97, "same": "equal"}
+{"id": "columns-list-comp-vs-str", "n": 1000, "before_ms": 0.019, "after_ms": 0.064, "speedup": 0.29, "same": "equal"}
+{"id": "31-mask-vs-filter-cond", "n": 1000000, "before_ms": 5.079, "after_ms": 5.139, "speedup": 0.99, "same": "equal"}
+{"id": "31-select-vs-assign-then-columns", "n": 1000000, "before_ms": 1.532, "after_ms": 1.643, "speedup": 0.93, "same": "equal"}
+{"id": "31-union-categoricals-vs-concat", "n": 1000000, "before_ms": 11.699, "after_ms": 11.728, "speedup": 1.0, "same": "equal"}
