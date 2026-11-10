@@ -1,6 +1,6 @@
 # These methods take ignore_index=True on DataFrame and Series, so a following
 # reset_index(drop=True) is not needed. groupby(...).sample has no ignore_index, so a receiver
-# that is a groupby call is left alone.
+# that is a groupby call is left alone, and with axis= ignore_index resets the columns instead.
 id: sort-then-reset-index
 language: python
 severity: warning
@@ -18,7 +18,7 @@ rule:
         field: object
         has:
           field: arguments
-          has: { kind: keyword_argument, has: { field: name, regex: ^(ignore_index|inplace)$ } }
+          has: { kind: keyword_argument, has: { field: name, regex: ^(ignore_index|inplace|axis)$ } }
 constraints:
   M: { regex: ^(sort_values|sort_index|drop_duplicates|dropna|explode|sample)$ }
   X: { not: { kind: call, has: { field: function, regex: '\.groupby$' } } }

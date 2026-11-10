@@ -1,5 +1,6 @@
-# diff() is s - s.shift(1) for numbers, datetimes and timedeltas. A comparison is left alone,
-# because diff on booleans returns booleans, and subtraction returned numbers.
+# diff() is s - s.shift(1) for most numbers, datetimes and timedeltas. Unsafe: on an unsigned
+# integer column diff wraps around, so 0 after 1 gives 255 for uint8 where the subtraction gave
+# -1, and on a boolean column diff returns booleans. A comparison is left alone for that reason.
 id: subtract-shift
 language: python
 severity: warning
@@ -20,4 +21,4 @@ utils:
       - kind: parenthesized_expression
         has: { matches: boolean }
 fix: $S.diff()
-metadata: { fix: safe }
+metadata: { fix: unsafe }

@@ -52,6 +52,7 @@ def lambda_that_needs_data(df):
         z=lambda d: d["a"] * lookup["x"],
         y=lambda d: d.a + 1,
         t=lambda d: d["a"] if len(d) > 5 else 0,
+        f=lambda d: f"{d['a']}",
     )
 
 
@@ -66,7 +67,11 @@ def sort_then_reset_index(df):
 
 @case
 def reset_index_that_stays(df):
-    return df.sort_values("b").reset_index(), df.groupby("k").sample(2, random_state=1).reset_index(drop=True)
+    return (
+        df.sort_values("b").reset_index(),
+        df.groupby("k").sample(2, random_state=1).reset_index(drop=True),
+        df[["a", "b"]].sort_values(0, axis=1).reset_index(drop=True),
+    )
 
 
 @case
@@ -79,7 +84,8 @@ def set_index_then_resample(df):
 
 @case
 def set_index_for_upsampling(df):
-    return df.drop_duplicates("d").set_index("d").sort_index().resample("h").asfreq().shape
+    by_day = df.drop_duplicates("d").set_index("d").sort_index()
+    return by_day.resample("h").asfreq().shape, df.set_index("d").resample("D")["a"].agg(lambda v: v.index.max())
 
 
 @case

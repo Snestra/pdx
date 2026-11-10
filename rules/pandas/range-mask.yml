@@ -1,5 +1,6 @@
-# between() is defined as the two comparisons joined with &. A plain name is left alone, because
-# it may be a numpy array, which has no between.
+# between() is defined as the two comparisons joined with &. Unsafe: the operand may be a numpy
+# array, which has no between, such as data["x"] in a dict of arrays. A plain name is left alone
+# for the same reason.
 id: range-mask
 language: python
 severity: warning
@@ -8,7 +9,7 @@ rule: { pattern: ($S >= $LO) & ($S <= $HI) }
 constraints:
   S: { any: [{ kind: subscript }, { kind: attribute }] }
 fix: $S.between($LO, $HI)
-metadata: { fix: safe }
+metadata: { fix: unsafe }
 ---
 id: range-mask
 language: python
@@ -18,7 +19,7 @@ rule: { pattern: ($S >= $LO) & ($S < $HI) }
 constraints:
   S: { any: [{ kind: subscript }, { kind: attribute }] }
 fix: $S.between($LO, $HI, inclusive="left")
-metadata: { fix: safe }
+metadata: { fix: unsafe }
 ---
 id: range-mask
 language: python
@@ -28,7 +29,7 @@ rule: { pattern: ($S > $LO) & ($S <= $HI) }
 constraints:
   S: { any: [{ kind: subscript }, { kind: attribute }] }
 fix: $S.between($LO, $HI, inclusive="right")
-metadata: { fix: safe }
+metadata: { fix: unsafe }
 ---
 id: range-mask
 language: python
@@ -38,4 +39,4 @@ rule: { pattern: ($S > $LO) & ($S < $HI) }
 constraints:
   S: { any: [{ kind: subscript }, { kind: attribute }] }
 fix: $S.between($LO, $HI, inclusive="neither")
-metadata: { fix: safe }
+metadata: { fix: unsafe }

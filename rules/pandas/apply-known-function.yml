@@ -18,6 +18,7 @@ utils:
 fix: pd.to_datetime($S)
 metadata: { fix: unsafe }
 ---
+# Unsafe: on a column of lists, pd.isna per value returned an array for each cell.
 id: apply-known-function
 language: python
 severity: warning
@@ -34,7 +35,7 @@ utils:
 transform:
   M: { replace: { source: $F, replace: '^pd\.', by: '' } }
 fix: $S.$M()
-metadata: { fix: safe }
+metadata: { fix: unsafe }
 ---
 id: apply-known-function
 language: python

@@ -9,9 +9,23 @@ rule:
   pattern: "$R.$K($$$W).apply(lambda $X: $X.$F())"
 constraints:
   K: { regex: ^(rolling|expanding)$ }
-  F: { regex: ^(sum|mean|min|max|median|std|var)$ }
+  F: { regex: ^(min|max|median)$ }
 fix: $R.$K($$$W).$F()
 metadata: { fix: safe }
+---
+# sum, mean, std and var: unsafe, because the window methods keep running totals, and on values
+# far apart in size, such as 1e16, 1, 1, -1e16, a window sum changes from 0 to 2.
+id: rolling-apply
+language: python
+severity: warning
+message: Call $R.$K($$$W).$F() directly. rolling.apply runs a Python function once per window.
+rule:
+  pattern: "$R.$K($$$W).apply(lambda $X: $X.$F())"
+constraints:
+  K: { regex: ^(rolling|expanding)$ }
+  F: { regex: ^(sum|mean|std|var)$ }
+fix: $R.$K($$$W).$F()
+metadata: { fix: unsafe }
 ---
 # Any other function passed to rolling(...).apply gets a Series per window unless raw=True. The
 # change is not a fix, because the function then receives a numpy array.

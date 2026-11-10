@@ -64,3 +64,9 @@ def groupby_lambda_window(df):
 def groupby_window_that_stays(df):
     g = df.groupby("k")["b"]
     return g.transform(lambda v: v.shift(len(v) // 2)), g.transform(lambda v: v.cumsum() / v.sum())
+
+
+@case
+def groupby_window_by_time(df):
+    g = df.set_index("d").sort_index().groupby("k")["b"]
+    return g.transform(lambda v: v.shift(1, freq="D"))

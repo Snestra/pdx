@@ -1,6 +1,7 @@
 # resample takes on=, so a datetime column does not have to become the index first. The fix
-# applies when an aggregation follows, directly or after selecting columns. Upsampling with
-# asfreq, ffill or interpolate raises with on=, so those calls are left alone.
+# applies when a named aggregation follows, directly or after selecting columns. Upsampling with
+# asfreq, ffill or interpolate raises with on=, and a function passed to agg or apply sees other
+# data, so those calls are left alone.
 id: set-index-then-resample
 language: python
 severity: warning
@@ -21,6 +22,6 @@ utils:
     inside:
       kind: attribute
       field: object
-      has: { field: attribute, regex: ^(sum|mean|min|max|median|std|var|sem|count|size|first|last|ohlc|nunique|prod|agg|aggregate)$ }
+      has: { field: attribute, regex: ^(sum|mean|min|max|median|std|var|sem|count|size|first|last|ohlc|nunique|prod)$ }
 fix: $X.resample($$$A, on=$COL)
 metadata: { fix: safe }

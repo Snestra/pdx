@@ -1,7 +1,8 @@
 # A lambda passed to assign or .loc that only reads columns as d["name"] can be written with
 # pd.col, which pandas 3 added. Only bodies made of operators, attribute access and method calls
 # are rewritten, because a plain function call such as len(d) or np.where(...) needs real data,
-# and `if`, `and`, `or`, `not` and `in` ask an expression for a single truth value.
+# `if`, `and`, `or`, `not` and `in` ask an expression for a single truth value, and an f-string
+# or format call would print the expression.
 id: lambda-column
 language: python
 severity: warning
@@ -56,6 +57,10 @@ rule:
               has: { field: operators, regex: ^(in|not in|is|is not)$ }
             - kind: list_comprehension
             - kind: generator_expression
+            # Formatting turns an expression into its text.
+            - kind: interpolation
+            - kind: call
+              has: { field: function, regex: '\.format$' }
 rewriters:
   - id: to-col
     rule:
