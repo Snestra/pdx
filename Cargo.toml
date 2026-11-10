@@ -1,10 +1,22 @@
 [package]
-name = "pdx"
+# The name pdx is taken on crates.io and PyPI, so the package is pdx-lint and the command pdx.
+name = "pdx-lint"
 version = "0.1.0"
 edition = "2024"
 rust-version = "1.99"
-description = "Fast linter for Python library habits, starting with pandas"
+description = "Fast linter for Python library habits, starting with pandas, for humans and coding agents"
 license = "MIT OR Apache-2.0"
+repository = "https://github.com/bjoernaagaard/pdx"
+homepage = "https://bjoernaagaard.github.io/pdx/"
+readme = "README.md"
+keywords = ["pandas", "python", "linter", "ast-grep", "agents"]
+categories = ["command-line-utilities", "development-tools"]
+# Only what the build needs; samples/ and the dev tool configs stay out of the package.
+include = ["/src", "/rules", "/py", "/build.rs", "/SKILL.md", "/LICENSE-*", "/README.md", "/pyproject.toml"]
+
+[[bin]]
+name = "pdx"
+path = "src/main.rs"
 
 [dependencies]
 anyhow = "1.0.104"

@@ -4,7 +4,10 @@ import json
 import sys
 from pathlib import Path
 
-import pandas as pd
+try:
+    import pandas as pd
+except ImportError as e:
+    sys.exit(f"pdx profile needs pandas in the project's Python. {e}")
 
 
 def unique_count(s: pd.Series) -> int | None:
@@ -29,6 +32,8 @@ try:
     df = reader(path)
 except ImportError as e:  # pandas names the optional package it needs, such as openpyxl
     sys.exit(f"pdx profile: reading {path.suffix} files needs an extra package. {e}")
+except OSError as e:
+    sys.exit(f"pdx profile: cannot read {path}. {e}")
 
 mem = df.memory_usage(deep=True)
 cols = []

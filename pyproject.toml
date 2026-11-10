@@ -3,12 +3,25 @@ requires = ["maturin>=1.9,<2"]
 build-backend = "maturin"
 
 [project]
-name = "pdx"
+name = "pdx-lint"
 description = "Fast linter for Python library habits, starting with pandas, for humans and coding agents"
 requires-python = ">=3.11"
 license = "MIT OR Apache-2.0"
 license-files = ["LICENSE-MIT", "LICENSE-APACHE"]
+readme = "README.md"
+keywords = ["pandas", "linter", "ast-grep", "agents"]
+classifiers = [
+  "Development Status :: 3 - Alpha",
+  "Environment :: Console",
+  "Intended Audience :: Developers",
+  "Programming Language :: Rust",
+  "Topic :: Software Development :: Quality Assurance",
+]
 dynamic = ["version"]
+
+[project.urls]
+Documentation = "https://bjoernaagaard.github.io/pdx/"
+Repository = "https://github.com/bjoernaagaard/pdx"
 
 [tool.maturin]
 bindings = "bin"

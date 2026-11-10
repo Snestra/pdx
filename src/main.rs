@@ -40,7 +40,7 @@ const PYTHON_NOT_STARTED: u8 = 127;
 
 /// pdx: fast linter for Python library habits, for humans and coding agents.
 #[derive(Debug, Parser)]
-#[command(version, about)]
+#[command(name = "pdx", version, about)]
 struct Cli {
     #[command(subcommand)]
     cmd: Cmd,
@@ -220,16 +220,7 @@ fn check(paths: &[PathBuf], format: Format, pins: &Pins) -> ExitCode {
         }
         Format::Text => {
             for i in issues {
-                println!(
-                    "{}:{}:{}: {} [{}/{}] {}",
-                    i.file.display(),
-                    i.line,
-                    i.column,
-                    i.level,
-                    i.package,
-                    i.rule,
-                    i.message
-                );
+                println!("{i}");
             }
             let packages: Vec<String> = packs
                 .iter()
@@ -289,15 +280,7 @@ fn hook(pins: &Pins) -> ExitCode {
         return ExitCode::SUCCESS;
     }
     for i in &report.issues {
-        eprintln!(
-            "{}:{}: {} [{}/{}] {}",
-            i.file.display(),
-            i.line,
-            i.level,
-            i.package,
-            i.rule,
-            i.message
-        );
+        eprintln!("{i}");
     }
     ExitCode::from(HOOK_BLOCK)
 }

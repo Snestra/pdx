@@ -63,6 +63,23 @@ pub(crate) struct Issue {
     pub(crate) message: String,
 }
 
+/// `file:line:column: level [package/rule] message`, as `check` and `hook` print it.
+impl fmt::Display for Issue {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(
+            f,
+            "{}:{}:{}: {} [{}/{}] {}",
+            self.file.display(),
+            self.line,
+            self.column,
+            self.level,
+            self.package,
+            self.rule,
+            self.message
+        )
+    }
+}
+
 impl Issue {
     pub(crate) fn to_json(&self) -> Value {
         json!({"package": self.package, "rule": self.rule, "file": self.file.display().to_string(), "line": self.line,

@@ -3,21 +3,33 @@
 # Contract: each script must leave its output in a variable named `result`. Both run in fresh
 # namespaces. DataFrames and Series are compared with pandas.testing, anything else with
 # numpy.testing, so arrays compare element-wise and `python -O` can't skip the check.
-# Prints JSON; exit 0 = equivalent, 1 = differs, 2 = bad input.
+# Prints JSON; exit 0 = equivalent, 1 = differs, 2 = bad input or pdx can't run.
 import json
 import runpy
 import sys
+from typing import NoReturn
 
-import pandas as pd
-from numpy import testing as npt
-from pandas import testing as pdt
+
+def fail(error: str) -> NoReturn:
+    print(json.dumps({"equivalent": None, "error": error}))
+    sys.exit(2)
+
+
+try:
+    import pandas as pd
+    from numpy import testing as npt
+    from pandas import testing as pdt
+except ImportError as e:
+    fail(f"pdx equiv needs pandas in the project's Python. {e}")
 
 
 def run(path: str) -> object:
-    ns = runpy.run_path(path, run_name="__pdx_equiv__")
+    try:
+        ns = runpy.run_path(path, run_name="__pdx_equiv__")
+    except Exception as e:  # noqa: BLE001  any failure in the user's script is bad input
+        fail(f"{path} raised {type(e).__name__}: {e}")
     if "result" not in ns:
-        print(json.dumps({"equivalent": None, "error": f"{path} defines no `result`"}))
-        sys.exit(2)
+        fail(f"{path} defines no `result`")
     return ns["result"]
 
 
