@@ -27,7 +27,8 @@ Each old form gives a wrong result, raises, or warns on pandas 3.0 and 3.1.
 | `deprecated-in-pandas-3` | warning | `pd.set_option("mode.copy_on_write", True)`, `copy=False` and `pd.Timestamp.utcnow()` | safe: delete the line, drop `copy=`, `pd.Timestamp.now("UTC")`. unsafe: drop `copy=` from `astype` |
 
 The `chained-assignment` fix covers the three shapes above. A mask held in a name is fixed when
-the file assigns that name a comparison or a call such as `isin`. Any other chain, such as
+the enclosing function assigns that name only masks, such as a comparison or a call to `isin`.
+Any other chain, such as
 `df.iloc[0]["a"] = v`, is reported without a fix. Two plain keys, as in `rows[0]["name"] = v`, are
 left alone, because they are more often a list or a dict.
 

@@ -58,8 +58,9 @@ utils:
 fix: $DF.loc[$MASK, $COL]
 metadata: { fix: unsafe }
 ---
-# df[mask]["col"] = v, where the file assigns the name a mask, as in mask = df["a"] > 1. A name
-# alone is left to the last document, because data[key]["field"] is more often a dict.
+# df[mask]["col"] = v, where the enclosing function, or the file outside functions, assigns the
+# name only masks, as in mask = df["a"] > 1. A name alone is left to the last document, because
+# data[key]["field"] is more often a dict.
 id: chained-assignment
 language: python
 severity: error
@@ -68,14 +69,22 @@ rule:
   pattern: $DF[$MASK][$COL]
   matches: assignment-target
   inside:
-    kind: module
-    stopBy: end
-    has:
-      kind: assignment
-      stopBy: end
-      all:
-        - has: { field: left, pattern: $MASK }
-        - has: { field: right, matches: mask }
+    stopBy: { any: [{ kind: function_definition }, { kind: module }] }
+    any: [{ kind: function_definition }, { kind: module }]
+    all:
+      - has:
+          kind: assignment
+          stopBy: end
+          all:
+            - has: { field: left, pattern: $MASK }
+            - has: { field: right, matches: mask }
+      - not:
+          has:
+            kind: assignment
+            stopBy: end
+            all:
+              - has: { field: left, pattern: $MASK }
+              - not: { has: { field: right, matches: mask } }
 constraints:
   COL: { kind: string }
   MASK: { kind: identifier }
@@ -181,14 +190,22 @@ utils:
       - has: { field: value, has: { field: subscript, kind: identifier, pattern: $NAME } }
       - not: { has: { field: value, has: { field: value, matches: indexer } } }
       - inside:
-          kind: module
-          stopBy: end
-          has:
-            kind: assignment
-            stopBy: end
-            all:
-              - has: { field: left, pattern: $NAME }
-              - has: { field: right, matches: mask }
+          stopBy: { any: [{ kind: function_definition }, { kind: module }] }
+          any: [{ kind: function_definition }, { kind: module }]
+          all:
+            - has:
+                kind: assignment
+                stopBy: end
+                all:
+                  - has: { field: left, pattern: $NAME }
+                  - has: { field: right, matches: mask }
+            - not:
+                has:
+                  kind: assignment
+                  stopBy: end
+                  all:
+                    - has: { field: left, pattern: $NAME }
+                    - not: { has: { field: right, matches: mask } }
   loc-then-column:
     all:
       - has: { field: subscript, kind: string }
