@@ -42,6 +42,8 @@ def chained_column_then_row(df):
 def chained_mask_then_column(df):
     df[df["a"] > 50]["b"] = 0.0  # pdx: chained-assignment
     df[(df["a"] < 5) | df["k"].isna()]["b"] = 1.0  # pdx: chained-assignment
+    high = df["a"] > 90
+    df[high]["b"] = 2.0  # pdx: chained-assignment
     return df
 
 
@@ -64,6 +66,8 @@ def one_loc_call_and_nested_dict(df):
     config["db"]["host"] = "b"
     rows = [{"name": "a"}]
     rows[0]["name"] = "b"
+    key = "db"
+    config[key]["host"] = "c"
     return df, config["db"]["host"], rows[0]["name"]
 
 
@@ -232,7 +236,18 @@ def deprecated_utcnow(df):
 
 @case
 def deprecated_copy_keyword(df):
+    return df.rename(columns={"a": "A"}, copy=False)  # pdx: deprecated-in-pandas-3
+
+
+@case
+def deprecated_copy_keyword_on_astype(df):
     return df.astype({"a": "float64"}, copy=False)  # pdx: deprecated-in-pandas-3
+
+
+@case
+def copy_on_write_option_in_function(df):
+    pd.set_option("mode.copy_on_write", True)  # pdx: deprecated-in-pandas-3
+    pd.set_option("mode.copy_on_write", True)  # pdx: deprecated-in-pandas-3
 
 
 @case

@@ -24,9 +24,10 @@ Each old form gives a wrong result, raises, or warns on pandas 3.0 and 3.1.
 | `object-dtype-check` | error | `df["k"].dtype == object` and `select_dtypes(include="object")`, which miss the new str dtype | unsafe: `pd.api.types.is_string_dtype(df["k"])` |
 | `groupby-apply-reads-key` | error | `df.groupby("k").apply(lambda g: g["k"])`, which raises KeyError | none |
 | `removed-in-pandas-3` | error | `applymap`, `fillna(method=)`, frequencies such as `"M"`, `"H"` and `"T"`, `delim_whitespace=True` and `dt.week` | safe: `map`, `ffill()`, `"ME"`, `"h"`, `"min"`, `sep=r"\s+"`. unsafe: `"M"` in `resample`, `dt.isocalendar().week` |
-| `deprecated-in-pandas-3` | warning | `pd.set_option("mode.copy_on_write", True)`, `copy=False` and `pd.Timestamp.utcnow()` | safe: delete the line, drop `copy=`, `pd.Timestamp.now("UTC")` |
+| `deprecated-in-pandas-3` | warning | `pd.set_option("mode.copy_on_write", True)`, `copy=False` and `pd.Timestamp.utcnow()` | safe: delete the line, drop `copy=`, `pd.Timestamp.now("UTC")`. unsafe: drop `copy=` from `astype` |
 
-The `chained-assignment` fix covers the three shapes above. Any other chain, such as
+The `chained-assignment` fix covers the three shapes above. A mask held in a name is fixed when
+the file assigns that name a comparison or a call such as `isin`. Any other chain, such as
 `df.iloc[0]["a"] = v`, is reported without a fix. Two plain keys, as in `rows[0]["name"] = v`, are
 left alone, because they are more often a list or a dict.
 
@@ -38,6 +39,11 @@ cannot tell it from a frame. Their fixes are unsafe for that reason.
 `"Q"` and `"Y"` is unsafe, because those aliases stay valid when the index holds periods. It
 leaves `to_period("M")` and `asfreq("M")` alone, and it reports `"A"` inside `resample`, `asfreq`
 and `shift` without a fix, because the new alias is `"YE"` for datetimes and `"Y"` for periods.
+
+`deprecated-in-pandas-3` deletes the copy-on-write option only at the top level of a file, and
+reports it without a fix inside a function or another block. Dropping `copy=` from `astype` is
+unsafe, because a numpy array also has `astype(copy=False)`, and there it can return the same
+array.
 
 The `no-inplace` fix applies only to a call that stands alone as a statement, on a name, attribute
 or subscript. The inplace fixes drop comments between the call's arguments.

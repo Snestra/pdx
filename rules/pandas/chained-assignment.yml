@@ -58,6 +58,50 @@ utils:
 fix: $DF.loc[$MASK, $COL]
 metadata: { fix: unsafe }
 ---
+# df[mask]["col"] = v, where the file assigns the name a mask, as in mask = df["a"] > 1. A name
+# alone is left to the last document, because data[key]["field"] is more often a dict.
+id: chained-assignment
+language: python
+severity: error
+message: Chained assignment writes to a copy under copy-on-write, so the frame keeps its old values. Assign to $DF.loc[$MASK, $COL] instead.
+rule:
+  pattern: $DF[$MASK][$COL]
+  matches: assignment-target
+  inside:
+    kind: module
+    stopBy: end
+    has:
+      kind: assignment
+      stopBy: end
+      all:
+        - has: { field: left, pattern: $MASK }
+        - has: { field: right, matches: mask }
+constraints:
+  COL: { kind: string }
+  MASK: { kind: identifier }
+  DF: { not: { matches: indexer } }
+utils:
+  assignment-target:
+    any:
+      - inside: { kind: assignment, field: left }
+      - inside: { kind: augmented_assignment, field: left }
+  indexer: { kind: attribute, has: { field: attribute, regex: ^(loc|iloc|at|iat)$ } }
+  mask:
+    any:
+      - kind: comparison_operator
+      - kind: binary_operator
+        has: { field: operator, regex: '^[&|^]$' }
+      - kind: unary_operator
+        has: { field: operator, regex: ^~$ }
+      - kind: parenthesized_expression
+        has: { matches: mask }
+      - kind: call
+        has:
+          field: function
+          regex: \.(isin|isna|isnull|notna|notnull|between|duplicated|contains|startswith|endswith|match|fullmatch)$
+fix: $DF.loc[$MASK, $COL]
+metadata: { fix: unsafe }
+---
 # df.loc[rows]["col"] = v
 id: chained-assignment
 language: python
@@ -92,6 +136,7 @@ rule:
     any:
       - matches: column-then-row
       - matches: mask-then-column
+      - matches: named-mask-then-column
       - matches: loc-then-column
       - matches: plain-keys
 utils:
@@ -130,6 +175,20 @@ utils:
       - has: { field: subscript, matches: plain-key }
       - has: { field: value, has: { field: subscript, matches: plain-key } }
       - not: { has: { field: value, has: { field: value, matches: indexer } } }
+  named-mask-then-column:
+    all:
+      - has: { field: subscript, kind: string }
+      - has: { field: value, has: { field: subscript, kind: identifier, pattern: $NAME } }
+      - not: { has: { field: value, has: { field: value, matches: indexer } } }
+      - inside:
+          kind: module
+          stopBy: end
+          has:
+            kind: assignment
+            stopBy: end
+            all:
+              - has: { field: left, pattern: $NAME }
+              - has: { field: right, matches: mask }
   loc-then-column:
     all:
       - has: { field: subscript, kind: string }

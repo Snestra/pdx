@@ -8,17 +8,15 @@ rule: { pattern: pd.Timestamp.utcnow() }
 fix: pd.Timestamp.now("UTC")
 metadata: { fix: safe }
 ---
-# The fix deletes the statement, so it applies only where the block keeps another statement.
+# The fix deletes the statement, so it applies only at the top level of the file, where an
+# empty file is still valid. Inside a block it is reported without a fix.
 id: deprecated-in-pandas-3
 language: python
 severity: warning
 message: Copy-on-write is always on in pandas 3, and this option is deprecated. Delete the line.
 rule:
   matches: copy-on-write-option
-  any:
-    - inside: { kind: module }
-    - follows: { stopBy: end, not: { kind: comment } }
-    - precedes: { stopBy: end, not: { kind: comment } }
+  inside: { kind: module }
 utils:
   copy-on-write-option:
     kind: expression_statement
@@ -36,11 +34,7 @@ severity: warning
 message: Copy-on-write is always on in pandas 3, and this option is deprecated. Delete the line.
 rule:
   matches: copy-on-write-option
-  not:
-    any:
-      - inside: { kind: module }
-      - follows: { stopBy: end, not: { kind: comment } }
-      - precedes: { stopBy: end, not: { kind: comment } }
+  not: { inside: { kind: module } }
 utils:
   copy-on-write-option:
     kind: expression_statement
@@ -62,7 +56,7 @@ rule:
     field: arguments
     has: { kind: keyword_argument, has: { field: name, regex: ^copy$ } }
 constraints:
-  F: { regex: '\.(astype|rename|rename_axis|merge|reindex|reindex_like|set_axis|infer_objects|align|tz_localize|tz_convert|transpose|to_timestamp|to_period|concat)$' }
+  F: { regex: '\.(rename|rename_axis|merge|reindex|reindex_like|set_axis|infer_objects|align|tz_localize|tz_convert|transpose|to_timestamp|to_period|concat)$' }
 rewriters:
   - id: drop-copy
     rule: { kind: keyword_argument, has: { field: name, regex: ^copy$ } }
@@ -83,3 +77,37 @@ transform:
     replace: { source: $KEPT, replace: ", $", by: "" }
 fix: $F($REST)
 metadata: { fix: safe }
+---
+# copy= on astype. Unsafe: on a numpy array or an Index, astype(copy=False) is not deprecated,
+# and on a numpy array it can return the same array, so a later write reaches both names.
+id: deprecated-in-pandas-3
+language: python
+severity: warning
+message: The copy keyword is deprecated, because copy-on-write decides when pandas copies data. Drop copy=.
+rule:
+  pattern: $F($$$ARGS)
+  has:
+    field: arguments
+    has: { kind: keyword_argument, has: { field: name, regex: ^copy$ } }
+constraints:
+  F: { regex: '\.astype$' }
+rewriters:
+  - id: drop-copy
+    rule: { kind: keyword_argument, has: { field: name, regex: ^copy$ } }
+    fix: ""
+  - id: keep-argument
+    rule:
+      pattern: $ARG
+      not:
+        any:
+          - kind: comment
+          - kind: keyword_argument
+            has: { field: name, regex: ^copy$ }
+    fix: "$ARG, "
+transform:
+  KEPT:
+    rewrite: { source: $$$ARGS, rewriters: [drop-copy, keep-argument], joinBy: "" }
+  REST:
+    replace: { source: $KEPT, replace: ", $", by: "" }
+fix: $F($REST)
+metadata: { fix: unsafe }
