@@ -47,8 +47,15 @@ rule:
           field: body
           stopBy: end
           any:
+            # A plain function, a module function such as math.sqrt, or a method of a literal
+            # such as ", ".join gets the expression, not a column.
             - kind: call
-              has: { field: function, any: [{ kind: identifier }, { regex: '^(np|numpy|pd|pandas)\.' }] }
+              has:
+                field: function
+                any:
+                  - kind: identifier
+                  - kind: attribute
+                    has: { field: object, any: [{ regex: '^[A-Za-z_][A-Za-z0-9_.]*$' }, { matches: text }] }
             - kind: lambda
             - kind: conditional_expression
             - kind: boolean_operator
