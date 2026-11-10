@@ -1,0 +1,8 @@
+  typed.py:7:61 - error: Cannot access attribute "uper" for class "SeriesStringMethods[Any]"
+  typed.py:10:54 - error: Cannot access attribute "uper" for class "SeriesStringMethods[str]"
+  typed.py:11:53 - error: Cannot access attribute "clip" for class "Expression"
+  typed.py:12:5 - error: Object of type "Series[Any]" is not callable
+  typed.py:14:24 - error: No parameter named "cond" (reportCallIssue)
+  typed.py:15:13 - information: Type of "pd.col("load") - pd.col("wind")" is "Expression"
+  typed.py:16:13 - information: Type of "a" is "DataFrame"
+5 errors, 0 warnings, 2 informations

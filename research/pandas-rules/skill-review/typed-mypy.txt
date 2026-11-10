@@ -1,0 +1,7 @@
+typed.py:7: error: "SeriesStringMethods[Any]" has no attribute "uper"; maybe "upper"?  [attr-defined]
+typed.py:10: error: "SeriesStringMethods[str]" has no attribute "uper"; maybe "upper"?  [attr-defined]
+typed.py:11: error: "Expression" has no attribute "clip"  [attr-defined]
+typed.py:12: error: "Series[Any]" not callable  [operator]
+typed.py:14: error: Unexpected keyword argument "cond" for "filter" of "DataFrame"  [call-arg]
+typed.py:15: note: Revealed type is "pandas.core.col.Expression"
+typed.py:16: note: Revealed type is "pandas.core.frame.DataFrame"

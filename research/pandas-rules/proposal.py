@@ -32,6 +32,9 @@ def csv_times(version):
 
 
 CSV31, CSV30 = csv_times("3.1.1"), csv_times("3.0.6")
+# Times for the forms that translate values through a mapping, from skill-review/replace.py.
+REPL = {(r["kind"], r["keys"], r["form"]): r["ms"]
+        for r in map(json.loads, open(os.path.join(ROOT, "skill-review/replace-3.1.1.jsonl"))) if "form" in r}
 
 
 def x(case, src=V31):
@@ -218,10 +221,12 @@ rule(G3, "sort-then-head", "unsafe", ['df.sort_values("b").head(10)', 'df.sort_v
      ['df.nsmallest(10, "b")', 'df.loc[df["b"].idxmin()]'],
      f"nsmallest was {gain('sort-head-vs-nsmallest')} and idxmin was {gain('sort-iloc0-vs-idxmin')}. The fix is "
      "unsafe because nsmallest raises on a text column and orders ties differently.")
-rule(G3, "replace-with-mapping", "none", ['df["k"].replace(mapping)'], ['df["k"].map(mapping).fillna(df["k"])'],
-     f"With 1,000 keys, map was {gain('replace-1000key-dict-vs-map-fillna-str')}. With 100 keys it was "
-     f"{times(x('replace-100key-dict-vs-map-int'))} faster. With 3 keys replace was the faster one, so the rule "
-     "fires on a named mapping and stays silent on a short literal.")
+rule(G3, "replace-with-mapping", "none", ['df["k"].replace(mapping)'], ['df["k"].map(lambda v: mapping.get(v, v))'],
+     f"replace takes longer with every key. On text values it took {ms(REPL['text', 3, 'replace(mapping)'])} with 3 keys and "
+     f"{ms(REPL['text', 1000, 'replace(mapping)'])} with 1,000 keys, and the map form took "
+     f"{ms(REPL['text', 1000, 'map(lambda v: mapping.get(v, v))'])} with 1,000 keys and gave the same values and dtype. The rule "
+     "fires on a named mapping and stays silent on a short literal. An earlier version of the page named "
+     "map(mapping).fillna(column), which turns integer columns into float64 and undoes a key mapped to None.")
 rule(G3, "literal-contains", "safe", ['df["s"].str.contains("ta_")'], ['df["s"].str.contains("ta_", regex=False)'],
      f"regex=False was {gain('str-contains-literal-regex')}. The rule fires only when the pattern has no regex "
      "character.")

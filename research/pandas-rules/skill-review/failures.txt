@@ -1,0 +1,42 @@
+pandas 3.1.1
+missing column, lambda
+    raises KeyError: 'sloar'
+missing column, pd.col
+    raises ValueError: Column 'sloar' not found in given DataFrame. Hint: did you mean one of ['load', 'wind', 'k'] instead?
+missing column, select
+    raises ValueError: Column 'sloar' not found in given DataFrame. Hint: did you mean one of ['load', 'wind', 'k'] instead?
+missing output column, assign()[list]
+    raises KeyError: "['y'] not in index"
+missing output column, select(list)
+    raises KeyError: "['y'] not in index"
+missing output column, filter(items=list)
+    returns {'x': [11.0, 21.0, 31.0]}
+series from another frame with a different index, assign
+    returns {'load': [10.0, 20.0, 30.0], 'wind': [1.0, 2.0, 3.0], 'k': ['a', 'b', 'c'], 'residual': [nan, 15.0, 24.0]}
+series from another frame with a different index, bracket assignment
+    returns {'load': [10.0, 20.0, 30.0], 'wind': [1.0, 2.0, 3.0], 'k': ['a', 'b', 'c'], 'solar': [nan, 5.0, 6.0]}
+array of the wrong length, assign
+    raises ValueError: Length of values (2) does not match length of index (3)
+method typo, lambda (fails when assign runs)
+    raises AttributeError: 'StringMethods' object has no attribute 'uper'
+method typo, pd.col (fails when the expression is built, before assign runs)
+    built col('k').str.uper()
+np.where on a lambda column
+    returns {'load': [10.0, 20.0, 30.0], 'wind': [1.0, 2.0, 3.0], 'k': ['a', 'b', 'c'], 'x': [0, 1, 1]}
+np.where on pd.col
+    raises ValueError: invalid __array_struct__
+row-wise maximum of two columns, lambda
+    returns {'load': [10.0, 20.0, 30.0], 'wind': [1.0, 2.0, 3.0], 'k': ['a', 'b', 'c'], 'x': [10.0, 20.0, 30.0]}
+later column uses an earlier one, lambda
+    returns {'load': [10.0, 20.0, 30.0], 'wind': [1.0, 2.0, 3.0], 'k': ['a', 'b', 'c'], 'a': [20.0, 40.0, 60.0], 'b': [21.0, 41.0, 61.0]}
+later column uses an earlier one, pd.col
+    returns {'load': [10.0, 20.0, 30.0], 'wind': [1.0, 2.0, 3.0], 'k': ['a', 'b', 'c'], 'a': [20.0, 40.0, 60.0], 'b': [21.0, 41.0, 61.0]}
+later column uses an earlier one, select
+    returns {'a': [20.0, 40.0, 60.0], 'b': [21.0, 41.0, 61.0]}
+select with a named list plus computed columns
+    returns {'load': [10.0, 20.0, 30.0], 'wind': [1.0, 2.0, 3.0], 'residual': [9.0, 18.0, 27.0]}
+select reuses a selected name
+    returns {'load': [20.0, 40.0, 60.0]}
+assign reuses an existing name
+    returns {'load': [20.0, 40.0, 60.0]}
+repr of an expression: (col('load') - col('wind')) - 1

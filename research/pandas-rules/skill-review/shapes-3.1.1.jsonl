@@ -1,0 +1,19 @@
+{"meta": {"pandas": "3.1.1", "python": "3.15.2"}}
+{"frame": "5 columns, 1,000,000 rows", "form": "skill_shape", "ms": 3.178, "peak_mb": 16.0, "result": "identical"}
+{"frame": "5 columns, 1,000,000 rows", "form": "assign_col", "ms": 3.221, "peak_mb": 16.0, "result": "identical"}
+{"frame": "5 columns, 1,000,000 rows", "form": "select_col", "ms": 3.154, "peak_mb": 16.0, "result": "identical"}
+{"frame": "5 columns, 1,000,000 rows", "form": "select_lambda", "ms": 3.201, "peak_mb": 16.0, "result": "identical"}
+{"frame": "5 columns, 1,000,000 rows", "form": "assign_then_select_list", "ms": 3.253, "peak_mb": 16.0, "result": "identical"}
+{"frame": "5 columns, 1,000,000 rows", "form": "frame_from_dict", "ms": 3.379, "peak_mb": 32.0, "result": "identical"}
+{"frame": "205 columns, 1,000,000 rows", "form": "skill_shape", "ms": 3.197, "peak_mb": 16.0, "result": "identical"}
+{"frame": "205 columns, 1,000,000 rows", "form": "assign_col", "ms": 3.177, "peak_mb": 16.0, "result": "identical"}
+{"frame": "205 columns, 1,000,000 rows", "form": "select_col", "ms": 3.224, "peak_mb": 16.0, "result": "identical"}
+{"frame": "205 columns, 1,000,000 rows", "form": "select_lambda", "ms": 3.276, "peak_mb": 16.0, "result": "identical"}
+{"frame": "205 columns, 1,000,000 rows", "form": "assign_then_select_list", "ms": 3.443, "peak_mb": 16.0, "result": "identical"}
+{"frame": "205 columns, 1,000,000 rows", "form": "frame_from_dict", "ms": 3.651, "peak_mb": 32.0, "result": "identical"}
+{"frame": "2,005 columns, 100,000 rows", "form": "skill_shape", "ms": 1.158, "peak_mb": 1.8, "result": "identical"}
+{"frame": "2,005 columns, 100,000 rows", "form": "assign_col", "ms": 1.168, "peak_mb": 1.8, "result": "identical"}
+{"frame": "2,005 columns, 100,000 rows", "form": "select_col", "ms": 1.041, "peak_mb": 1.8, "result": "identical"}
+{"frame": "2,005 columns, 100,000 rows", "form": "select_lambda", "ms": 1.039, "peak_mb": 1.8, "result": "identical"}
+{"frame": "2,005 columns, 100,000 rows", "form": "assign_then_select_list", "ms": 1.237, "peak_mb": 1.9, "result": "identical"}
+{"frame": "2,005 columns, 100,000 rows", "form": "frame_from_dict", "ms": 0.61, "peak_mb": 3.2, "result": "identical"}
