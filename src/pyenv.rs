@@ -45,11 +45,14 @@ fn venv_root() -> Option<PathBuf> {
         .find(|p| p.is_dir())
 }
 
-/// `Lib/site-packages` on Windows, `lib/python3.x/site-packages` elsewhere.
+/// `Lib/site-packages` on Windows, `lib/python3.x/site-packages` elsewhere, and
+/// `lib64/python3.x/site-packages`, where Fedora and similar systems put compiled packages.
 fn site_dirs(venv: &Path) -> Vec<PathBuf> {
     let mut dirs = vec![venv.join("Lib").join("site-packages")];
-    if let Ok(entries) = fs::read_dir(venv.join("lib")) {
-        dirs.extend(entries.flatten().map(|e| e.path().join("site-packages")));
+    for lib in ["lib", "lib64"] {
+        if let Ok(entries) = fs::read_dir(venv.join(lib)) {
+            dirs.extend(entries.flatten().map(|e| e.path().join("site-packages")));
+        }
     }
     dirs
 }

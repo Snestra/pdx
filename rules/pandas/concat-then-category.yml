@@ -3,6 +3,12 @@ id: concat-then-category
 language: python
 severity: warning
 message: concat(..., union_categories=True) keeps the categorical dtype without a second pass over the data.
-rule: { pattern: pd.concat($$$A).astype("category") }
+rule:
+  pattern: pd.concat($$$A).astype("category")
+  not:
+    has:
+      stopBy: end
+      kind: keyword_argument
+      has: { field: name, regex: ^union_categories$ }
 fix: pd.concat($$$A, union_categories=True)
 metadata: { fix: unsafe, since: "3.1" }
