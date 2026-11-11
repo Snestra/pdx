@@ -1,4 +1,0 @@
-{"meta": {"pandas": "3.1.1", "pandas_path": "/home/bsa/.cache/uv/archive-v0/aE6yUMf_a5NtzZMo/lib/python3.15/site-packages/pandas/__init__.py", "numpy": "2.5.4", "python": "3.15.2", "pyarrow": null}}
-{"id": "map-lambda-str-method", "n": 1000000, "before_ms": 68.085, "after_ms": 50.549, "speedup": 1.35, "same": "equal"}
-{"id": "apply-lambda-str-split", "n": 1000000, "before_ms": 86.156, "after_ms": 296.236, "speedup": 0.29, "same": "equal values; dtype or name differs: Attributes of Series are different |  Attribute \"dtype\" are different [left]:  <StringDtype(storage='python', na_value=nan)>"}
-{"id": "str-contains-literal-regex", "n": 1000000, "before_ms": 64.26, "after_ms": 44.992, "speedup": 1.43, "same": "equal"}

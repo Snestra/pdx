@@ -1,3 +1,12 @@
+# Build output: cargo, maturin and zensical
 /target
 /dist
 /site
+
+# Local Python environment. pdx has no Python dependencies to lock.
+/.venv
+/uv.lock
+__pycache__/
+
+# Team notes and benchmarks, kept on disk but out of the repository
+/research/
