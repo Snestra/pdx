@@ -93,13 +93,16 @@ impl Report {
         json!({"fixed": self.fixed, "issues": issues})
     }
 
-    /// For example `fixed 2, 3 issue(s), 1 fixable with --fix, 1 more with --fix --unsafe-fixes`.
+    /// For example `fixed 2, 3 issues, 1 fixable with --fix, 1 more with --fix --unsafe-fixes`.
     pub(crate) fn summary(&self, allowed: Applicability) -> String {
         let mut parts = Vec::new();
         if self.fixed > 0 {
             parts.push(format!("fixed {}", self.fixed));
         }
-        parts.push(format!("{} issue(s)", self.issues.len()));
+        parts.push(match self.issues.len() {
+            1 => "1 issue".to_owned(),
+            n => format!("{n} issues"),
+        });
         let fixable = self.issues.iter().filter(|i| i.fixable(allowed)).count();
         if fixable > 0 {
             let flags = match allowed {

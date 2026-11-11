@@ -11,7 +11,7 @@ samples/bad.py:6:5: error [pandas/chained-assignment] Chained assignment writes 
 samples/bad.py:7:1: warning [pandas/no-inplace] inplace=True gives no speedup and blocks chaining. Reassign instead.
 samples/bad.py:8:5: warning [pandas/merge-without-validate] merge without validate= can silently duplicate rows.
 samples/bad.py:11:11: warning [pandas/concat-in-loop] Concatenating inside a loop is quadratic. Collect frames in a list, concat once.
-pdx: 5 issue(s), 2 more with --fix --unsafe-fixes
+pdx: 5 issues, 2 more with --fix --unsafe-fixes
 ```
 
 ## Install

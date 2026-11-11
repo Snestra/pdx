@@ -38,16 +38,12 @@ impl PackageCheck {
 /// One warning for each package that a pack asks for and the venv lacks. A pack is checked only
 /// when the venv has its library. `installed` is what `venv` holds.
 pub(crate) fn missing(packs: &[Pack], venv: &Venv, installed: &Distributions) -> Vec<Issue> {
-    let pyproject = venv.root().with_file_name("pyproject.toml");
-    let pyproject_text = fs::read_to_string(&pyproject).ok();
-    let configured = pyproject_text.as_deref().map(configured_tools);
+    let pyproject = nearest_pyproject()
+        .and_then(|path| fs::read_to_string(&path).ok().map(|text| (path, text)));
+    let configured = pyproject.as_ref().map(|(_, text)| configured_tools(text));
     let configured = configured.as_deref().unwrap_or_default();
     // The issue points at the file where the dependency is added, or else at the venv.
-    let file = shown(if pyproject_text.is_some() {
-        &pyproject
-    } else {
-        venv.root()
-    });
+    let file = shown(pyproject.as_ref().map_or(venv.root(), |(path, _)| path));
     packs
         .iter()
         .filter(|pack| installed.version(pack.module).is_some())
@@ -63,6 +59,15 @@ pub(crate) fn missing(packs: &[Pack], venv: &Venv, installed: &Distributions) ->
             fix: None,
         })
         .collect()
+}
+
+/// The nearest `pyproject.toml` at or above the working directory, where `Venv::find` also
+/// starts. The venv may live elsewhere, such as in `$VIRTUAL_ENV`.
+fn nearest_pyproject() -> Option<PathBuf> {
+    let cwd = env::current_dir().ok()?;
+    cwd.ancestors()
+        .map(|dir| dir.join("pyproject.toml"))
+        .find(|path| path.is_file())
 }
 
 /// The names in the `[tool.<name>]` and `[tool.<name>.<part>]` table headers of a
