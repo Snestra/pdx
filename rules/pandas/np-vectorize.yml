@@ -1,0 +1,9 @@
+# These NumPy helpers still call the Python function once per value or once per row. The
+# replacement depends on the body of the function, so there is no fix.
+id: np-vectorize
+language: python
+severity: warning
+message: $F still calls the Python function once per value. Compute on whole columns, for example with np.where or np.select.
+rule: { pattern: $F($$$ARGS) }
+constraints:
+  F: { regex: '^(np|numpy)\.(vectorize|frompyfunc|apply_along_axis)$' }

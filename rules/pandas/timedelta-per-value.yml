@@ -1,0 +1,42 @@
+# One Timedelta, timedelta or DateOffset built per value. The keyword, such as days, must become
+# a unit, such as "D", so this document has no fix. DateOffset(months=v) is left alone, because
+# a month has no fixed length.
+id: timedelta-per-value
+language: python
+severity: warning
+message: This builds one $T per value. Convert the whole column with pd.to_timedelta and a unit, such as pd.to_timedelta(df["n"], unit="D").
+rule:
+  any:
+    - pattern: "$S.apply(lambda $X: $T($U=$X))"
+    - pattern: "$S.map(lambda $X: $T($U=$X))"
+constraints:
+  T: { regex: '^(pd\.Timedelta|pd\.DateOffset|timedelta|datetime\.timedelta|dt\.timedelta)$' }
+  U: { regex: ^(weeks|days|hours|minutes|seconds|milliseconds|microseconds)$ }
+---
+# Unsafe: on fractional values the two forms round differently in the last digits.
+id: timedelta-per-value
+language: python
+severity: warning
+message: This builds one Timedelta per value. Write pd.to_timedelta($S, unit=$U) on the whole column.
+rule:
+  any:
+    - pattern: "$S.apply(lambda $X: pd.Timedelta($X, unit=$U))"
+    - pattern: "$S.map(lambda $X: pd.Timedelta($X, unit=$U))"
+    - pattern: "$S.apply(lambda $X: pd.Timedelta($X, $U))"
+    - pattern: "$S.map(lambda $X: pd.Timedelta($X, $U))"
+constraints:
+  U: { kind: string }
+fix: pd.to_timedelta($S, unit=$U)
+metadata: { fix: unsafe }
+---
+id: timedelta-per-value
+language: python
+severity: warning
+message: This writes each number as text and parses it again. Pass the numbers to pd.to_timedelta with a unit, such as pd.to_timedelta(df["n"], unit="D").
+rule:
+  any:
+    - pattern: pd.to_timedelta($S.astype(str) + $TEXT)
+    - pattern: pd.to_timedelta($S.astype("str") + $TEXT)
+    - pattern: pd.to_timedelta($S.astype('str') + $TEXT)
+constraints:
+  TEXT: { kind: string }

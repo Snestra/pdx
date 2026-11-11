@@ -1,0 +1,19 @@
+# apply(pd.Series) builds one Series per row to split a column of lists or dicts. The receiver
+# must be a column taken by a text label, because the fix reads it twice.
+
+# Unsafe: on a column of dicts the old form turned whole numbers into floats, and lists of
+# unequal length are padded the same way only when the first row is the longest.
+id: apply-pd-series
+language: python
+severity: warning
+message: apply(pd.Series) builds one Series per row. Build the frame once with pd.DataFrame($S.tolist(), index=$S.index).
+rule:
+  any:
+    - pattern: $S.apply(pd.Series)
+    - pattern: "$S.apply(lambda $X: pd.Series($X))"
+constraints:
+  S: { matches: column }
+utils:
+  column: { kind: subscript, has: { field: subscript, kind: string } }
+fix: pd.DataFrame($S.tolist(), index=$S.index)
+metadata: { fix: unsafe }

@@ -1,0 +1,19 @@
+# A for loop or comprehension over zip(...) whose arguments are all columns taken by a text
+# label, or the .values, .to_numpy() or .tolist() of something. dict(zip(...)) is not a loop.
+id: zip-over-columns
+language: python
+severity: warning
+message: A loop over zipped columns runs Python once per row. Compute on whole columns instead, such as df["a"] * df["w"].
+rule:
+  pattern: zip($$$ARGS)
+  all:
+    - has: { field: arguments, has: { matches: column } }
+    - not: { has: { field: arguments, has: { not: { any: [{ matches: column }, { regex: '^[(),]$' }] } } } }
+    - inside: { any: [{ kind: for_statement }, { kind: for_in_clause }], field: right }
+utils:
+  column:
+    any:
+      - { kind: subscript, has: { field: subscript, kind: string } }
+      - pattern: $_A.values
+      - pattern: $_B.to_numpy()
+      - pattern: $_C.tolist()

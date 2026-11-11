@@ -1,0 +1,32 @@
+# int or float called once per value. str is left out: on floats with missing values astype(str)
+# was slower and kept the missing values, where apply(str) wrote "nan".
+
+# Unsafe: a column of Python objects can define int() and float() in ways astype does not follow.
+id: apply-cast
+language: python
+severity: warning
+message: This calls $T once per value. Write $S.astype($T) on the whole column.
+rule:
+  any:
+    - pattern: "$S.apply(lambda $X: $T($X))"
+    - pattern: "$S.map(lambda $X: $T($X))"
+    - pattern: $S.map($T)
+constraints:
+  T: { regex: ^(int|float)$ }
+fix: $S.astype($T)
+metadata: { fix: unsafe }
+---
+# apply with a bare function works per column on a DataFrame, so the receiver must be a column
+# taken by a text label.
+id: apply-cast
+language: python
+severity: warning
+message: This calls $T once per value. Write $S.astype($T) on the whole column.
+rule: { pattern: $S.apply($T) }
+constraints:
+  S: { matches: column }
+  T: { regex: ^(int|float)$ }
+utils:
+  column: { kind: subscript, has: { field: subscript, kind: string } }
+fix: $S.astype($T)
+metadata: { fix: unsafe }

@@ -1,0 +1,34 @@
+# apply-date-part reports a lambda that reads an attribute such as t.year. This reports one that
+# calls a Timestamp or Timedelta method. round is left out, because lambda v: v.round(2) is more
+# often a number, and strftime belongs to apply-on-dates.
+
+# Unsafe: the result dtype can change, and a column of Python datetimes has no such method.
+id: apply-date-method
+language: python
+severity: warning
+message: This calls $M once per value. Write $S.dt.$M(...) on the whole column.
+rule:
+  any:
+    - pattern: "$S.apply(lambda $X: $X.$M($$$A))"
+    - pattern: "$S.map(lambda $X: $X.$M($$$A))"
+  # The arguments must not use the value.
+  not:
+    has:
+      field: arguments
+      has: { kind: lambda, has: { field: body, has: { field: arguments, has: { stopBy: end, pattern: $X } } } }
+constraints:
+  M: { regex: ^(floor|ceil|normalize|tz_localize|tz_convert|day_name|month_name|to_period|total_seconds)$ }
+fix: $S.dt.$M($$$A)
+metadata: { fix: unsafe }
+---
+# Unsafe: dt.weekday is int32, and the lambda gave int64.
+id: apply-date-method
+language: python
+severity: warning
+message: This calls weekday once per value. Write $S.dt.weekday on the whole column.
+rule:
+  any:
+    - pattern: "$S.apply(lambda $X: $X.weekday())"
+    - pattern: "$S.map(lambda $X: $X.weekday())"
+fix: $S.dt.weekday
+metadata: { fix: unsafe }

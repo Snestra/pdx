@@ -4,8 +4,11 @@ A line that pdx reports ends with a comment that names the rule. Each case retur
 code computes, so a copy fixed with `pdx check --fix` can be compared with this file.
 """
 
+from datetime import datetime, timedelta
+
 import numpy as np
 import pandas as pd
+from dateutil import parser
 
 CASES = {}
 
@@ -100,3 +103,53 @@ def index_year_mask(df):
 def index_year_label(df):
     ts = df.set_index("d").sort_index()
     return ts.loc["2023"], ts[ts.index.month == 3]
+
+
+@case
+def apply_date_method(df):
+    gaps = df["d"] - pd.Timestamp("2022-01-01")
+    return (
+        df["d"].apply(lambda t: t.floor("h")),  # pdx: apply-date-method
+        df["d"].map(lambda t: t.tz_localize("UTC")),  # pdx: apply-date-method
+        df["d"].apply(lambda t: t.day_name()),  # pdx: apply-date-method
+        gaps.apply(lambda v: v.total_seconds()),  # pdx: apply-date-method
+        df["d"].apply(lambda t: t.weekday()),  # pdx: apply-date-method
+    )
+
+
+@case
+def date_method_that_stays(df):
+    return df["d"].dt.floor("h"), df["d"].apply(lambda t: t.round("h")), df["d"].apply(lambda t: t.isoformat())
+
+
+@case
+def apply_parse_date(df):
+    return (
+        df["raw"].apply(lambda v: datetime.strptime(v, "%Y-%m-%d")),  # pdx: apply-parse-date
+        df["raw"].apply(lambda v: pd.to_datetime(v)),  # pdx: apply-parse-date
+        df["raw"].map(lambda v: pd.to_datetime(v, format="%Y-%m-%d")),  # pdx: apply-parse-date
+        df["raw"].map(pd.Timestamp),  # pdx: apply-parse-date
+        df["raw"].apply(lambda v: pd.Timestamp(v)),  # pdx: apply-parse-date
+        df["raw"].apply(parser.parse),  # pdx: apply-parse-date
+    )
+
+
+@case
+def parse_date_on_whole_column(df):
+    return pd.to_datetime(df["raw"], format="%Y-%m-%d"), df["raw"].apply(lambda v: pd.to_datetime(v, dayfirst=v.startswith("3")))
+
+
+@case
+def timedelta_per_value(df):
+    return (
+        df["a"].apply(lambda v: pd.Timedelta(days=v)),  # pdx: timedelta-per-value
+        df["a"].map(lambda v: timedelta(hours=int(v))),
+        df["d"] + df["a"].apply(lambda v: timedelta(hours=v)),  # pdx: timedelta-per-value
+        df["a"].apply(lambda v: pd.Timedelta(v, unit="D")),  # pdx: timedelta-per-value
+        pd.to_timedelta(df["a"].astype(str) + " days"),  # pdx: timedelta-per-value
+    )
+
+
+@case
+def timedelta_on_whole_column(df):
+    return pd.to_timedelta(df["a"], unit="D"), df["a"].head(5).apply(lambda v: pd.DateOffset(months=v))

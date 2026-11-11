@@ -1,0 +1,24 @@
+# pandas 2.0 removed level= from the reductions. The call raises TypeError on pandas 3.0 and 3.1.
+
+# Unsafe: the old form does not run on pandas 3, so the rewrite cannot be compared with it.
+id: reduction-level-argument
+language: python
+severity: error
+message: The level argument of $R was removed and raises TypeError on pandas 3. Write $X.groupby(level=$L).$R().
+rule: { pattern: $X.$R(level=$L) }
+constraints:
+  R: { regex: ^(sum|mean|min|max|median|std|var|prod|count|any|all|sem|skew|kurt)$ }
+fix: $X.groupby(level=$L).$R()
+metadata: { fix: unsafe }
+---
+# With more arguments, such as axis=1, the rewrite depends on them.
+id: reduction-level-argument
+language: python
+severity: error
+message: The level argument of $R was removed and raises TypeError on pandas 3. Group by the level first, as in df.groupby(level=0).$R().
+rule:
+  pattern: $X.$R($$$ARGS)
+  has: { field: arguments, has: { kind: keyword_argument, has: { field: name, regex: ^level$ } } }
+  not: { pattern: $X.$R(level=$L) }
+constraints:
+  R: { regex: ^(sum|mean|min|max|median|std|var|prod|count|any|all|sem|skew|kurt)$ }

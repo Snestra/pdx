@@ -1,0 +1,72 @@
+# apply-known-function reports apply(pd.to_datetime). These parse one text at a time in other
+# ways. Unsafe for the same reason: a call per value parses each text on its own, and
+# pd.to_datetime on the column wants one format. strptime also raises on a missing value, where
+# pd.to_datetime returns NaT.
+id: apply-parse-date
+language: python
+severity: warning
+message: strptime parses one text at a time. Write pd.to_datetime($S, format=$F) on the whole column.
+rule:
+  any:
+    - pattern: "$S.apply(lambda $X: $P.strptime($X, $F))"
+    - pattern: "$S.map(lambda $X: $P.strptime($X, $F))"
+# time.strptime returns a struct_time, so only the datetime class counts.
+constraints:
+  P: { regex: '^((datetime|dt)\.)?datetime$' }
+  F: { not: { any: [{ pattern: $X }, { has: { stopBy: end, pattern: $X } }] } }
+fix: pd.to_datetime($S, format=$F)
+metadata: { fix: unsafe }
+---
+id: apply-parse-date
+language: python
+severity: warning
+message: This parses one text at a time. Write pd.to_datetime($S) on the whole column.
+rule:
+  any:
+    - pattern: "$S.apply(lambda $X: pd.to_datetime($X))"
+    - pattern: "$S.map(lambda $X: pd.to_datetime($X))"
+    - pattern: "$S.apply(lambda $X: pd.Timestamp($X))"
+    - pattern: "$S.map(lambda $X: pd.Timestamp($X))"
+    - pattern: "$S.apply(lambda $X: $PARSE($X))"
+    - pattern: "$S.map(lambda $X: $PARSE($X))"
+    - pattern: $S.map(pd.Timestamp)
+    - pattern: $S.map($PARSE)
+constraints:
+  PARSE: { regex: '^(dateutil\.)?parser\.parse$' }
+fix: pd.to_datetime($S)
+metadata: { fix: unsafe }
+---
+# apply with a bare function works per column on a DataFrame, so the receiver must be a column
+# taken by a text label.
+id: apply-parse-date
+language: python
+severity: warning
+message: This parses one text at a time. Write pd.to_datetime($S) on the whole column.
+rule:
+  any:
+    - pattern: $S.apply(pd.Timestamp)
+    - pattern: $S.apply($PARSE)
+constraints:
+  S: { matches: column }
+  PARSE: { regex: '^(dateutil\.)?parser\.parse$' }
+utils:
+  column: { kind: subscript, has: { field: subscript, kind: string } }
+fix: pd.to_datetime($S)
+metadata: { fix: unsafe }
+---
+id: apply-parse-date
+language: python
+severity: warning
+message: This parses one text at a time. Write pd.to_datetime($S, ...) with the same arguments on the whole column.
+rule:
+  any:
+    - pattern: "$S.apply(lambda $X: pd.to_datetime($X, $$$K))"
+    - pattern: "$S.map(lambda $X: pd.to_datetime($X, $$$K))"
+  not:
+    any:
+      - pattern: "$S.apply(lambda $X: pd.to_datetime($X))"
+      - pattern: "$S.map(lambda $X: pd.to_datetime($X))"
+      # A keyword that uses the value cannot move to the whole column.
+      - has: { field: arguments, has: { kind: lambda, has: { field: body, has: { field: arguments, has: { kind: keyword_argument, has: { stopBy: end, pattern: $X } } } } } }
+fix: pd.to_datetime($S, $$$K)
+metadata: { fix: unsafe }

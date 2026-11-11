@@ -1,0 +1,21 @@
+# row-loop reports a loop over row numbers. This is the same loop over the index labels: the
+# body reads the frame by the loop's label.
+id: index-loop
+language: python
+severity: warning
+message: A loop over index labels runs Python once per row. Compute on whole columns instead, such as df["a"] * df["w"].
+rule:
+  any:
+    - kind: for_statement
+      all: [{ has: { field: left, pattern: $I } }, { has: { field: right, pattern: $DF.index } }]
+    - any: [{ kind: list_comprehension }, { kind: generator_expression }, { kind: dictionary_comprehension }, { kind: set_comprehension }]
+      has:
+        kind: for_in_clause
+        all: [{ has: { field: left, pattern: $I } }, { has: { field: right, pattern: $DF.index } }]
+  has:
+    stopBy: end
+    any:
+      - pattern: $DF.loc[$I]
+      - pattern: $DF.loc[$I, $$$C]
+      - pattern: $DF.at[$I, $$$C]
+      - pattern: $DF[$C][$I]

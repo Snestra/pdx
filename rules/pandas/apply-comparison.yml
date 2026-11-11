@@ -1,0 +1,112 @@
+# A lambda that compares its parameter with a value the parameter is not part of, so the same
+# comparison runs on the whole column. Unsafe: a column of Python objects can compare differently.
+id: apply-comparison
+language: python
+severity: warning
+message: A comparison per value runs in Python. Write $NEW on the whole column.
+rule:
+  not: { matches: operand }
+  any:
+    - pattern: "$S.apply(lambda $X: $BODY)"
+    - pattern: "$S.map(lambda $X: $BODY)"
+constraints:
+  BODY: { matches: comparison }
+utils:
+  comparison:
+    kind: comparison_operator
+    all:
+      - has: { nthChild: 1, pattern: $X }
+      - has: { field: operators, regex: '^(<|<=|>|>=|==|!=)$' }
+      # Two operands only, so a chain such as 0 < v < 5 is left alone.
+      - not: { has: { nthChild: 3 } }
+      - not: { has: { nthChild: 2, any: [{ pattern: $X }, { has: { stopBy: end, pattern: $X } }] } }
+  # The call is an operand, or the object of an attribute or a subscript, so the expression that
+  # replaces it needs parentheses.
+  operand:
+    inside:
+      any:
+        - kind: binary_operator
+        - kind: unary_operator
+        - kind: boolean_operator
+        - kind: not_operator
+        - kind: comparison_operator
+        - kind: attribute
+        - kind: subscript
+        - kind: await
+rewriters:
+  - id: parameter
+    rule: { kind: identifier, pattern: $X }
+    fix: $S
+transform:
+  NEW: { rewrite: { source: $BODY, rewriters: [parameter] } }
+fix: $NEW
+metadata: { fix: unsafe }
+---
+id: apply-comparison
+language: python
+severity: warning
+message: A comparison per value runs in Python. Write ($NEW) on the whole column.
+rule:
+  matches: operand
+  any:
+    - pattern: "$S.apply(lambda $X: $BODY)"
+    - pattern: "$S.map(lambda $X: $BODY)"
+constraints:
+  BODY: { matches: comparison }
+utils:
+  comparison:
+    kind: comparison_operator
+    all:
+      - has: { nthChild: 1, pattern: $X }
+      - has: { field: operators, regex: '^(<|<=|>|>=|==|!=)$' }
+      # Two operands only, so a chain such as 0 < v < 5 is left alone.
+      - not: { has: { nthChild: 3 } }
+      - not: { has: { nthChild: 2, any: [{ pattern: $X }, { has: { stopBy: end, pattern: $X } }] } }
+  operand:
+    inside:
+      any:
+        - kind: binary_operator
+        - kind: unary_operator
+        - kind: boolean_operator
+        - kind: not_operator
+        - kind: comparison_operator
+        - kind: attribute
+        - kind: subscript
+        - kind: await
+rewriters:
+  - id: parameter
+    rule: { kind: identifier, pattern: $X }
+    fix: $S
+transform:
+  NEW: { rewrite: { source: $BODY, rewriters: [parameter] } }
+fix: ($NEW)
+metadata: { fix: unsafe }
+---
+# Unsafe: isin compares values, where `in` asks the container, so a dict, a range or a custom
+# container can answer differently. A text container is a substring test and is left alone.
+id: apply-comparison
+language: python
+severity: warning
+message: A membership test per value runs in Python. Write $S.isin($C) on the whole column.
+rule:
+  any:
+    - pattern: "$S.apply(lambda $X: $X in $C)"
+    - pattern: "$S.map(lambda $X: $X in $C)"
+constraints:
+  C: { not: { any: [{ kind: string }, { pattern: $X }, { has: { stopBy: end, pattern: $X } }] } }
+fix: $S.isin($C)
+metadata: { fix: unsafe }
+---
+# ~ binds before a method call or a subscript, so the negated form keeps its own parentheses.
+id: apply-comparison
+language: python
+severity: warning
+message: A membership test per value runs in Python. Write ~$S.isin($C) on the whole column.
+rule:
+  any:
+    - pattern: "$S.apply(lambda $X: $X not in $C)"
+    - pattern: "$S.map(lambda $X: $X not in $C)"
+constraints:
+  C: { not: { any: [{ kind: string }, { pattern: $X }, { has: { stopBy: end, pattern: $X } }] } }
+fix: (~$S.isin($C))
+metadata: { fix: unsafe }

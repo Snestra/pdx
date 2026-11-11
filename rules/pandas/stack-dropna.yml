@@ -1,0 +1,21 @@
+# pandas 3 uses the new stack, which keeps every row and takes no dropna. Either value raises
+# ValueError on pandas 3.0 and 3.1. The replacement depends on the value, so there is no fix.
+id: stack-dropna
+language: python
+severity: error
+message: stack no longer takes dropna and raises ValueError on pandas 3. Write stack() to keep every row, or stack().dropna(how="all") to drop the rows that are all missing.
+rule:
+  pattern: $X.stack($$$ARGS)
+  has: { field: arguments, has: { kind: keyword_argument, has: { field: name, regex: ^dropna$ } } }
+---
+id: stack-dropna
+language: python
+severity: warning
+message: future_stack=False selects the old stack, which is deprecated on pandas 3. Drop the argument, and call dropna(how="all") if rows that are all missing must go.
+rule:
+  pattern: $X.stack($$$ARGS)
+  has:
+    field: arguments
+    has:
+      kind: keyword_argument
+      all: [{ has: { field: name, regex: ^future_stack$ } }, { has: { field: value, regex: ^False$ } }]

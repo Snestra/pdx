@@ -253,3 +253,58 @@ def copy_on_write_option_in_function(df):
 @case
 def copy_keyword_that_stays(df):
     return df["a"].to_numpy(copy=False).tolist(), df.astype({"a": "float64"})
+
+
+@case
+def reduction_level_argument(df):
+    by_key = df.dropna().set_index(["k", "a"])
+    return (
+        by_key["b"].sum(level="k"),  # pdx: reduction-level-argument
+        by_key[["b"]].mean(level=0),  # pdx: reduction-level-argument
+    )
+
+
+@case
+def reduction_level_without_fix(df):
+    by_key = df.dropna().set_index(["k", "a"])
+    return by_key[["b"]].max(axis=0, level="k")  # pdx: reduction-level-argument
+
+
+@case
+def reduction_by_level(df):
+    by_key = df.dropna().set_index(["k", "a"])
+    return by_key["b"].groupby(level="k").sum(), by_key.reset_index(level="a").shape, by_key.sort_index(level="k").shape
+
+
+@case
+def stack_dropna(df):
+    wide = df.pivot_table(index="k", columns="a", values="b")
+    return (
+        wide.stack(dropna=False),  # pdx: stack-dropna
+        wide.stack(dropna=True),  # pdx: stack-dropna
+        wide.stack(future_stack=False),  # pdx: stack-dropna
+    )
+
+
+@case
+def stack_that_stays(df):
+    wide = df.pivot_table(index="k", columns="a", values="b")
+    return wide.stack(), wide.stack().dropna(), np.stack([df["a"].to_numpy(), df["a"].to_numpy()])
+
+
+@case
+def frame_append(df):
+    out = pd.DataFrame()
+    for part in (df.head(3), df.tail(3)):
+        out = out.append(part)  # pdx: frame-append
+    out.append({"a": 1}, ignore_index=True)  # pdx: frame-append
+    return out, df["a"].append(df["a"])  # pdx: frame-append
+
+
+@case
+def append_that_stays(df):
+    parts = []
+    for part in (df.head(3), df.tail(3)):
+        parts.append(part)
+    columns = df.columns.append(pd.Index(["extra"]))
+    return pd.concat(parts), columns, np.append(df["a"].to_numpy(), 1)

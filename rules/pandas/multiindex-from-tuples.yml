@@ -1,0 +1,75 @@
+# from_tuples builds one Python tuple per row and takes the tuples apart again. A pattern that
+# ends in ", $$$KW" does not match a call with one argument, so each shape has two documents.
+
+# Unsafe: without names=, from_arrays takes the level names from the Series it is given, and
+# from_tuples left them empty.
+id: multiindex-from-tuples
+language: python
+severity: warning
+message: from_tuples builds one Python tuple per row. Pass the columns to $MI.from_arrays([...]).
+rule:
+  any:
+    - pattern: $MI.from_tuples(list(zip($$$COLS)), $$$KW)
+    - pattern: $MI.from_tuples(zip($$$COLS), $$$KW)
+constraints:
+  MI: { regex: '(^|\.)MultiIndex$' }
+fix: $MI.from_arrays([$$$COLS], $$$KW)
+metadata: { fix: unsafe }
+---
+id: multiindex-from-tuples
+language: python
+severity: warning
+message: from_tuples builds one Python tuple per row. Pass the columns to $MI.from_arrays([...]).
+rule:
+  any:
+    - pattern: $MI.from_tuples(list(zip($$$COLS)))
+    - pattern: $MI.from_tuples(zip($$$COLS))
+constraints:
+  MI: { regex: '(^|\.)MultiIndex$' }
+fix: $MI.from_arrays([$$$COLS])
+metadata: { fix: unsafe }
+---
+# Unsafe: from_product reads each iterable once, so an iterator that product() could not reuse
+# either is the only difference, and pdx cannot see the type.
+id: multiindex-from-tuples
+language: python
+severity: warning
+message: from_tuples builds one Python tuple per row. Pass the iterables to $MI.from_product([...]).
+rule:
+  any:
+    - pattern: $MI.from_tuples(list($P($$$ITERS)), $$$KW)
+    - pattern: $MI.from_tuples($P($$$ITERS), $$$KW)
+  not: { has: { field: arguments, has: { stopBy: end, kind: keyword_argument, has: { field: name, regex: ^repeat$ } } } }
+constraints:
+  MI: { regex: '(^|\.)MultiIndex$' }
+  P: { regex: '^(itertools\.)?product$' }
+fix: $MI.from_product([$$$ITERS], $$$KW)
+metadata: { fix: unsafe }
+---
+id: multiindex-from-tuples
+language: python
+severity: warning
+message: from_tuples builds one Python tuple per row. Pass the iterables to $MI.from_product([...]).
+rule:
+  any:
+    - pattern: $MI.from_tuples(list($P($$$ITERS)))
+    - pattern: $MI.from_tuples($P($$$ITERS))
+  not: { has: { field: arguments, has: { stopBy: end, kind: keyword_argument, has: { field: name, regex: ^repeat$ } } } }
+constraints:
+  MI: { regex: '(^|\.)MultiIndex$' }
+  P: { regex: '^(itertools\.)?product$' }
+fix: $MI.from_product([$$$ITERS])
+metadata: { fix: unsafe }
+---
+# Two for clauses that pair every value of one iterable with every value of another.
+id: multiindex-from-tuples
+language: python
+severity: warning
+message: from_tuples builds one Python tuple per row. Pass the two iterables to $MI.from_product([$X, $Y]).
+rule:
+  pattern: $MI.from_tuples($$$ARGS)
+  has:
+    field: arguments
+    has: { nthChild: 1, pattern: "[($A, $B) for $A in $X for $B in $Y]" }
+constraints:
+  MI: { regex: '(^|\.)MultiIndex$' }

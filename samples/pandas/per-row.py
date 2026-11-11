@@ -4,6 +4,8 @@ A line that pdx reports ends with a comment that names the rule. Each case retur
 code computes, so a copy fixed with `pdx check --fix` can be compared with this file.
 """
 
+import math
+
 import numpy as np
 import pandas as pd
 
@@ -244,3 +246,120 @@ def replace_with_mapping(df):
 @case
 def replace_with_literals(df):
     return df["k"].replace({"g1": "one"}), df["s"].str.replace("_", " "), df["k"].map({"g1": "one"}).fillna(df["k"])
+
+
+@case
+def apply_math_function(df):
+    return (
+        df["w"].map(np.sqrt),  # pdx: apply-math-function
+        df["w"].apply(lambda v: np.log(v)),  # pdx: apply-math-function
+        df["w"].apply(math.sqrt),  # pdx: apply-math-function
+        df["w"].map(lambda v: math.log(v)),  # pdx: apply-math-function
+        df["b"].apply(abs),  # pdx: apply-math-function
+        df["b"].map(lambda v: abs(v)),  # pdx: apply-math-function
+    )
+
+
+@case
+def math_that_stays(df):
+    return df["w"].apply(np.sqrt), np.log(df["w"]), df[["b", "w"]].apply(abs), df["w"].apply(lambda v: np.log(v) + 1)
+
+
+@case
+def apply_cast(df):
+    return (
+        df["w"].apply(int),  # pdx: apply-cast
+        df["a"].map(float),  # pdx: apply-cast
+        df["w"].apply(lambda v: int(v)),  # pdx: apply-cast
+    )
+
+
+@case
+def cast_that_stays(df):
+    return df["b"].apply(str), df["w"].astype(int), df["a"].map(lambda v: int(v) + 1)
+
+
+@case
+def apply_comparison(df):
+    wanted = {1, 5, 9}
+    return (
+        df["a"].apply(lambda v: v > 50),  # pdx: apply-comparison
+        df["k"].map(lambda v: v == "g2"),  # pdx: apply-comparison
+        df["b"].apply(lambda v: v != 0).sum(),  # pdx: apply-comparison
+        df["a"].apply(lambda v: v in wanted),  # pdx: apply-comparison
+        df["a"].map(lambda v: v not in wanted).sum(),  # pdx: apply-comparison
+    )
+
+
+@case
+def comparison_that_stays(df):
+    return (
+        df["a"] > 50,
+        df["a"].apply(lambda v: 10 < v < 50),
+        df["a"].apply(lambda v: v > len(str(v))),
+        df["s"].apply(lambda v: "ta" in v),
+        df["k"].apply(lambda v: v in "g1g2"),
+    )
+
+
+@case
+def apply_pd_series(df):
+    pairs = df.assign(pair=[[a, w] for a, w in zip(df["a"].tolist(), df["w"].tolist())])  # pdx: zip-over-columns
+    return (
+        pairs["pair"].apply(pd.Series),  # pdx: apply-pd-series
+        pairs["pair"].apply(lambda v: pd.Series(v)),  # pdx: apply-pd-series
+    )
+
+
+@case
+def pd_series_that_stays(df):
+    return df[["a", "w"]].apply(pd.Series.sum), pd.DataFrame(df[["a", "w"]].to_numpy().tolist(), index=df.index)
+
+
+def bigger(b, w):
+    if b > w:
+        return b * 2
+    return w
+
+
+@case
+def np_vectorize(df):
+    return (
+        np.vectorize(bigger)(df["a"], df["w"]),  # pdx: np-vectorize
+        np.frompyfunc(bigger, 2, 1)(df["a"], df["w"]),  # pdx: np-vectorize
+        np.apply_along_axis(lambda row: row[0] * row[1], 1, df[["a", "w"]].to_numpy()),  # pdx: np-vectorize
+    )
+
+
+@case
+def np_where_instead(df):
+    return np.where(df["a"] > df["w"], df["a"] * 2, df["w"])
+
+
+@case
+def index_loop(df):
+    out = []
+    for label in df.index:  # pdx: index-loop
+        out.append(df.loc[label, "a"] * df.at[label, "w"])
+    return out, [df.loc[label, "a"] * 2 for label in df.index]  # pdx: index-loop
+
+
+@case
+def index_loop_that_stays(df):
+    other = df.head(3)
+    labels = [str(label) for label in df.index]
+    return labels[:3], [df.loc[label, "a"] for label in other.index]
+
+
+@case
+def zip_over_columns(df):
+    out = []
+    for a, w in zip(df["a"].values, df["w"].to_numpy()):  # pdx: zip-over-columns
+        out.append(a * w)
+    return out, [a * w for a, w in zip(df["a"], df["w"])]  # pdx: zip-over-columns
+
+
+@case
+def zip_that_stays(df):
+    names = ["x", "y"]
+    return dict(zip(df["k"], df["a"])), [n * 2 for n, c in zip(names, df.columns)], [a for a, n in zip(df["a"], names)]

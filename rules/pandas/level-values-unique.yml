@@ -1,0 +1,19 @@
+# get_level_values builds one value per row, and unique then hashes all of them. unique with a
+# level reads the level's codes. Index.unique takes a level on a plain Index too. Unsafe: a level
+# built from a range comes back as a RangeIndex, with the same values, where the old form gave
+# an Index.
+id: level-values-unique
+language: python
+severity: warning
+message: get_level_values builds one value per row before unique runs. Write $I.unique($L).
+rule: { pattern: $I.get_level_values($L).unique() }
+fix: $I.unique($L)
+metadata: { fix: unsafe }
+---
+id: level-values-unique
+language: python
+severity: warning
+message: get_level_values builds one value per row before nunique runs. Write $I.unique($L).nunique().
+rule: { pattern: $I.get_level_values($L).nunique() }
+fix: $I.unique($L).nunique()
+metadata: { fix: unsafe }

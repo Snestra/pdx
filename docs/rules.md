@@ -251,6 +251,70 @@ filled = df["load"].ffill()
 months = df.resample("ME", on="time")["load"].sum()
 ```
 
+#### reduction-level-argument
+
+**Severity:** error. **Fix:** unsafe: `df.groupby(level=0).sum()`.
+
+Reports `df.sum(level=0)` and the other reductions with `level=`, which raise TypeError.
+
+Example:
+
+```python
+totals = df["load"].sum(level="region")
+```
+
+Use instead:
+
+```python
+totals = df["load"].groupby(level="region").sum()
+```
+
+#### stack-dropna
+
+**Severity:** error, or warning for `future_stack=False`. **Fix:** none.
+
+Reports `df.stack(dropna=False)`, which raises ValueError, and `df.stack(future_stack=False)`, which is deprecated.
+
+Example:
+
+```python
+long = wide.stack(dropna=True)
+```
+
+Use instead:
+
+```python
+long = wide.stack().dropna(how="all")
+```
+
+For dropna=False, write stack() alone. The new stack keeps the rows that are all missing, which the old default dropped.
+
+The replacement is advice. pdx does not apply it automatically.
+
+#### frame-append
+
+**Severity:** error. **Fix:** none.
+
+Reports `df = df.append(row)` and `df.append(row, ignore_index=True)`, which raise AttributeError.
+
+Example:
+
+```python
+out = pd.DataFrame()
+for part in parts:
+    out = out.append(part)
+```
+
+Use instead:
+
+```python
+out = pd.concat(parts)
+```
+
+The example assumes parts is not empty. For single rows, collect them in a list and build the frame once.
+
+The replacement is advice. pdx does not apply it automatically.
+
 #### deprecated-in-pandas-3
 
 **Severity:** warning. **Fix:** safe: delete the line, drop `copy=`, `pd.Timestamp.now("UTC")`. unsafe: drop `copy=` from `astype`.
@@ -269,6 +333,14 @@ Use instead:
 now = pd.Timestamp.now("UTC")
 ```
 
+
+The `reduction-level-argument` fix applies when `level=` is the only argument, and it is unsafe
+because the old form does not run on pandas 3, so the two cannot be compared. `stack-dropna` has no
+fix, because the replacement depends on the value of `dropna`. `frame-append` reports an `append`
+whose result is assigned, returned, passed on or read, or that passes `ignore_index`,
+`verify_integrity` or `sort`, because `list.append` returns None and takes no keywords. It leaves
+`df.index.append(x)` and `df.columns.append(x)` alone, because `Index.append` still exists. An
+Index held in a plain name, as in `labels = labels.append(more)`, is reported by mistake.
 
 The `chained-assignment` fix covers the three shapes above. A mask held in a name is fixed when
 the enclosing function assigns that name only masks, such as a comparison or a call to `isin`.
@@ -891,6 +963,146 @@ The example assumes paths is not empty and the starting frame has no schema to p
 
 The replacement is advice. pdx does not apply it automatically.
 
+#### apply-math-function
+
+**Severity:** warning. **Fix:** unsafe: `np.sqrt(df["w"])`, `df["b"].abs()`.
+
+Reports `df["w"].map(np.sqrt)`, `df["w"].apply(lambda v: np.log(v))`, `df["w"].apply(math.sqrt)` and `df["b"].apply(abs)`.
+
+Example:
+
+```python
+root = df["wind"].map(np.sqrt)
+```
+
+Use instead:
+
+```python
+root = np.sqrt(df["wind"])
+```
+
+#### apply-cast
+
+**Severity:** warning. **Fix:** unsafe: `df["b"].astype(int)`.
+
+Reports `df["b"].apply(int)`, `df["raw"].map(float)` and `df["b"].apply(lambda v: int(v))`.
+
+Example:
+
+```python
+whole = df["load"].apply(int)
+```
+
+Use instead:
+
+```python
+whole = df["load"].astype(int)
+```
+
+#### apply-comparison
+
+**Severity:** warning. **Fix:** unsafe: `df["a"] > 50`, `df["a"].isin(wanted)`.
+
+Reports `df["a"].apply(lambda v: v > 50)` and `df["a"].apply(lambda v: v in wanted)`.
+
+Example:
+
+```python
+high = df["load"].apply(lambda value: value > 50)
+```
+
+Use instead:
+
+```python
+high = df["load"] > 50
+```
+
+#### apply-pd-series
+
+**Severity:** warning. **Fix:** unsafe: `pd.DataFrame(df["pair"].tolist(), index=df["pair"].index)`.
+
+Reports `df["pair"].apply(pd.Series)`, which builds one Series per row to split a column of lists or dicts.
+
+Example:
+
+```python
+parts = df["pair"].apply(pd.Series)
+```
+
+Use instead:
+
+```python
+parts = pd.DataFrame(df["pair"].tolist(), index=df["pair"].index)
+```
+
+#### np-vectorize
+
+**Severity:** warning. **Fix:** none.
+
+Reports `np.vectorize(f)`, `np.frompyfunc(f, 2, 1)` and `np.apply_along_axis(f, 1, values)`, which still call Python once per value or per row.
+
+Example:
+
+```python
+def bigger(load, wind):
+    if load > wind:
+        return load * 2
+    return wind
+
+out = np.vectorize(bigger)(df["load"], df["wind"])
+```
+
+Use instead:
+
+```python
+out = np.where(df["load"] > df["wind"], df["load"] * 2, df["wind"])
+```
+
+The replacement is advice. pdx does not apply it automatically.
+
+#### index-loop
+
+**Severity:** warning. **Fix:** none.
+
+Reports `for label in df.index` with `df.loc[label, "a"]` or `df.at[label, "a"]` in the body, also as a comprehension.
+
+Example:
+
+```python
+out = []
+for label in df.index:
+    out.append(df.loc[label, "load"] * df.loc[label, "weight"])
+```
+
+Use instead:
+
+```python
+out = (df["load"] * df["weight"]).tolist()
+```
+
+The replacement is advice. pdx does not apply it automatically.
+
+#### zip-over-columns
+
+**Severity:** warning. **Fix:** none.
+
+Reports a loop or comprehension over `zip(df["a"], df["w"])`.
+
+Example:
+
+```python
+out = [load * weight for load, weight in zip(df["load"], df["weight"])]
+```
+
+Use instead:
+
+```python
+out = (df["load"] * df["weight"]).tolist()
+```
+
+Keep the result as a Series when the next step takes one. Use tolist only at a boundary that needs a list.
+
+The replacement is advice. pdx does not apply it automatically.
 
 `apply-known-function` reports only a column taken by a text label, because on a frame `apply`
 works per column. Its `pd.to_datetime` fix is unsafe, because a call per value parses each text
@@ -899,6 +1111,21 @@ column of lists `pd.isna` per value returned an array per cell. The `round` fix 
 Python and numpy round some halfway values differently. `copy-after-indexing` leaves a single text
 label and a slice alone, because on a dict or a numpy array the copy keeps a later write away
 from the original.
+
+`apply-math-function` leaves `df["w"].apply(np.sqrt)` alone, because `Series.apply` already hands
+a NumPy function the whole column, and `map` does not. Its fix is unsafe, because `math.sqrt` and
+`math.log` raise on a value outside their domain, where NumPy returns NaN. `apply-cast` covers
+`int` and `float` only: on floats with missing values `astype(str)` was slower than `apply(str)`
+and kept the missing values. `apply-comparison` leaves a chain such as `0 < v < 5` alone, and a
+test on text such as `"ta" in v` or `v in "abc"`. Its `isin` fix is unsafe, because `in` asks the
+container, and a dict, a range or a custom container can answer differently. The
+`apply-pd-series` fix is unsafe, because the old form turned whole numbers into floats when a row
+also held floats, and the fix keeps them whole. With a bare function name, `apply-math-function`,
+`apply-cast` and `apply-pd-series` report `apply` only on a column taken by a text label, because
+on a frame `apply` works per column. `index-loop` leaves a loop that never reads the frame by its
+label alone. `zip-over-columns` reports only when every argument of `zip` is a column taken by a
+text label, or a `.values`, `.to_numpy()` or `.tolist()`. It leaves `dict(zip(...))` alone, which
+is not a loop.
 
 `row-loop` replaces the `no-iterrows` rule of pdx 0.1.0. The fixes of `apply-text-method`,
 `apply-date-part` and `apply-arithmetic` are unsafe, because a column method returns a missing
@@ -1064,6 +1291,52 @@ skipna=False preserves missing values from the first row. Without it, first can 
 The replacement is advice. pdx does not apply it automatically.
 
 
+### MultiIndex
+
+#### multiindex-from-tuples
+
+**Severity:** warning. **Fix:** unsafe: `pd.MultiIndex.from_arrays([df["k"], df["a"]])`, `pd.MultiIndex.from_product([keys, numbers])`. The comprehension has no fix.
+
+Reports `pd.MultiIndex.from_tuples(zip(df["k"], df["a"]))`, `from_tuples(itertools.product(keys, numbers))` and `from_tuples([(k, n) for k in keys for n in numbers])`, which build one Python tuple per row.
+
+Example:
+
+```python
+index = pd.MultiIndex.from_tuples(list(zip(df["region"], df["year"])), names=["region", "year"])
+```
+
+Use instead:
+
+```python
+index = pd.MultiIndex.from_arrays([df["region"], df["year"]], names=["region", "year"])
+```
+
+#### level-values-unique
+
+**Severity:** warning. **Fix:** unsafe: `df.index.unique("k")`, `df.index.unique("k").nunique()`.
+
+Reports `df.index.get_level_values("k").unique()` and `.nunique()`, which build one value per row first.
+
+Example:
+
+```python
+regions = df.index.get_level_values("region").unique()
+```
+
+Use instead:
+
+```python
+regions = df.index.unique("region")
+```
+
+
+The `multiindex-from-tuples` fix is unsafe, because without `names=` `from_arrays` takes the level
+names from the Series it is given, where `from_tuples` left them empty. It leaves
+`itertools.product(keys, repeat=2)` alone. The `level-values-unique` fix is unsafe, because a level
+built from a range comes back as a RangeIndex, with the same values, where the old form gave an
+Index. On 1,000,000 rows `from_arrays` ran 27 times faster than `from_tuples` over `zip`,
+`from_product` 118 times faster than the comprehension, and `unique` with a level 22 times faster.
+
 ### Time series
 
 #### rolling-apply
@@ -1168,6 +1441,61 @@ Use the label example on a sorted DatetimeIndex. It is a label selection, not a 
 
 The replacement is advice. pdx does not apply it automatically.
 
+#### apply-date-method
+
+**Severity:** warning. **Fix:** unsafe: `df["d"].dt.floor("h")`, `df["d"].dt.weekday`.
+
+Reports `df["d"].apply(lambda t: t.floor("h"))`, and the same with `ceil`, `normalize`, `tz_localize`, `tz_convert`, `day_name`, `month_name`, `to_period`, `total_seconds` and `weekday`.
+
+Example:
+
+```python
+hours = df["time"].apply(lambda time: time.floor("h"))
+```
+
+Use instead:
+
+```python
+hours = df["time"].dt.floor("h")
+```
+
+#### apply-parse-date
+
+**Severity:** warning. **Fix:** unsafe: `pd.to_datetime(df["raw"], format="%Y-%m-%d")`.
+
+Reports `df["raw"].apply(lambda v: datetime.strptime(v, "%Y-%m-%d"))`, and a lambda or `map` that calls `pd.to_datetime`, `pd.Timestamp` or `parser.parse` per value.
+
+Example:
+
+```python
+when = df["raw"].apply(lambda text: datetime.strptime(text, "%Y-%m-%d"))
+```
+
+Use instead:
+
+```python
+when = pd.to_datetime(df["raw"], format="%Y-%m-%d")
+```
+
+#### timedelta-per-value
+
+**Severity:** warning. **Fix:** unsafe: `pd.to_timedelta(df["n"], unit="D")` for `pd.Timedelta(v, unit="D")`. The other shapes have no fix.
+
+Reports `df["n"].apply(lambda v: pd.Timedelta(days=v))`, the same with `timedelta` and `pd.DateOffset`, and `pd.to_timedelta(df["n"].astype(str) + " days")`.
+
+Example:
+
+```python
+shift = df["days"].apply(lambda days: pd.Timedelta(days=days))
+```
+
+Use instead:
+
+```python
+shift = pd.to_timedelta(df["days"], unit="D")
+```
+
+The units are "W", "D", "h", "min", "s", "ms" and "us". On fractional values the two forms can differ in the last digits.
 
 The `rolling-apply` fixes for sum, mean, std and var are unsafe, because the window methods keep
 running totals, so values far apart in size can give another result. For a function with no
@@ -1175,6 +1503,16 @@ window method the message names `raw=True` and `engine="numba"`. `apply-on-dates
 `df["d"] - pd.to_timedelta(df["d"].dt.day - 1, unit="D")` for `replace(day=1)`, which keeps the
 time of day. Its fixes are unsafe, because a missing date gives a missing result where the
 lambda raised.
+
+The `apply-date-method` fix is unsafe, because the dtype can change: `dt.weekday` is int32 where
+the lambda gave int64. It leaves `round` alone, because `lambda v: v.round(2)` is more often a
+number. The `apply-parse-date` fix is unsafe for the reason `apply-known-function` gives, and
+because `strptime` raises on a missing value where `pd.to_datetime` returns NaT. It reports
+`strptime` only on `datetime`, because `time.strptime` returns another type. `timedelta-per-value`
+has no fix for a keyword such as `days=v`, because the keyword must become a unit. It leaves
+`pd.DateOffset(months=v)` alone, because a month has no fixed length. On 1,000,000 rows `dt.floor`
+ran 1,354 times faster than the lambda, `pd.to_datetime` with a format 24 times faster than
+`strptime`, and `pd.to_timedelta` 1,549 times faster.
 
 ### Stated intent
 

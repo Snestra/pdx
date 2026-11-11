@@ -1,0 +1,22 @@
+# pandas 2.0 removed DataFrame.append and Series.append. The call raises AttributeError on
+# pandas 3.0 and 3.1. list.append returns None and takes no ignore_index, so a call whose result
+# is assigned, returned, passed on or read, or that passes one of the frame's keywords, is a
+# frame's. Index.append still exists, so a receiver that ends in .index or .columns is left
+# alone. The right rewrite moves pd.concat out of the loop, so there is no fix.
+id: frame-append
+language: python
+severity: error
+message: DataFrame.append and Series.append were removed and raise AttributeError on pandas 3. Collect the parts in a list and call pd.concat once.
+rule:
+  pattern: $OBJ.append($$$ARGS)
+  any:
+    - inside: { kind: assignment, field: right }
+    - inside: { kind: return_statement }
+    - inside: { kind: expression_list }
+    - inside: { kind: tuple }
+    - inside: { kind: argument_list }
+    - inside: { kind: attribute, field: object }
+    - inside: { kind: subscript, field: value }
+    - has: { field: arguments, has: { kind: keyword_argument, has: { field: name, regex: ^(ignore_index|verify_integrity|sort)$ } } }
+constraints:
+  OBJ: { not: { regex: '(^(np|numpy)$|\.(index|columns)$)' } }

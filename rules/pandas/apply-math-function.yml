@@ -1,0 +1,72 @@
+# A NumPy or math function called once per value. Series.apply already hands a NumPy ufunc the
+# whole column, so apply(np.sqrt) is left alone. map does not.
+
+# Unsafe: a column of Python objects can behave differently, and dtypes can change.
+id: apply-math-function
+language: python
+severity: warning
+message: This calls $F once per value. Write $F($S) on the whole column.
+rule:
+  any:
+    - pattern: "$S.apply(lambda $X: $F($X))"
+    - pattern: "$S.map(lambda $X: $F($X))"
+    - pattern: $S.map($F)
+constraints:
+  F: { regex: '^np\.(sqrt|cbrt|square|exp|expm1|log|log2|log10|log1p|sin|cos|tan|arcsin|arccos|arctan|sinh|cosh|tanh|floor|ceil|trunc|rint|sign|abs|absolute|fabs|isnan|isfinite|isinf|degrees|radians|negative|reciprocal)$' }
+fix: $F($S)
+metadata: { fix: unsafe }
+---
+# Unsafe: math.sqrt and math.log raise on a value outside their domain, where NumPy returns NaN.
+id: apply-math-function
+language: python
+severity: warning
+message: This calls math.$N once per value. Write np.$N($S) on the whole column.
+rule:
+  any:
+    - pattern: "$S.apply(lambda $X: math.$N($X))"
+    - pattern: "$S.map(lambda $X: math.$N($X))"
+    - pattern: $S.map(math.$N)
+constraints:
+  N: { regex: '^(sqrt|cbrt|exp|expm1|log|log2|log10|log1p|sin|cos|tan|sinh|cosh|tanh|floor|ceil|trunc|fabs|isnan|isfinite|isinf|degrees|radians)$' }
+fix: np.$N($S)
+metadata: { fix: unsafe }
+---
+# apply with a bare function works per column on a DataFrame, so the receiver must be a column
+# taken by a text label.
+id: apply-math-function
+language: python
+severity: warning
+message: This calls math.$N once per value. Write np.$N($S) on the whole column.
+rule: { pattern: $S.apply(math.$N) }
+constraints:
+  S: { matches: column }
+  N: { regex: '^(sqrt|cbrt|exp|expm1|log|log2|log10|log1p|sin|cos|tan|sinh|cosh|tanh|floor|ceil|trunc|fabs|isnan|isfinite|isinf|degrees|radians)$' }
+utils:
+  column: { kind: subscript, has: { field: subscript, kind: string } }
+fix: np.$N($S)
+metadata: { fix: unsafe }
+---
+# Unsafe: a column of Python objects can define abs differently.
+id: apply-math-function
+language: python
+severity: warning
+message: This calls abs once per value. Write $S.abs() on the whole column.
+rule:
+  any:
+    - pattern: "$S.apply(lambda $X: abs($X))"
+    - pattern: "$S.map(lambda $X: abs($X))"
+    - pattern: $S.map(abs)
+fix: $S.abs()
+metadata: { fix: unsafe }
+---
+id: apply-math-function
+language: python
+severity: warning
+message: This calls abs once per value. Write $S.abs() on the whole column.
+rule: { pattern: $S.apply(abs) }
+constraints:
+  S: { matches: column }
+utils:
+  column: { kind: subscript, has: { field: subscript, kind: string } }
+fix: $S.abs()
+metadata: { fix: unsafe }
