@@ -1,8 +1,32 @@
 [tools]
-rust = { version = "1.99.1", components = "rustfmt,clippy", mr_boxington = true }
+# The targets are the eight platforms `mise run wheels` builds for.
+rust = { version = "1.99.1", components = "rustfmt,clippy", mr_boxington = true, targets = "aarch64-unknown-linux-gnu,x86_64-unknown-linux-musl,aarch64-unknown-linux-musl,x86_64-apple-darwin,aarch64-apple-darwin,x86_64-pc-windows-gnu,aarch64-pc-windows-gnullvm" }
 mr-boxington = "1.30.0"
 cargo-deny = "0.20.2"
 lefthook = "2.2.2"
 jactionlint = "2.5.0"
 ruff = "0.17.4"
 "pipx:zensical" = "0.1.1"
+
+# A release is built and published from one machine, in about 5 minutes. zig cross-compiles the
+# C code of tree-sitter and links for every platform, so no runner per platform is needed.
+[tasks.wheels]
+description = "Build the sdist and a wheel for each of 8 platforms into dist/"
+run = """
+rm -rf dist
+build() { uvx --with ziglang maturin build --release --zig --out dist "$@"; }
+build --sdist --compatibility manylinux2014
+build --compatibility manylinux2014 --target aarch64-unknown-linux-gnu
+build --compatibility musllinux_1_2 --target x86_64-unknown-linux-musl
+build --compatibility musllinux_1_2 --target aarch64-unknown-linux-musl
+build --target x86_64-apple-darwin
+build --target aarch64-apple-darwin
+build --target x86_64-pc-windows-gnu
+build --target aarch64-pc-windows-gnullvm
+ls dist
+"""
+
+[tasks.publish]
+description = "Publish dist/ to PyPI. Needs UV_PUBLISH_TOKEN, a PyPI token for the project xpd"
+depends = ["wheels"]
+run = "uv publish dist/*"

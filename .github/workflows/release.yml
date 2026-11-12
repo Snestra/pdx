@@ -1,10 +1,11 @@
-# Builds wheels for xpd on every v* tag, publishes them to PyPI with trusted publishing,
-# and attaches them to a GitHub Release. Started from `maturin generate-ci github` (maturin 1.16).
+# Builds wheels for xpd on native runners. A release is normally built and published from one
+# machine with `mise run publish`, which takes about 5 minutes. Start this workflow by hand on a
+# v* tag when the wheels should come from native runners: it then publishes them to PyPI with
+# trusted publishing and attaches them to a GitHub Release. Started from
+# `maturin generate-ci github` (maturin 1.16).
 name: Release
 
 on:
-  push:
-    tags: ['v*']
   workflow_dispatch:
 
 permissions:
