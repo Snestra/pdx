@@ -1,6 +1,6 @@
-"""A pipeline of steps, for `pdx graph samples/graph/steps.py`.
+"""A pipeline of steps, for `xpd graph samples/graph/steps.py`.
 
-Each step takes the frame and returns it with columns added. `pdx graph` reads which step needs
+Each step takes the frame and returns it with columns added. `xpd graph` reads which step needs
 which, and reports what the comments below name.
 
     features(orders)

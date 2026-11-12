@@ -1,6 +1,6 @@
 """Splits and models that draw from a new seed on every run, and the same with a seed.
 
-A line that pdx reports ends with a comment that names the rule. Each case returns what the
+A line that xpd reports ends with a comment that names the rule. Each case returns what the
 code computes.
 """
 
@@ -32,11 +32,11 @@ def frame(n=300, seed=0):
 def missing_random_state(df):
     X = df[["x1", "x2"]]
     y = df["y"]
-    X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2)  # pdx: missing-random-state
-    model = RandomForestClassifier(n_estimators=10).fit(X_train, y_train)  # pdx: missing-random-state
-    groups = cluster.KMeans(n_clusters=3).fit_predict(X)  # pdx: missing-random-state
-    folds = KFold(n_splits=5, shuffle=True)  # pdx: missing-random-state
-    splits = ShuffleSplit(5)  # pdx: missing-random-state
+    X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2)  # xpd: missing-random-state
+    model = RandomForestClassifier(n_estimators=10).fit(X_train, y_train)  # xpd: missing-random-state
+    groups = cluster.KMeans(n_clusters=3).fit_predict(X)  # xpd: missing-random-state
+    folds = KFold(n_splits=5, shuffle=True)  # xpd: missing-random-state
+    splits = ShuffleSplit(5)  # xpd: missing-random-state
     return model.score(X_test, y_test), groups, folds.get_n_splits(), splits.get_n_splits()
 
 

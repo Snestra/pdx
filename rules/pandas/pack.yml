@@ -6,7 +6,7 @@ aliases:
   pd: pandas
   np: numpy
 
-# Packages pandas works better with. `pdx check` warns once per run when the project's venv has
+# Packages pandas works better with. `xpd check` warns once per run when the project's venv has
 # pandas and lacks the package. With onlyWith, it warns only in a project that uses one of the
 # tools.
 packages:

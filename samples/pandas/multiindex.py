@@ -1,7 +1,7 @@
 """MultiIndex, and code that looks similar but stays.
 
-A line that pdx reports ends with a comment that names the rule. Each case returns what the
-code computes, so a copy fixed with `pdx check --fix` can be compared with this file.
+A line that xpd reports ends with a comment that names the rule. Each case returns what the
+code computes, so a copy fixed with `xpd check --fix` can be compared with this file.
 """
 
 import itertools
@@ -35,8 +35,8 @@ def frame(n=2000, seed=0):
 @case
 def from_tuples_of_columns(df):
     return (
-        pd.MultiIndex.from_tuples(list(zip(df["k"], df["a"])), names=["k", "a"]),  # pdx: multiindex-from-tuples
-        pd.MultiIndex.from_tuples(zip(df["k"].to_numpy(), df["a"].to_numpy())),  # pdx: multiindex-from-tuples
+        pd.MultiIndex.from_tuples(list(zip(df["k"], df["a"])), names=["k", "a"]),  # xpd: multiindex-from-tuples
+        pd.MultiIndex.from_tuples(zip(df["k"].to_numpy(), df["a"].to_numpy())),  # xpd: multiindex-from-tuples
     )
 
 
@@ -45,9 +45,9 @@ def from_tuples_of_products(df):
     keys = sorted(df["k"].unique())
     numbers = range(3)
     return (
-        pd.MultiIndex.from_tuples(list(itertools.product(keys, numbers)), names=["k", "n"]),  # pdx: multiindex-from-tuples
-        pd.MultiIndex.from_tuples(itertools.product(keys, numbers)),  # pdx: multiindex-from-tuples
-        pd.MultiIndex.from_tuples([(k, n) for k in keys for n in numbers], names=["k", "n"]),  # pdx: multiindex-from-tuples
+        pd.MultiIndex.from_tuples(list(itertools.product(keys, numbers)), names=["k", "n"]),  # xpd: multiindex-from-tuples
+        pd.MultiIndex.from_tuples(itertools.product(keys, numbers)),  # xpd: multiindex-from-tuples
+        pd.MultiIndex.from_tuples([(k, n) for k in keys for n in numbers], names=["k", "n"]),  # xpd: multiindex-from-tuples
     )
 
 
@@ -68,8 +68,8 @@ def multiindex_that_stays(df):
 def level_values_unique(df):
     by_key = df.set_index(["k", "a"])
     return (
-        by_key.index.get_level_values("k").unique(),  # pdx: level-values-unique
-        by_key.index.get_level_values(1).nunique(),  # pdx: level-values-unique
+        by_key.index.get_level_values("k").unique(),  # xpd: level-values-unique
+        by_key.index.get_level_values(1).nunique(),  # xpd: level-values-unique
     )
 
 

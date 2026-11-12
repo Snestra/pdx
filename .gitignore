@@ -3,7 +3,7 @@
 /dist
 /site
 
-# Local Python environment. pdx has no Python dependencies to lock.
+# Local Python environment. xpd has no Python dependencies to lock.
 /.venv
 /uv.lock
 __pycache__/

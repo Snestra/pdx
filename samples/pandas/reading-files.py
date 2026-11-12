@@ -1,6 +1,6 @@
 """Reading and writing files: options that are slow, removed or wrong, and the ones that stay.
 
-A line that pdx reports ends with a comment that names the rule. Each case returns what the
+A line that xpd reports ends with a comment that names the rule. Each case returns what the
 code computes.
 """
 
@@ -28,8 +28,8 @@ def frame():
 @case
 def read_csv_slow_option(_):
     return (
-        pd.read_csv(io.StringIO(TEXT), engine="python"),  # pdx: read-csv-slow-option
-        pd.read_csv(io.StringIO(TEXT), low_memory=False),  # pdx: read-csv-slow-option
+        pd.read_csv(io.StringIO(TEXT), engine="python"),  # xpd: read-csv-slow-option
+        pd.read_csv(io.StringIO(TEXT), low_memory=False),  # xpd: read-csv-slow-option
     )
 
 
@@ -45,9 +45,9 @@ def read_csv_python_engine_needed(_):
 @case
 def read_then_head(_):
     return (
-        pd.read_csv(io.StringIO(TEXT)).head(2),  # pdx: read-then-head
-        pd.read_csv(io.StringIO(TEXT), sep=",").head(),  # pdx: read-then-head
-        pd.read_csv(io.StringIO(TEXT)).iloc[:2],  # pdx: read-then-head
+        pd.read_csv(io.StringIO(TEXT)).head(2),  # xpd: read-then-head
+        pd.read_csv(io.StringIO(TEXT), sep=",").head(),  # xpd: read-then-head
+        pd.read_csv(io.StringIO(TEXT)).iloc[:2],  # xpd: read-then-head
     )
 
 
@@ -58,12 +58,12 @@ def read_first_rows_only(_):
 
 @case
 def read_csv_guessed_separator(_):
-    return pd.read_csv(io.StringIO(TEXT), sep=None)  # pdx: read-csv-slow-option
+    return pd.read_csv(io.StringIO(TEXT), sep=None)  # xpd: read-csv-slow-option
 
 
 @case
 def read_csv_converters(_):
-    return pd.read_csv(io.StringIO(TEXT), converters={"a": float})  # pdx: read-csv-converters
+    return pd.read_csv(io.StringIO(TEXT), converters={"a": float})  # xpd: read-csv-converters
 
 
 @case
@@ -74,8 +74,8 @@ def read_csv_dtype(_):
 @case
 def read_json_lines(_):
     return (
-        pd.read_json(io.BytesIO(LINES.encode()), lines=True),  # pdx: read-json-lines-engine
-        pd.DataFrame([json.loads(line) for line in LINES.splitlines()]),  # pdx: read-json-lines-engine
+        pd.read_json(io.BytesIO(LINES.encode()), lines=True),  # xpd: read-json-lines-engine
+        pd.DataFrame([json.loads(line) for line in LINES.splitlines()]),  # xpd: read-json-lines-engine
     )
 
 
@@ -89,8 +89,8 @@ def to_csv_append_header(_):
     part = pd.read_csv(io.StringIO(TEXT))
     with tempfile.TemporaryDirectory() as folder:
         path = os.path.join(folder, "log.csv")
-        part.to_csv(path, mode="a", index=False)  # pdx: to-csv-append-header
-        part.to_csv(path, mode="a", index=False)  # pdx: to-csv-append-header
+        part.to_csv(path, mode="a", index=False)  # xpd: to-csv-append-header
+        part.to_csv(path, mode="a", index=False)  # xpd: to-csv-append-header
         return pd.read_csv(path)
 
 
@@ -109,16 +109,16 @@ def to_csv_append_with_header_choice(_):
 def removed_read_and_write_arguments(_):
     part = pd.read_csv(io.StringIO(TEXT))
     writer = pd.ExcelWriter(io.BytesIO())
-    writer.save()  # pdx: removed-in-pandas-3
+    writer.save()  # xpd: removed-in-pandas-3
     return (
-        pd.read_csv(io.StringIO(TEXT), error_bad_lines=False),  # pdx: removed-in-pandas-3
-        pd.read_csv(io.StringIO(TEXT), squeeze=True),  # pdx: removed-in-pandas-3
-        pd.read_csv(io.StringIO(TEXT), date_parser=pd.to_datetime),  # pdx: removed-in-pandas-3
-        pd.read_csv(io.StringIO(TEXT), ","),  # pdx: removed-in-pandas-3
-        pd.read_excel(io.BytesIO(), squeeze=True),  # pdx: removed-in-pandas-3
-        part.to_csv(index=False, line_terminator="\n"),  # pdx: removed-in-pandas-3
-        part.to_csv(None, ";"),  # pdx: removed-in-pandas-3, to-csv-index
-        part.to_excel(io.BytesIO(), encoding="utf-8"),  # pdx: removed-in-pandas-3
+        pd.read_csv(io.StringIO(TEXT), error_bad_lines=False),  # xpd: removed-in-pandas-3
+        pd.read_csv(io.StringIO(TEXT), squeeze=True),  # xpd: removed-in-pandas-3
+        pd.read_csv(io.StringIO(TEXT), date_parser=pd.to_datetime),  # xpd: removed-in-pandas-3
+        pd.read_csv(io.StringIO(TEXT), ","),  # xpd: removed-in-pandas-3
+        pd.read_excel(io.BytesIO(), squeeze=True),  # xpd: removed-in-pandas-3
+        part.to_csv(index=False, line_terminator="\n"),  # xpd: removed-in-pandas-3
+        part.to_csv(None, ";"),  # xpd: removed-in-pandas-3, to-csv-index
+        part.to_excel(io.BytesIO(), encoding="utf-8"),  # xpd: removed-in-pandas-3
     )
 
 

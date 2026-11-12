@@ -1,7 +1,7 @@
 """Steps fitted on rows they should not see, and the same steps fitted on the training rows.
 
-A line that pdx reports ends with a comment that names the rule. Each case returns what the
-code computes, so a copy fixed with `pdx check --fix` can be compared with this file.
+A line that xpd reports ends with a comment that names the rule. Each case returns what the
+code computes, so a copy fixed with `xpd check --fix` can be compared with this file.
 """
 
 import numpy as np
@@ -39,21 +39,21 @@ def fit_transform_on_test(df):
     X_train, X_test, y_train, y_test = split(df)
     scaler = StandardScaler()
     X_train_scaled = scaler.fit_transform(X_train)
-    X_test_scaled = scaler.fit_transform(X_test)  # pdx: fit-on-test
+    X_test_scaled = scaler.fit_transform(X_test)  # xpd: fit-on-test
     X_val = X_test
-    X_val_scaled = StandardScaler().fit_transform(X_val)  # pdx: fit-on-test
+    X_val_scaled = StandardScaler().fit_transform(X_val)  # xpd: fit-on-test
     test = df.tail(30)
-    codes = OrdinalEncoder().fit_transform(test[["city"]])  # pdx: fit-on-test
-    picked = SelectKBest(f_classif, k=1).fit_transform(X_test, y_test)  # pdx: fit-on-test
+    codes = OrdinalEncoder().fit_transform(test[["city"]])  # xpd: fit-on-test
+    picked = SelectKBest(f_classif, k=1).fit_transform(X_test, y_test)  # xpd: fit-on-test
     return X_train_scaled, X_test_scaled, X_val_scaled, codes, picked
 
 
 @case
 def fit_on_test(df):
     X_train, X_test, y_train, y_test = split(df)
-    model = LogisticRegression().fit(X_test, y_test)  # pdx: fit-on-test
+    model = LogisticRegression().fit(X_test, y_test)  # xpd: fit-on-test
     scaler = StandardScaler()
-    scaler.fit(X_test)  # pdx: fit-on-test
+    scaler.fit(X_test)  # xpd: fit-on-test
     return model.score(X_test, y_test), scaler.mean_
 
 
@@ -74,7 +74,7 @@ def fit_on_train(df):
 def fit_before_split(df):
     X = df[["x1", "x2"]]
     y = df["y"]
-    X_scaled = StandardScaler().fit_transform(X)  # pdx: fit-before-split
+    X_scaled = StandardScaler().fit_transform(X)  # xpd: fit-before-split
     X_train, X_test, y_train, y_test = train_test_split(X_scaled, y, test_size=0.3, random_state=0)
     return LogisticRegression().fit(X_train, y_train).score(X_test, y_test)
 
@@ -82,7 +82,7 @@ def fit_before_split(df):
 @case
 def fit_columns_before_split(df):
     numeric = ["x1", "x2"]
-    df[numeric] = StandardScaler().fit_transform(df[numeric])  # pdx: fit-before-split
+    df[numeric] = StandardScaler().fit_transform(df[numeric])  # xpd: fit-before-split
     train, test = train_test_split(df, random_state=0)
     return train.shape, test.shape
 
@@ -91,7 +91,7 @@ def fit_columns_before_split(df):
 def resample_before_split(df):
     from imblearn.over_sampling import SMOTE
 
-    X_more, y_more = SMOTE(random_state=0).fit_resample(df[["x1", "x2"]], df["y"])  # pdx: fit-before-split
+    X_more, y_more = SMOTE(random_state=0).fit_resample(df[["x1", "x2"]], df["y"])  # xpd: fit-before-split
     return train_test_split(X_more, y_more, random_state=0)
 
 
@@ -110,10 +110,10 @@ def cross_val_on_fitted_data(df):
     X = df[["x1", "x2"]]
     y = df["y"]
     model = LogisticRegression()
-    X_picked = SelectKBest(f_classif, k=1).fit_transform(X, y)  # pdx: cross-val-on-fitted-data
+    X_picked = SelectKBest(f_classif, k=1).fit_transform(X, y)  # xpd: cross-val-on-fitted-data
     scores = cross_val_score(model, X_picked, y, cv=3)
-    inline = cross_val_score(model, StandardScaler().fit_transform(X), y, cv=3)  # pdx: cross-val-on-fitted-data
-    more = cross_validate(model, StandardScaler().fit_transform(X), y, cv=3)["test_score"]  # pdx: cross-val-on-fitted-data
+    inline = cross_val_score(model, StandardScaler().fit_transform(X), y, cv=3)  # xpd: cross-val-on-fitted-data
+    more = cross_validate(model, StandardScaler().fit_transform(X), y, cv=3)["test_score"]  # xpd: cross-val-on-fitted-data
     return scores, inline, more
 
 
@@ -127,8 +127,8 @@ def cross_val_on_a_pipeline(df):
 def get_dummies_on_test(df):
     X_train, X_test = train_test_split(df[["city", "x1"]], test_size=0.1, random_state=0)
     train_columns = pd.get_dummies(X_train).columns
-    X_test_dummies = pd.get_dummies(X_test)  # pdx: get-dummies-on-test
-    test_df = pd.get_dummies(X_test, columns=["city"])  # pdx: get-dummies-on-test
+    X_test_dummies = pd.get_dummies(X_test)  # xpd: get-dummies-on-test
+    test_df = pd.get_dummies(X_test, columns=["city"])  # xpd: get-dummies-on-test
     return list(train_columns), list(X_test_dummies.columns), list(test_df.columns)
 
 

@@ -1,5 +1,5 @@
 [project]
-site_name = "pdx"
+site_name = "xpd"
 site_url = "https://snestra.github.io/pdx/"
 site_description = "Fast, opinionated linter for Python library habits, starting with pandas and scikit-learn"
 repo_url = "https://github.com/Snestra/pdx"

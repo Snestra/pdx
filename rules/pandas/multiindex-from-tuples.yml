@@ -30,7 +30,7 @@ fix: $MI.from_arrays([$$$COLS])
 metadata: { fix: unsafe }
 ---
 # Unsafe: from_product reads each iterable once, so an iterator that product() could not reuse
-# either is the only difference, and pdx cannot see the type.
+# either is the only difference, and xpd cannot see the type.
 id: multiindex-from-tuples
 language: python
 severity: warning

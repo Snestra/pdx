@@ -1,11 +1,11 @@
 # Commands
 
-`pdx -h` and `pdx <command> -h` always match the installed version.
+`xpd -h` and `xpd <command> -h` always match the installed version.
 
 ## check
 
 ```sh
-pdx check [PATHS]... [--format text|json] [--fix] [--unsafe-fixes]
+xpd check [PATHS]... [--format text|json] [--fix] [--unsafe-fixes]
 ```
 
 Lints files and folders. Folders respect `.gitignore`. A library's rules run only on files
@@ -32,12 +32,12 @@ about a place in a file, so its `line` and `column` are `null`.
 | --- | --- |
 | 0 | No error-severity issue, after fixes |
 | 1 | At least one error |
-| 2 | pdx could not run, for example an unreadable path |
+| 2 | xpd could not run, for example an unreadable path |
 
 ## profile
 
 ```sh
-pdx profile data.csv
+xpd profile data.csv
 ```
 
 Prints JSON with each column's dtype, null count, unique count and memory use. Reads csv,
@@ -46,7 +46,7 @@ parquet, feather, json and xlsx. Runs with the project's Python and needs pandas
 ## equiv
 
 ```sh
-pdx equiv old.py new.py
+xpd equiv old.py new.py
 ```
 
 Runs both scripts and compares the variable `result` each one leaves. DataFrames and Series
@@ -62,7 +62,7 @@ array with the same values count as equal. Run it after you refactor data logic.
 ## graph
 
 ```sh
-pdx graph [PATHS]... [--format text|json]
+xpd graph [PATHS]... [--format text|json]
 ```
 
 Prints the dataflow of Python files: which part of the code reads the result of which other
@@ -84,7 +84,7 @@ by `frame = b(frame)`. `graph` reads from the source which columns each step rea
 so it knows which step needs which.
 
 ```console
-$ pdx graph samples/graph/steps.py
+$ xpd graph samples/graph/steps.py
 samples/graph/steps.py:51: features: 4 steps, 7 columns
 samples/graph/steps.py:18:   (source columns) -> totals  [2 columns]
 samples/graph/steps.py:28:   totals -> shares  [1 column]
@@ -94,7 +94,7 @@ samples/graph/steps.py:35: warning: discounts() computes before_discount with th
 samples/graph/steps.py:37: warning: discounts() writes to the frame it was given. Called as discounts(orders), it changes the caller's frame too. Return orders.assign(...) or write to orders.copy().
 samples/graph/steps.py:45: warning: The column over_limit from flags() has the same formula as is_large from flags(), so the result holds one column twice. Keep one of them.
 samples/graph/steps.py:51: warning: The tree in the module docstring lists totals, shares, flags and features() runs totals, shares, discounts, flags. Change the one that is out of date.
-pdx: 1 pipeline with 4 steps in 1 file, 4 warnings
+xpd: 1 pipeline with 4 steps in 1 file, 4 warnings
 ```
 
 The first line names the pipeline. Each line after it is `file:line: steps it reads from ->
@@ -144,7 +144,7 @@ Pass the modules you give to one Driver. Together they are one dataflow, as with
 the Driver is not a node module, and its functions would show as nodes.
 
 ```console
-$ pdx graph samples/graph/features.py
+$ xpd graph samples/graph/features.py
 samples/graph/features.py:10: (no input) -> uk
 samples/graph/features.py:14: (no input) -> dk
 samples/graph/features.py:18: uk + dk -> spread
@@ -152,7 +152,7 @@ samples/graph/features.py:22: spraed -> spread_sq
 inputs: spraed
 read by no node: spread, spread_sq
 samples/graph/features.py:22: warning: spread_sq reads spraed, which no function defines and which is one edit from the node spread. If it is a typing error, Hamilton raises "Required input spraed not provided" at execute.
-pdx: 4 nodes from 4 functions in 1 file, 1 input, 1 warning
+xpd: 4 nodes from 4 functions in 1 file, 1 input, 1 warning
 ```
 
 Each node line is `file:line: inputs -> node`. An input with `?` has a default. `inputs` lists
@@ -188,14 +188,14 @@ Output is text on a terminal and JSON otherwise. The JSON has `pipelines`, each 
 | --- | --- |
 | 0 | No error |
 | 1 | At least one error |
-| 2 | pdx could not run, for example an unreadable path |
+| 2 | xpd could not run, for example an unreadable path |
 
 ## hook
 
 Reads a Claude Code hook event on stdin and lints the `.py` file the edit touched. When the file
-holds a pipeline of steps, the hook also prints the errors and warnings of `pdx graph` for it. See
+holds a pipeline of steps, the hook also prints the errors and warnings of `xpd graph` for it. See
 [Claude Code](claude-code.md).
 
 ## skill
 
-Prints the agent skill that ships with this version of pdx.
+Prints the agent skill that ships with this version of xpd.

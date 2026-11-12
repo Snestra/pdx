@@ -108,7 +108,7 @@ pub(crate) enum Level {
     Error,
     /// A guess that a person should look at.
     Warning,
-    /// Something `pdx graph` could not read.
+    /// Something `xpd graph` could not read.
     Note,
 }
 
@@ -193,7 +193,7 @@ pub(crate) fn read(src: &str) -> Module {
                 line,
                 level: Level::Note,
                 message: format!(
-                    "@mutate on {name} changes other nodes in a way pdx graph does not read."
+                    "@mutate on {name} changes other nodes in a way xpd graph does not read."
                 ),
             });
             continue;
@@ -351,7 +351,7 @@ impl Effects {
                             .extend(arguments.iter().flat_map(source_names));
                     }
                     effects.notes.push(format!(
-                        "@{other} on {name} changes the nodes in a way pdx graph does not read."
+                        "@{other} on {name} changes the nodes in a way xpd graph does not read."
                     ));
                 }
                 _ => {}

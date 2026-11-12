@@ -1,4 +1,4 @@
-//! pdx is an opinionated linter for Python library habits that give slow or wrong results, for
+//! xpd is an opinionated linter for Python library habits that give slow or wrong results, for
 //! humans and coding agents. Each library gets one rule pack under `rules/`.
 
 mod cli;

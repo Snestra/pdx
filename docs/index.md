@@ -1,6 +1,6 @@
-# pdx
+# xpd
 
-pdx is an opinionated linter for Python library habits that make code slow or wrong, starting
+xpd is an opinionated linter for Python library habits that make code slow or wrong, starting
 with pandas and scikit-learn.
 It parses each file once with [ast-grep](https://ast-grep.github.io/), runs files in parallel,
 and starts no Python on the hot path, so it is fast enough to run after every edit a coding
@@ -9,28 +9,27 @@ agent makes.
 ## Install
 
 ```sh
-uv tool install pdx-lint
+uv tool install xpd
 ```
 
 Or run it once without installing:
 
 ```sh
-uvx --from pdx-lint pdx check .
+uvx xpd check .
 ```
 
-The package is `pdx-lint` because the name `pdx` is taken on PyPI and crates.io. The command
-is `pdx`.
+Before version 0.7.0 the package was `pdx-lint` and the command was `pdx`.
 
 ## First run
 
 ```sh
-pdx check .
+xpd check .
 ```
 
-pdx prints one line per issue and a summary. Fix every `error`. Fix a `warning` unless you can
+xpd prints one line per issue and a summary. Fix every `error`. Fix a `warning` unless you can
 say why the pattern is right in that spot.
 
-`pdx check . --fix` applies safe fixes. `pdx check . --fix --unsafe-fixes` also applies fixes
+`xpd check . --fix` applies safe fixes. `xpd check . --fix --unsafe-fixes` also applies fixes
 that may change behavior, so read the diff afterwards.
 
 Next: [Commands](commands.md) for every command, or [Claude Code](claude-code.md) to lint each

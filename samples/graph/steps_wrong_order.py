@@ -1,4 +1,4 @@
-"""Two errors in a pipeline, for `pdx graph samples/graph/steps_wrong_order.py`.
+"""Two errors in a pipeline, for `xpd graph samples/graph/steps_wrong_order.py`.
 
 `margin()` reads a column that `costs()` adds after it, and `costs_again()` joins a column that
 exists. Both raise when the pipeline runs. The steps are run by reassignment here, which reads

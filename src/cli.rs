@@ -16,13 +16,13 @@ use crate::rule::Applicability;
 use crate::scan;
 use crate::venv::{self, Venv};
 
-/// The agent skill that `pdx skill` prints.
+/// The agent skill that `xpd skill` prints.
 const SKILL: &str = include_str!("../SKILL.md");
 /// The scripts that `profile` and `equiv` hand to the project's Python.
 const PROFILE_PY: &str = include_str!("../py/profile.py");
 const EQUIV_PY: &str = include_str!("../py/equiv.py");
 
-/// Exit code when pdx itself fails, as opposed to finding issues.
+/// Exit code when xpd itself fails, as opposed to finding issues.
 const CHECK_FAILED: u8 = 2;
 /// Claude Code shows stderr to the agent only when a hook exits 2.
 const HOOK_BLOCK: u8 = 2;
@@ -31,9 +31,9 @@ const HOOK_FAILED: u8 = 1;
 /// The shell's code for a command that could not be started.
 const PYTHON_NOT_STARTED: u8 = 127;
 
-/// pdx: fast linter for Python library habits, for humans and coding agents.
+/// xpd: fast linter for Python library habits, for humans and coding agents.
 #[derive(Debug, Parser)]
-#[command(name = "pdx", version, about)]
+#[command(name = "xpd", version, about)]
 struct Cli {
     #[command(subcommand)]
     cmd: Cmd,
@@ -48,15 +48,15 @@ enum Format {
 
 #[derive(Debug, Subcommand)]
 enum Cmd {
-    /// Lint Python files. Exit 0 when clean, 1 on any error-severity issue, 2 if pdx can't run.
+    /// Lint Python files. Exit 0 when clean, 1 on any error-severity issue, 2 if xpd can't run.
     ///
     /// A library's rules run only on files that import it. `[*]` marks an issue `--fix` fixes.
     ///
     /// Examples:
-    ///   pdx check src/
-    ///   pdx check analysis.py --format json
-    ///   pdx check . --fix
-    ///   pdx check . --fix --unsafe-fixes
+    ///   xpd check src/
+    ///   xpd check analysis.py --format json
+    ///   xpd check . --fix
+    ///   xpd check . --fix --unsafe-fixes
     Check {
         /// Files or directories (directories respect .gitignore).
         #[arg(default_value = ".")]
@@ -74,9 +74,9 @@ enum Cmd {
     },
     /// Claude Code `PostToolUse` hook: reads hook JSON on stdin and lints the edited .py file.
     ///
-    /// A file with a pipeline of steps also gets the errors and warnings of `pdx graph`.
+    /// A file with a pipeline of steps also gets the errors and warnings of `xpd graph`.
     ///
-    /// Exit 2 with issues on stderr so the agent sees them, 1 if pdx can't run, 0 otherwise.
+    /// Exit 2 with issues on stderr so the agent sees them, 1 if xpd can't run, 0 otherwise.
     Hook,
     /// Profile a data file (csv, parquet, feather, json, xlsx). Needs pandas.
     Profile { file: PathBuf },
@@ -88,11 +88,11 @@ enum Cmd {
     /// A file with a function that passes a frame through other functions, as
     /// `frame.pipe(a).pipe(b)`, is read as step code. The other files are read as the Hamilton
     /// modules of one Driver. Nothing is imported or run. Exit 1 when the code would raise or
-    /// Python drops a function, 2 if pdx can't run.
+    /// Python drops a function, 2 if xpd can't run.
     ///
     /// Examples:
-    ///   pdx graph features.py
-    ///   pdx graph loaders.py features.py --format json
+    ///   xpd graph features.py
+    ///   xpd graph loaders.py features.py --format json
     Graph {
         /// Files or directories (directories respect .gitignore).
         #[arg(required = true)]
@@ -101,7 +101,7 @@ enum Cmd {
         #[arg(long, value_enum)]
         format: Option<Format>,
     },
-    /// Print the agent skill (SKILL.md) for this pdx version.
+    /// Print the agent skill (SKILL.md) for this xpd version.
     Skill,
 }
 
@@ -177,7 +177,7 @@ fn check(
     let report = match lint(paths, fix, Scope::Project) {
         Ok(r) => r,
         Err(e) => {
-            eprintln!("pdx: {e:#}");
+            eprintln!("xpd: {e:#}");
             return ExitCode::from(CHECK_FAILED);
         }
     };
@@ -187,7 +187,7 @@ fn check(
             for i in &report.issues {
                 println!("{}", i.line(allowed));
             }
-            eprintln!("pdx: {}", report.summary(allowed));
+            eprintln!("xpd: {}", report.summary(allowed));
         }
     }
     if report.has_errors() {
@@ -202,7 +202,7 @@ fn graph(paths: &[PathBuf], format: Format) -> ExitCode {
     let graph = match scan::collect_files(paths).and_then(|files| Graph::read(&files)) {
         Ok(graph) => graph,
         Err(e) => {
-            eprintln!("pdx: {e:#}");
+            eprintln!("xpd: {e:#}");
             return ExitCode::from(CHECK_FAILED);
         }
     };
@@ -210,7 +210,7 @@ fn graph(paths: &[PathBuf], format: Format) -> ExitCode {
         Format::Json => println!("{}", graph.to_json()),
         Format::Text => {
             println!("{}", graph.to_text());
-            eprintln!("pdx: {}", graph.summary());
+            eprintln!("xpd: {}", graph.summary());
         }
     }
     if graph.has_errors() {
@@ -226,13 +226,13 @@ fn hook() -> ExitCode {
 
     let mut input = String::new();
     if let Err(e) = io::stdin().read_to_string(&mut input) {
-        eprintln!("pdx hook: cannot read stdin: {e}");
+        eprintln!("xpd hook: cannot read stdin: {e}");
         return ExitCode::from(HOOK_FAILED);
     }
     let value: Value = match serde_json::from_str(&input) {
         Ok(v) => v,
         Err(e) => {
-            eprintln!("pdx hook: stdin is not hook JSON: {e}");
+            eprintln!("xpd hook: stdin is not hook JSON: {e}");
             return ExitCode::from(HOOK_FAILED);
         }
     };
@@ -248,11 +248,11 @@ fn hook() -> ExitCode {
     let report = match lint(&[PathBuf::from(path)], None, Scope::Files) {
         Ok(r) => r,
         Err(e) => {
-            eprintln!("pdx hook: {e:#}");
+            eprintln!("xpd hook: {e:#}");
             return ExitCode::from(HOOK_FAILED);
         }
     };
-    // A file with a pipeline of steps also gets the errors and warnings of `pdx graph`.
+    // A file with a pipeline of steps also gets the errors and warnings of `xpd graph`.
     let steps = std::fs::read_to_string(path)
         .map(|src| Graph::step_lines(Path::new(path), &src))
         .unwrap_or_default();
@@ -281,7 +281,7 @@ fn run_py(script: &str, args: &[PathBuf]) -> ExitCode {
             .and_then(|c| u8::try_from(c).ok())
             .map_or(ExitCode::FAILURE, ExitCode::from),
         Err(e) => {
-            eprintln!("pdx: could not start python: {e}");
+            eprintln!("xpd: could not start python: {e}");
             ExitCode::from(PYTHON_NOT_STARTED)
         }
     }

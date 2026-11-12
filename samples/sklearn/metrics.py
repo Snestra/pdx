@@ -1,7 +1,7 @@
 """Metrics given the wrong input, and the same metrics given the right one.
 
-A line that pdx reports ends with a comment that names the rule. Each case returns what the
-code computes, so a copy fixed with `pdx check --fix` can be compared with this file.
+A line that xpd reports ends with a comment that names the rule. Each case returns what the
+code computes, so a copy fixed with `xpd check --fix` can be compared with this file.
 """
 
 import numpy as np
@@ -37,16 +37,16 @@ def fitted(df):
 def auc_from_labels(df):
     model, X_test, y_test = fitted(df)
     return (
-        roc_auc_score(y_test, model.predict(X_test)),  # pdx: auc-from-labels
-        average_precision_score(y_test, model.predict(X_test), pos_label=1),  # pdx: auc-from-labels
-        roc_auc_score(y_test, model.predict_proba(X_test)[:, 0]),  # pdx: auc-from-labels
+        roc_auc_score(y_test, model.predict(X_test)),  # xpd: auc-from-labels
+        average_precision_score(y_test, model.predict(X_test), pos_label=1),  # xpd: auc-from-labels
+        roc_auc_score(y_test, model.predict_proba(X_test)[:, 0]),  # xpd: auc-from-labels
     )
 
 
 @case
 def auc_from_a_label_variable(df):
     model, X_test, y_test = fitted(df)
-    y_pred = model.predict(X_test)  # pdx: auc-from-labels
+    y_pred = model.predict(X_test)  # xpd: auc-from-labels
     accuracy = accuracy_score(y_test, y_pred)
     return accuracy, roc_auc_score(y_test, y_pred)
 
@@ -70,10 +70,10 @@ def metric_arguments_swapped(df):
     y_pred = model.predict(X_test)
     predictions = model.predict_proba(X_test)[:, 1]
     return (
-        precision_score(y_pred, y_test),  # pdx: metric-arguments-swapped
-        recall_score(y_pred, y_true, average="macro"),  # pdx: metric-arguments-swapped
-        metrics.r2_score(predictions, y_test),  # pdx: metric-arguments-swapped
-        confusion_matrix(y_pred, y_test),  # pdx: metric-arguments-swapped
+        precision_score(y_pred, y_test),  # xpd: metric-arguments-swapped
+        recall_score(y_pred, y_true, average="macro"),  # xpd: metric-arguments-swapped
+        metrics.r2_score(predictions, y_test),  # xpd: metric-arguments-swapped
+        confusion_matrix(y_pred, y_test),  # xpd: metric-arguments-swapped
     )
 
 

@@ -1,7 +1,7 @@
-"""A Hamilton module with a typing error, for `pdx graph samples/graph/features.py`.
+"""A Hamilton module with a typing error, for `xpd graph samples/graph/features.py`.
 
 `spread_sq` asks for `spraed`. No function has that name, so Hamilton takes it for an input the
-caller passes, and raises at execute. `pdx graph` prints the graph and points at the name.
+caller passes, and raises at execute. `xpd graph` prints the graph and points at the name.
 """
 
 import pandas as pd

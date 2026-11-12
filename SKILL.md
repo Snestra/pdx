@@ -1,25 +1,25 @@
 ---
-name: pdx
-description: "Python library habits: run pdx to lint code for slow or wrong use of libraries such as pandas, profile data files, and prove refactors are equivalent."
+name: xpd
+description: "Python library habits: run xpd to lint code for slow or wrong use of libraries such as pandas, profile data files, and prove refactors are equivalent."
 ---
 
-# pdx
+# xpd
 
-Use `pdx` whenever you write or change Python code that uses a library pdx has rules for.
-`pdx -h` and `pdx <command> -h` are the source of truth; prefer them over this file.
+Use `xpd` whenever you write or change Python code that uses a library xpd has rules for.
+`xpd -h` and `xpd <command> -h` are the source of truth; prefer them over this file.
 
-- `pdx check <paths…> --format json`: lint. Fix every `error`. Fix `warning`s
+- `xpd check <paths…> --format json`: lint. Fix every `error`. Fix `warning`s
   unless you can state why the pattern is right here. Don't silence rules.
   A `missing-<package>` warning names a package the project lacks. Ask the user
   before you add a dependency.
-- `pdx check <paths…> --fix`: apply safe fixes. Add `--unsafe-fixes` for fixes
+- `xpd check <paths…> --fix`: apply safe fixes. Add `--unsafe-fixes` for fixes
   that may change behavior, then read the diff.
-- `pdx profile <data file>`: dtypes, nulls, cardinality, memory. Run it before
+- `xpd profile <data file>`: dtypes, nulls, cardinality, memory. Run it before
   choosing methods, so choices are based on the real data. Needs pandas.
-- `pdx equiv old.py new.py`: both scripts must assign `result`. Run it after
+- `xpd equiv old.py new.py`: both scripts must assign `result`. Run it after
   any refactor of data logic; a refactor isn't done until it prints
   `"equivalent": true`. Needs pandas.
-- `pdx graph <files…> --format json`: the dataflow of a file, read without
+- `xpd graph <files…> --format json`: the dataflow of a file, read without
   running it. Run it after you add, move or rename a step or a node. Fix every
   `error`. Fix `warning`s unless you can state why the code is right.
   - Step code is a function that passes a frame through other functions, as
