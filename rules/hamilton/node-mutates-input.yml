@@ -1,0 +1,156 @@
+# Hamilton calls each function once and hands its result, the same object, to every node that
+# names it as a parameter. A node that writes to a parameter changes what the other nodes get,
+# so a result depends on which outputs were asked for and in which order. Measured on
+# sf-hamilton 1.90.0 with pandas 3.1.1: total_uk was 2.0 alone and 4.0 after a node that clips
+# the frame in place.
+#
+# A node is a function at module level with a return hint and no leading underscore. These are
+# left alone: a parameter the function rebinds, as in `raw = raw.copy()`; a function under
+# @load_from or @dataloader, whose frame no other node can take; and @mutate and
+# @hamilton_exclude functions. `inplace=True` is reported by pandas/no-inplace.
+#
+# In each document the write is the matched node, so its pattern binds $P before `inside` reads it.
+
+# raw["c"] = ..., raw.loc[mask, "c"] = ..., raw.columns = ..., raw["c"] += ..., del raw["c"]
+id: node-mutates-input
+language: python
+severity: error
+message: This node writes to its input $P. Hamilton hands the same object to every node that takes $P, so their results depend on which outputs were asked for. Work on $P.copy(), or build a new value.
+rule:
+  any:
+    - pattern: $P[$K]
+    - pattern: $P.$IDX[$$$K]
+    - pattern: $P.$ATTR
+  all:
+    - matches: write-target
+    - matches: in-node-with-param
+constraints:
+  P: { kind: identifier }
+  IDX: { regex: ^(loc|iloc|at|iat)$ }
+utils:
+  write-target:
+    any:
+      - inside: { kind: assignment, field: left }
+      - inside: { kind: augmented_assignment, field: left }
+      - inside: { kind: delete_statement }
+      - inside: { kind: pattern_list, inside: { kind: assignment, field: left } }
+  in-node-with-param:
+    inside:
+      stopBy: end
+      kind: function_definition
+      all:
+        - has: { field: name, regex: '^[^_]' }
+        - has: { field: return_type, kind: type }
+        - has:
+            field: parameters
+            has:
+              any:
+                - { kind: identifier, pattern: $P }
+                - { kind: typed_parameter, has: { kind: identifier, pattern: $P } }
+                - { kind: default_parameter, has: { field: name, pattern: $P } }
+                - { kind: typed_default_parameter, has: { field: name, pattern: $P } }
+        # A parameter that the function rebinds, as in `raw = raw.copy()`, is a local name after that.
+        - not:
+            has:
+              stopBy: end
+              any:
+                - { kind: assignment, has: { field: left, pattern: $P } }
+                - { kind: assignment, has: { field: left, kind: pattern_list, has: { pattern: $P } } }
+                - { kind: for_statement, has: { field: left, pattern: $P } }
+        - any:
+            - inside: { kind: module }
+            - inside:
+                kind: decorated_definition
+                inside: { kind: module }
+                not: { has: { kind: decorator, regex: '^@(\w+\.)*(load_from|hamilton_exclude|mutate|dataloader)\b' } }
+---
+# raw.pop("c") anywhere, and update, append, insert and the like as a statement of their own.
+# `state.update(...)` whose result is used returns a new object and is left alone.
+id: node-mutates-input
+language: python
+severity: error
+message: $M changes the input $P in place. Hamilton hands the same object to every node that takes $P, so their results depend on which outputs were asked for. Work on a copy, or build a new value.
+rule:
+  pattern: $P.$M($$$A)
+  all:
+    - any:
+        - has: { field: function, has: { field: attribute, regex: ^(pop|popitem)$ } }
+        - inside: { kind: expression_statement }
+    - matches: in-node-with-param
+constraints:
+  P: { kind: identifier }
+  M: { regex: ^(insert|update|pop|popitem|append|extend|setdefault|clear|sort|remove|reverse|add|discard)$ }
+utils:
+  in-node-with-param:
+    inside:
+      stopBy: end
+      kind: function_definition
+      all:
+        - has: { field: name, regex: '^[^_]' }
+        - has: { field: return_type, kind: type }
+        - has:
+            field: parameters
+            has:
+              any:
+                - { kind: identifier, pattern: $P }
+                - { kind: typed_parameter, has: { kind: identifier, pattern: $P } }
+                - { kind: default_parameter, has: { field: name, pattern: $P } }
+                - { kind: typed_default_parameter, has: { field: name, pattern: $P } }
+        - not:
+            has:
+              stopBy: end
+              any:
+                - { kind: assignment, has: { field: left, pattern: $P } }
+                - { kind: assignment, has: { field: left, kind: pattern_list, has: { pattern: $P } } }
+                - { kind: for_statement, has: { field: left, pattern: $P } }
+        - any:
+            - inside: { kind: module }
+            - inside:
+                kind: decorated_definition
+                inside: { kind: module }
+                not: { has: { kind: decorator, regex: '^@(\w+\.)*(load_from|hamilton_exclude|mutate|dataloader)\b' } }
+---
+# A second name for the input: gdf = buildings, and then gdf["area"] = ...
+id: node-mutates-input
+language: python
+severity: error
+message: $L is another name for the input $Q, so this write changes $Q. Hamilton hands the same object to every node that takes $Q, so their results depend on which outputs were asked for. Start from a copy, as in $L = $Q.copy().
+rule:
+  any:
+    - pattern: $L[$K]
+    - pattern: $L.$IDX[$$$K]
+    - pattern: $L.$ATTR
+  all:
+    - any:
+        - inside: { kind: assignment, field: left }
+        - inside: { kind: augmented_assignment, field: left }
+        - inside: { kind: delete_statement }
+    - inside:
+        stopBy: end
+        kind: function_definition
+        all:
+          - has: { field: name, regex: '^[^_]' }
+          - has: { field: return_type, kind: type }
+          - has:
+              stopBy: end
+              kind: assignment
+              all:
+                - has: { field: left, pattern: $L }
+                - has: { field: right, kind: identifier, pattern: $Q }
+          - has:
+              field: parameters
+              has:
+                any:
+                  - { kind: identifier, pattern: $Q }
+                  - { kind: typed_parameter, has: { kind: identifier, pattern: $Q } }
+                  - { kind: default_parameter, has: { field: name, pattern: $Q } }
+                  - { kind: typed_default_parameter, has: { field: name, pattern: $Q } }
+          - any:
+              - inside: { kind: module }
+              - inside:
+                  kind: decorated_definition
+                  inside: { kind: module }
+                  not: { has: { kind: decorator, regex: '^@(\w+\.)*(load_from|hamilton_exclude|mutate|dataloader)\b' } }
+constraints:
+  L: { kind: identifier }
+  IDX: { regex: ^(loc|iloc|at|iat)$ }

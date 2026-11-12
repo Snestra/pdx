@@ -1,7 +1,7 @@
 # Rules
 
-pdx has two rule packs: [pandas](#pandas) and [scikit-learn](#scikit-learn). A pack's rules run only on
-files that import its library.
+pdx has three rule packs: [pandas](#pandas), [scikit-learn](#scikit-learn) and [Hamilton](#hamilton). A
+pack's rules run only on files that import its library.
 
 ## pandas
 
@@ -2215,6 +2215,69 @@ MLP and SGD models, `TruncatedSVD`, `NMF`, `TSNE`, `ShuffleSplit`, `StratifiedSh
 are left alone. A call with `shuffle=False` or `**params` is left alone, and so is a file that
 calls `np.random.seed`, because scikit-learn then draws from that seed.
 
+## Hamilton
+
+These rules run on files that import `hamilton`, the module of
+[Apache Hamilton](https://hamilton.apache.org/), which PyPI ships as `apache-hamilton` and
+`sf-hamilton`. Hamilton builds a dataflow from plain functions: the function name is the output
+and the parameter names are its inputs. The results below are from sf-hamilton 1.90.0 with pandas
+3.1.1.
+
+A node module that uses no Hamilton decorator has no `hamilton` import, and pdx does not check
+it.
+
+### Shared inputs
+
+#### node-mutates-input
+
+**Severity:** error. **Fix:** none.
+
+Reports a node that writes to one of its parameters, such as `raw["uk"] = ...`, `raw.loc[mask, "uk"] = 0`, `raw.columns = ...`, `del raw["dk"]`, `raw.pop("uk")` and `rows.append(...)`.
+
+Example:
+
+```python
+def clipped(raw: pd.DataFrame) -> pd.DataFrame:
+    raw.loc[raw["uk"] < 0, "uk"] = 0
+    return raw
+
+
+def total_uk(raw: pd.DataFrame) -> float:
+    return float(raw["uk"].sum())
+```
+
+Use instead:
+
+```python
+def clipped(raw: pd.DataFrame) -> pd.DataFrame:
+    return raw.assign(uk=raw["uk"].clip(lower=0))
+
+
+def total_uk(raw: pd.DataFrame) -> float:
+    return float(raw["uk"].sum())
+```
+
+The replacement is advice. pdx does not apply it automatically.
+
+Hamilton calls each function once and hands its result, the same object, to every node that
+takes it. With the example above, `execute(["total_uk"])` gave 2.0 and
+`execute(["clipped", "total_uk"])` gave 4.0. With the replacement both gave 2.0. The Hamilton
+documentation asks for the same under
+[output immutability](https://hamilton.apache.org/concepts/best-practices/output-immutability/).
+
+A node is a function at module level with a return hint and a name that does not start with an
+underscore. The rule also reports a write through a second name for the input, as in
+`gdf = buildings` followed by `gdf["area"] = ...`. It leaves these alone:
+
+- A parameter the function rebinds first, as in `raw = raw.copy()`.
+- A function under `@load_from` or `@dataloader`. No other node can take the frame they inject.
+- A function under `@mutate` or `@hamilton_exclude`.
+- `update`, `append` and the like when the result is used, as in `return state.update(row)`,
+  because an immutable object returns a new one.
+- `inplace=True`, which [no-inplace](#no-inplace) reports.
+
+A write that reaches the input through a helper function is not seen.
+
 ## Write a rule
 
 Rules are [ast-grep rules](https://ast-grep.github.io/guide/rule-config.html) in `.yml` files,
@@ -2249,8 +2312,8 @@ target/release/pdx check samples/bad.py
 cp samples/bad.py /tmp/bad.py && target/release/pdx check /tmp/bad.py --fix --unsafe-fixes
 ```
 
-The files in `samples/pandas/` and `samples/sklearn/` mark each line a rule reports with a comment that
-names the rules.
+The files in `samples/pandas/`, `samples/sklearn/` and `samples/hamilton/` mark each line a rule
+reports with a comment that names the rules.
 
 `pack.yml` may list package checks under `packages`. Each entry has an `id`, the `package` to
 look for, a `message`, and optionally `onlyWith`, a list of tools. pdx warns when the venv has the
