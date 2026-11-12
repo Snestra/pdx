@@ -8,6 +8,7 @@ use anyhow::{Context, Result};
 use clap::{Parser, Subcommand, ValueEnum};
 use serde_json::Value;
 
+use crate::graph::Graph;
 use crate::pack;
 use crate::package_check;
 use crate::report::Report;
@@ -38,7 +39,7 @@ struct Cli {
     cmd: Cmd,
 }
 
-/// How `check` prints its report.
+/// How `check` and `graph` print what they found.
 #[derive(Debug, Clone, Copy, ValueEnum)]
 enum Format {
     Text,
@@ -79,6 +80,22 @@ enum Cmd {
     Profile { file: PathBuf },
     /// Check that two scripts produce an equal `result` (`DataFrame` or Series). Needs pandas.
     Equiv { old: PathBuf, new: PathBuf },
+    /// Print the dataflow of Hamilton modules: each node, its inputs, and what does not connect.
+    ///
+    /// The files are read as the modules of one Driver. Nothing is imported or run. Exit 1 when
+    /// Hamilton would raise on them or Python drops a function, 2 if pdx can't run.
+    ///
+    /// Examples:
+    ///   pdx graph features.py
+    ///   pdx graph loaders.py features.py --format json
+    Graph {
+        /// The node modules, as files or directories (directories respect .gitignore).
+        #[arg(required = true)]
+        paths: Vec<PathBuf>,
+        /// Output format. Default: text on a terminal, json otherwise.
+        #[arg(long, value_enum)]
+        format: Option<Format>,
+    },
     /// Print the agent skill (SKILL.md) for this pdx version.
     Skill,
 }
@@ -87,6 +104,11 @@ enum Cmd {
 pub(crate) fn run() -> ExitCode {
     use std::io::IsTerminal;
 
+    let default_format = if io::stdout().is_terminal() {
+        Format::Text
+    } else {
+        Format::Json
+    };
     match Cli::parse().cmd {
         Cmd::Check {
             paths,
@@ -94,11 +116,7 @@ pub(crate) fn run() -> ExitCode {
             fix,
             unsafe_fixes,
         } => {
-            let format = format.unwrap_or(if io::stdout().is_terminal() {
-                Format::Text
-            } else {
-                Format::Json
-            });
+            let format = format.unwrap_or(default_format);
             let allowed = if unsafe_fixes {
                 Applicability::Unsafe
             } else {
@@ -107,6 +125,7 @@ pub(crate) fn run() -> ExitCode {
             check(&paths, format, fix.then_some(allowed), allowed)
         }
         Cmd::Hook => hook(),
+        Cmd::Graph { paths, format } => graph(&paths, format.unwrap_or(default_format)),
         Cmd::Profile { file } => run_py(PROFILE_PY, &[file]),
         Cmd::Equiv { old, new } => run_py(EQUIV_PY, &[old, new]),
         Cmd::Skill => {
@@ -167,6 +186,29 @@ fn check(
         }
     }
     if report.has_errors() {
+        ExitCode::FAILURE
+    } else {
+        ExitCode::SUCCESS
+    }
+}
+
+/// Prints the dataflow of the Hamilton modules under `paths`.
+fn graph(paths: &[PathBuf], format: Format) -> ExitCode {
+    let graph = match scan::collect_files(paths).and_then(|files| Graph::read(&files)) {
+        Ok(graph) => graph,
+        Err(e) => {
+            eprintln!("pdx: {e:#}");
+            return ExitCode::from(CHECK_FAILED);
+        }
+    };
+    match format {
+        Format::Json => println!("{}", graph.to_json()),
+        Format::Text => {
+            println!("{}", graph.to_text());
+            eprintln!("pdx: {}", graph.summary());
+        }
+    }
+    if graph.has_errors() {
         ExitCode::FAILURE
     } else {
         ExitCode::SUCCESS

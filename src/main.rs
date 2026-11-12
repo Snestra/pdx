@@ -2,6 +2,8 @@
 //! humans and coding agents. Each library gets one rule pack under `rules/`.
 
 mod cli;
+mod graph;
+mod nodes;
 mod pack;
 mod package_check;
 mod report;
