@@ -61,3 +61,46 @@ utils:
         inside: { kind: call, has: { field: function, regex: \.select_dtypes$ } }
 fix: '"str"'
 metadata: { fix: unsafe }
+---
+# is_object_dtype, a dtype tested with in, dtype.name, and select_dtypes with object by position.
+id: object-dtype-check
+language: python
+severity: error
+message: Text columns have dtype str in pandas 3, so is_object_dtype is False for them. Call pd.api.types.is_string_dtype.
+rule:
+  pattern: $F($X)
+constraints:
+  F: { regex: '(^|\.)is_object_dtype$' }
+---
+id: object-dtype-check
+language: python
+severity: error
+message: Text columns have dtype str in pandas 3, so this test against object leaves them out. Call pd.api.types.is_string_dtype.
+rule:
+  any:
+    - pattern: $X.dtype in $T
+    - pattern: $X.dtype not in $T
+    - pattern: $X.dtype.name == $O
+    - pattern: $X.dtype.name != $O
+    - pattern: $X.dtype.name in $T
+constraints:
+  T: { regex: '\bobject\b|["'']O["'']' }
+  O: { regex: '^["'']object["'']$' }
+---
+id: object-dtype-check
+language: python
+severity: error
+message: Text columns have dtype str in pandas 3. select_dtypes still matches them with object, but it warns that this will stop. Write "str".
+rule:
+  pattern: $DF.select_dtypes($FIRST, $$$REST)
+constraints:
+  FIRST: { regex: '\bobject\b|["'']O["'']', not: { kind: keyword_argument } }
+---
+id: object-dtype-check
+language: python
+severity: error
+message: Text columns have dtype str in pandas 3. select_dtypes still matches them with object, but it warns that this will stop. Write "str".
+rule:
+  pattern: $DF.select_dtypes($FIRST)
+constraints:
+  FIRST: { regex: '\bobject\b|["'']O["'']', not: { kind: keyword_argument } }

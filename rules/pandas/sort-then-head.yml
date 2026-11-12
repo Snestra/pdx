@@ -50,3 +50,62 @@ constraints:
   X: { any: [{ kind: identifier }, { kind: attribute }] }
 fix: $X.iloc[$X[$C].argmax()]
 metadata: { fix: unsafe }
+---
+# A sorted column read at one end, a frame read at its last rows, and sorted() on a column.
+id: sort-then-head
+language: python
+severity: warning
+message: This sorts the whole column to read one value. Call $S.min().
+rule:
+  any:
+    - pattern: $S.sort_values().iloc[0]
+    - pattern: $S.sort_values().values[0]
+fix: $S.min()
+metadata: { fix: unsafe }
+---
+id: sort-then-head
+language: python
+severity: warning
+message: This sorts the whole column to read one value. Call $S.max().
+rule:
+  any:
+    - pattern: $S.sort_values(ascending=False).iloc[0]
+    - pattern: $S.sort_values(ascending=False).values[0]
+fix: $S.max()
+metadata: { fix: unsafe }
+---
+id: sort-then-head
+language: python
+severity: warning
+message: This sorts the whole column to read its last value, which is NaN when a value is missing. Call $S.max().
+rule:
+  pattern: $S.sort_values().iloc[-1]
+---
+id: sort-then-head
+language: python
+severity: warning
+message: This sorts the whole column to read one label. Call $S.idxmin().
+rule:
+  pattern: $S.sort_values().index[0]
+fix: $S.idxmin()
+metadata: { fix: unsafe }
+---
+id: sort-then-head
+language: python
+severity: warning
+message: This sorts the whole frame to read its last rows. Call nlargest, or $DF.iloc[$DF[$B].argmax()] for one row.
+rule:
+  any:
+    - pattern: $DF.sort_values($B).iloc[-1]
+    - pattern: $DF.sort_values($B).tail($N)
+---
+id: sort-then-head
+language: python
+severity: warning
+message: sorted builds a Python list of every value to read one. Call min or max on the column.
+rule:
+  any:
+    - pattern: sorted($DF[$C])[0]
+    - pattern: sorted($DF[$C])[-1]
+constraints:
+  C: { kind: string }

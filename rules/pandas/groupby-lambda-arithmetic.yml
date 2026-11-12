@@ -24,3 +24,33 @@ message: Fill the gaps from transform("mean") instead. A lambda in transform run
 rule: { pattern: "$DF.groupby($$$K)[$C].transform(lambda $X: $X.fillna($X.mean()))" }
 fix: $DF[$C].fillna($DF.groupby($$$K)[$C].transform("mean"))
 metadata: { fix: unsafe }
+---
+# Subtraction of a reduction, division by one other than sum, and min-max scaling.
+id: groupby-lambda-arithmetic
+language: python
+severity: warning
+message: This lambda runs in Python once per group. Subtract the group value from the whole column.
+rule:
+  pattern: "$DF.groupby($$$K)[$C].transform(lambda $X: $X - $X.$A())"
+constraints:
+  A: { regex: '^(mean|median|min|max)$' }
+fix: $DF[$C] - $DF.groupby($$$K)[$C].transform("$A")
+metadata: { fix: unsafe }
+---
+id: groupby-lambda-arithmetic
+language: python
+severity: warning
+message: This lambda runs in Python once per group. Divide the whole column by the group value.
+rule:
+  pattern: "$DF.groupby($$$K)[$C].transform(lambda $X: $X / $X.$A())"
+constraints:
+  A: { regex: '^(mean|median|min|max|std|count)$' }
+fix: $DF[$C] / $DF.groupby($$$K)[$C].transform("$A")
+metadata: { fix: unsafe }
+---
+id: groupby-lambda-arithmetic
+language: python
+severity: warning
+message: This lambda runs in Python once per group. Take the group minimum and maximum with transform("min") and transform("max") and scale the whole column.
+rule:
+  pattern: "$G.transform(lambda $X: ($X - $X.min()) / ($X.max() - $X.min()))"

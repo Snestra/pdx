@@ -1,0 +1,72 @@
+# strftime formats one date at a time in Python. A date part is an attribute, and the names of
+# days and months have their own methods. Unsafe: the parts are int32 where astype(int) gave
+# int64, and day_name and month_name are English where strftime follows the locale.
+id: strftime-date-part
+language: python
+severity: warning
+message: This formats every date as text and parses the text back into a number. Read the part with $S.dt.year.
+rule:
+  pattern: $S.dt.strftime($F).astype($T)
+constraints:
+  F: { regex: '^["'']%Y["'']$' }
+  T: { regex: '^(int|np\.int64|np\.int32|["'']int(32|64)?["''])$' }
+fix: $S.dt.year
+metadata: { fix: unsafe }
+---
+id: strftime-date-part
+language: python
+severity: warning
+message: This formats every date as text and parses the text back into a number. Read the part with $S.dt.month.
+rule:
+  pattern: $S.dt.strftime($F).astype($T)
+constraints:
+  F: { regex: '^["'']%m["'']$' }
+  T: { regex: '^(int|np\.int64|np\.int32|["'']int(32|64)?["''])$' }
+fix: $S.dt.month
+metadata: { fix: unsafe }
+---
+id: strftime-date-part
+language: python
+severity: warning
+message: This formats every date as text and parses the text back into a number. Read the part with $S.dt.hour.
+rule:
+  pattern: $S.dt.strftime($F).astype($T)
+constraints:
+  F: { regex: '^["'']%H["'']$' }
+  T: { regex: '^(int|np\.int64|np\.int32|["'']int(32|64)?["''])$' }
+fix: $S.dt.hour
+metadata: { fix: unsafe }
+---
+id: strftime-date-part
+language: python
+severity: warning
+message: This formats every date as text and parses the text back into a number. Read the part with $S.dt.dayofyear.
+rule:
+  pattern: $S.dt.strftime($F).astype($T)
+constraints:
+  F: { regex: '^["'']%j["'']$' }
+  T: { regex: '^(int|np\.int64|np\.int32|["'']int(32|64)?["''])$' }
+fix: $S.dt.dayofyear
+metadata: { fix: unsafe }
+---
+id: strftime-date-part
+language: python
+severity: warning
+message: strftime("%A") formats one date at a time in Python. Call $S.dt.day_name().
+rule:
+  pattern: $S.dt.strftime($F)
+constraints:
+  F: { regex: '^["'']%A["'']$' }
+fix: $S.dt.day_name()
+metadata: { fix: unsafe }
+---
+id: strftime-date-part
+language: python
+severity: warning
+message: strftime("%B") formats one date at a time in Python. Call $S.dt.month_name().
+rule:
+  pattern: $S.dt.strftime($F)
+constraints:
+  F: { regex: '^["'']%B["'']$' }
+fix: $S.dt.month_name()
+metadata: { fix: unsafe }

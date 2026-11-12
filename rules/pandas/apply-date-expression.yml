@@ -1,0 +1,56 @@
+# apply-date-part reports a lambda that only reads a date part, such as t.year. This reports a
+# lambda that compares a part, or computes with parts.
+id: apply-date-expression
+language: python
+severity: warning
+message: This reads a date part and compares it once per value in Python. Compare the whole column through .dt, as in $S.dt.weekday >= 5.
+rule:
+  any:
+    - pattern: "$S.apply(lambda $X: $BODY)"
+    - pattern: "$S.map(lambda $X: $BODY)"
+constraints:
+  BODY:
+    kind: comparison_operator
+    has:
+      matches: date-part
+utils:
+  # t.year or t.weekday(), read from the lambda's own argument.
+  date-part:
+    any:
+      - matches: part-attribute
+      - kind: call
+        has: { field: function, matches: part-attribute }
+        not: { has: { field: arguments, has: { regex: '^[^(),]' } } }
+  part-attribute:
+    kind: attribute
+    all:
+      - has: { field: object, pattern: $X }
+      - has: { field: attribute, regex: '^(year|month|day|hour|minute|second|microsecond|quarter|dayofweek|day_of_week|dayofyear|day_of_year|weekday|isoweekday|days_in_month)$' }
+---
+id: apply-date-expression
+language: python
+severity: warning
+message: This computes with date parts once per value in Python. Compute on whole columns through .dt, as in $S.dt.hour * 60 + $S.dt.minute.
+rule:
+  any:
+    - pattern: "$S.apply(lambda $X: $BODY)"
+    - pattern: "$S.map(lambda $X: $BODY)"
+constraints:
+  BODY:
+    kind: binary_operator
+    has:
+      stopBy: end
+      matches: date-part
+utils:
+  # t.year or t.weekday(), read from the lambda's own argument.
+  date-part:
+    any:
+      - matches: part-attribute
+      - kind: call
+        has: { field: function, matches: part-attribute }
+        not: { has: { field: arguments, has: { regex: '^[^(),]' } } }
+  part-attribute:
+    kind: attribute
+    all:
+      - has: { field: object, pattern: $X }
+      - has: { field: attribute, regex: '^(year|month|day|hour|minute|second|microsecond|quarter|dayofweek|day_of_week|dayofyear|day_of_year|weekday|isoweekday|days_in_month)$' }

@@ -1,0 +1,15 @@
+# get_dummies makes one column per value in the rows it is given, so the test rows get other
+# columns than the training rows. A call followed by reindex or align is left alone. The rule
+# reads the name of the first argument.
+id: get-dummies-on-test
+language: python
+severity: error
+message: get_dummies on test data makes one column per value in the test rows, which are not the columns the model was trained on. Fit OneHotEncoder(handle_unknown="ignore") on the training data and transform both parts.
+rule:
+  pattern: $PD.get_dummies($$$ARGS)
+  has:
+    field: arguments
+    has: { nthChild: 1, regex: '(?i)(^|[^a-z])(test|val|valid|validation|holdout)([^a-z]|$)', not: { regex: '(?i)train' } }
+  not: { inside: { stopBy: end, any: [{ pattern: '$R.reindex($$$K)' }, { pattern: '$R.align($$$K)' }] } }
+constraints:
+  PD: { regex: '^(pd|pandas)$' }

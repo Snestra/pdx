@@ -19,3 +19,62 @@ constraints:
   C: { kind: string }
 fix: $DF[$C].nunique()
 metadata: { fix: unsafe }
+---
+# sum of a mask, set, Counter and list of a column, and an array built from tolist().
+id: builtin-on-column
+language: python
+severity: warning
+message: sum walks the mask one value at a time in Python. Call .sum() on the mask.
+rule:
+  pattern: sum($MASK)
+constraints:
+  MASK:
+    kind: comparison_operator
+    has: { nthChild: 1, kind: subscript, has: { field: subscript, kind: string } }
+fix: ($MASK).sum()
+metadata: { fix: unsafe }
+---
+id: builtin-on-column
+language: python
+severity: warning
+message: set hashes one Python value per row. Write set($DF[$C].unique()).
+rule:
+  pattern: set($DF[$C])
+  # len(set(...)) has its own document above.
+  not: { inside: { kind: argument_list, inside: { kind: call, has: { field: function, regex: ^len$ } } } }
+constraints:
+  C: { kind: string }
+fix: set($DF[$C].unique())
+metadata: { fix: unsafe }
+---
+id: builtin-on-column
+language: python
+severity: warning
+message: Counter hashes one Python value per row. Write $DF[$C].value_counts().
+rule:
+  any:
+    - pattern: Counter($DF[$C])
+    - pattern: collections.Counter($DF[$C])
+constraints:
+  C: { kind: string }
+---
+id: builtin-on-column
+language: python
+severity: warning
+message: list walks the column one value at a time. Write $DF[$C].tolist().
+rule: { pattern: "list($DF[$C])" }
+constraints:
+  C: { kind: string }
+fix: $DF[$C].tolist()
+metadata: { fix: unsafe }
+---
+id: builtin-on-column
+language: python
+severity: warning
+message: This builds a Python list of every value to make an array of them. Call $S.to_numpy().
+rule:
+  pattern: $NP.array($S.tolist())
+constraints:
+  NP: { regex: '^(np|numpy)$' }
+fix: $S.to_numpy()
+metadata: { fix: unsafe }

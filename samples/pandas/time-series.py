@@ -90,7 +90,7 @@ def apply_month_start(df):
 
 @case
 def dates_on_whole_column(df):
-    return df["d"] + pd.Timedelta(days=7), df["d"].apply(lambda t: t + pd.Timedelta(days=t.day))
+    return df["d"] + pd.Timedelta(days=7), df["d"] + pd.to_timedelta(df["d"].dt.day, unit="D")
 
 
 @case
@@ -153,3 +153,122 @@ def timedelta_per_value(df):
 @case
 def timedelta_on_whole_column(df):
     return pd.to_timedelta(df["a"], unit="D"), df["a"].head(5).apply(lambda v: pd.DateOffset(months=v))
+
+
+@case
+def strftime_date_part(df):
+    return (
+        df["d"].dt.strftime("%Y").astype(int),  # pdx: strftime-date-part
+        df["d"].dt.strftime("%m").astype("int64"),  # pdx: strftime-date-part
+        df["d"].dt.strftime("%H").astype(int),  # pdx: strftime-date-part
+        df["d"].dt.strftime("%j").astype(int),  # pdx: strftime-date-part
+        df["d"].dt.strftime("%A"),  # pdx: strftime-date-part
+        df["d"].dt.strftime("%B"),  # pdx: strftime-date-part
+    )
+
+
+@case
+def date_part_from_dt(df):
+    return df["d"].dt.year, df["d"].dt.day_name(), df["d"].dt.strftime("%Y-%m"), df["d"].dt.strftime("%Y").astype(str)
+
+
+@case
+def apply_date_expression(df):
+    return (
+        df["d"].apply(lambda t: t.weekday() >= 5),  # pdx: apply-date-expression
+        df["d"].apply(lambda t: t.month in (12, 1, 2)),  # pdx: apply-date-expression
+        df["d"].map(lambda t: t.year == 2023),  # pdx: apply-date-expression
+        df["d"].apply(lambda t: t.hour * 60 + t.minute),  # pdx: apply-date-expression
+        df["d"].apply(lambda t: t + pd.Timedelta(days=t.day)),  # pdx: apply-date-expression
+    )
+
+
+@case
+def date_expression_on_whole_column(df):
+    limit = pd.Timestamp("2022-06-01")
+    return df["d"].dt.weekday >= 5, df["d"].dt.hour * 60 + df["d"].dt.minute, df["a"].apply(lambda v: limit.year + v)
+
+
+@case
+def apply_date_method_without_dt_twin(df):
+    return (
+        df["d"].apply(lambda t: t.date()),  # pdx: apply-date-method
+        df["d"].apply(lambda t: t.isocalendar()[1]),  # pdx: apply-date-method
+        df["d"].map(lambda t: t.isocalendar().week),  # pdx: apply-date-method
+        df["d"].apply(lambda t: t.timestamp()),  # pdx: apply-date-method
+        df["d"].map(lambda t: t.toordinal()),  # pdx: apply-date-method
+    )
+
+
+@case
+def epoch_on_whole_column(df):
+    return (df["d"] - pd.Timestamp("1970-01-01")) / pd.Timedelta("1s"), df["d"].dt.isocalendar().week, df["d"].dt.date  # pdx: object-dates
+
+
+@case
+def strftime_round_trip(df):
+    return (
+        pd.to_datetime(df["d"].dt.strftime("%Y-%m-%d")),  # pdx: strftime-round-trip
+        pd.to_datetime(df["d"].dt.strftime("%Y-%m-%d %H")),  # pdx: strftime-round-trip
+        df[df["d"].dt.strftime("%Y-%m-%d") == "2022-06-01"],  # pdx: strftime-round-trip
+    )
+
+
+@case
+def dates_cut_without_text(df):
+    return df["d"].dt.normalize(), df["d"].dt.floor("h"), df[df["d"].dt.normalize() == pd.Timestamp("2022-06-01")], pd.to_datetime(df["raw"])
+
+
+@case
+def rolling_numpy_function(df):
+    return (
+        df["b"].rolling(20).agg(np.max),  # pdx: rolling-apply
+        df["b"].rolling(20).apply(np.mean, raw=True),  # pdx: rolling-apply
+    )
+
+
+@case
+def resample_lambda(df):
+    ts = df.set_index("d").sort_index()
+    return (
+        ts[["b"]].resample("D").apply(lambda v: v.sum()),  # pdx: groupby-lambda
+        ts.resample("D")["b"].agg(np.max),  # pdx: groupby-lambda
+    )
+
+
+@case
+def resample_named_method(df):
+    ts = df.set_index("d").sort_index()
+    return ts[["b"]].resample("D").sum(), ts.resample("D")["b"].max(), ts.resample("D")["b"].first()
+
+
+@case
+def epoch_from_index_values(df):
+    index = pd.DatetimeIndex(df["d"])
+    return (
+        index.asi8 // 10**9,  # pdx: epoch-from-int-cast
+        df["d"].values.astype("float64") / 1e9,  # pdx: epoch-from-int-cast
+    )
+
+
+@case
+def removed_time_series_forms(df):
+    ts = df.set_index("d").sort_index()
+    return (
+        ts.tshift(1),  # pdx: removed-in-pandas-3
+        ts["b"].pad(),  # pdx: removed-in-pandas-3
+        ts.first("3D"),  # pdx: removed-in-pandas-3
+        ts.resample("D", loffset="1h").sum(),  # pdx: removed-in-pandas-3
+        pd.date_range("2024-01-01", periods=3, closed="left"),  # pdx: removed-in-pandas-3
+        pd.to_datetime(df["raw"], infer_datetime_format=True),  # pdx: removed-in-pandas-3
+        pd.to_datetime(df["raw"], errors="ignore"),  # pdx: removed-in-pandas-3
+        df["b"].pct_change(fill_method="pad"),  # pdx: removed-in-pandas-3
+        pd.Timedelta("5T"),  # pdx: removed-in-pandas-3
+        df["d"].diff().astype("timedelta64[D]"),  # pdx: removed-in-pandas-3
+    )
+
+
+@case
+def time_series_forms_that_stay(df):
+    ts = df.set_index("d").sort_index()
+    return ts.shift(1), ts["b"].ffill(), ts.resample("D", closed="left").sum(), pd.to_datetime(df["raw"], errors="coerce"), np.pad(df["a"].to_numpy(), 1), df["s"].str.pad(12), pd.Timedelta("5min")

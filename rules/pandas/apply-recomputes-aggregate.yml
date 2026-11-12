@@ -1,0 +1,21 @@
+# The lambda computes a reduction of a whole column again for every row, so the time grows with
+# the square of the row count.
+id: apply-recomputes-aggregate
+language: python
+severity: warning
+message: This lambda computes $O.$A() again for every row. Compute it once and use it on the whole column, as in $S - $O.$A().
+rule:
+  any:
+    - pattern: "$S.apply(lambda $X: $BODY)"
+    - pattern: "$S.map(lambda $X: $BODY)"
+  has:
+    stopBy: end
+    kind: lambda
+    has:
+      stopBy: end
+      pattern: $O.$A()
+      # v["scores"].mean() reads the row's own value, which is another matter
+      not: { has: { stopBy: end, pattern: $X } }
+constraints:
+  O: { kind: subscript, has: { field: subscript, kind: string } }
+  A: { regex: '^(mean|median|sum|min|max|std|var|count|nunique)$' }

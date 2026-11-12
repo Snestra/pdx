@@ -35,3 +35,14 @@ rule:
   inside:
     kind: argument_list
     inside: { kind: call, has: { field: function, regex: '(^|\.)(read_csv|read_table)$' } }
+---
+# sep=None makes read_csv guess the separator, which only the Python engine can do.
+id: read-csv-slow-option
+language: python
+severity: warning
+message: sep=None makes read_csv guess the separator with the Python engine, which reads one row at a time. Name the separator.
+rule:
+  pattern: $PD.read_csv($$$A)
+  has: { field: arguments, has: { kind: keyword_argument, regex: '^(sep|delimiter)\s*=\s*None$' } }
+constraints:
+  PD: { regex: '^(pd|pandas)$' }

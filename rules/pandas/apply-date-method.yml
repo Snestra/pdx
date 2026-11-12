@@ -32,3 +32,40 @@ rule:
     - pattern: "$S.map(lambda $X: $X.weekday())"
 fix: $S.dt.weekday
 metadata: { fix: unsafe }
+---
+# date, isocalendar, timestamp and toordinal. The first two have a .dt form. The last two are a
+# subtraction of a start date.
+id: apply-date-method
+language: python
+severity: warning
+message: This calls date once per value. Call $S.dt.date, or $S.dt.normalize() to keep a datetime column.
+rule:
+  any:
+    - pattern: "$S.apply(lambda $X: $X.date())"
+    - pattern: "$S.map(lambda $X: $X.date())"
+fix: $S.dt.date
+metadata: { fix: unsafe }
+---
+id: apply-date-method
+language: python
+severity: warning
+message: This calls isocalendar once per value. Call $S.dt.isocalendar().week.
+rule:
+  any:
+    - pattern: "$S.apply(lambda $X: $X.isocalendar()[1])"
+    - pattern: "$S.map(lambda $X: $X.isocalendar()[1])"
+    - pattern: "$S.apply(lambda $X: $X.isocalendar().week)"
+    - pattern: "$S.map(lambda $X: $X.isocalendar().week)"
+fix: $S.dt.isocalendar().week
+metadata: { fix: unsafe }
+---
+id: apply-date-method
+language: python
+severity: warning
+message: This calls $M once per value. Subtract a start date from the whole column and divide by a Timedelta, as in ($S - pd.Timestamp("1970-01-01")) / pd.Timedelta("1s").
+rule:
+  any:
+    - pattern: "$S.apply(lambda $X: $X.$M())"
+    - pattern: "$S.map(lambda $X: $X.$M())"
+constraints:
+  M: { regex: '^(timestamp|toordinal)$' }

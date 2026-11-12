@@ -1,0 +1,36 @@
+# Formatting dates as text and parsing the text again, to drop the time. Unsafe: on dates with
+# a time zone the round trip drops the zone.
+id: strftime-round-trip
+language: python
+severity: warning
+message: This formats every date as text and parses the text again to drop the time. Call $S.dt.normalize().
+rule:
+  pattern: $PD.to_datetime($S.dt.strftime($F))
+constraints:
+  PD: { regex: '^(pd|pandas)$' }
+  F: { regex: '^["'']%Y-%m-%d["'']$' }
+fix: $S.dt.normalize()
+metadata: { fix: unsafe }
+---
+id: strftime-round-trip
+language: python
+severity: warning
+message: This formats every date as text and parses the text again to drop the minutes. Call $S.dt.floor("h").
+rule:
+  pattern: $PD.to_datetime($S.dt.strftime($F))
+constraints:
+  PD: { regex: '^(pd|pandas)$' }
+  F: { regex: '^["'']%Y-%m-%d %H(:00(:00)?)?["'']$' }
+fix: $S.dt.floor("h")
+metadata: { fix: unsafe }
+---
+id: strftime-round-trip
+language: python
+severity: warning
+message: This formats every date as text to compare it with one day. Compare $S.dt.normalize() with a Timestamp.
+rule:
+  any:
+    - pattern: $S.dt.strftime($F) == $D
+    - pattern: $S.dt.strftime($F) != $D
+constraints:
+  F: { regex: '^["'']%Y-%m-%d["'']$' }

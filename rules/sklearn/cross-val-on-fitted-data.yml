@@ -1,0 +1,33 @@
+# A step fitted on every row before cross-validation has seen the rows of every fold. A
+# Pipeline fits the step again inside each fold. GridSearchCV.fit is not reported, because a
+# pattern cannot tell a search from any other object with fit.
+id: cross-val-on-fitted-data
+language: python
+severity: error
+message: $V was fitted on every row before cross-validation, so each fold was scored on rows the fit had seen. Put the step and the model in one Pipeline and cross-validate the Pipeline.
+rule:
+  pattern: $V = $S.fit_transform($$$A)
+  inside:
+    kind: expression_statement
+    precedes:
+      stopBy: end
+      has:
+        stopBy: end
+        kind: call
+        all:
+          - has: { field: function, regex: '(^|\.)(cross_val_score|cross_validate|cross_val_predict|learning_curve|validation_curve)$' }
+          - has: { field: arguments, has: { nthChild: 2, pattern: $V } }
+constraints:
+  V: { kind: identifier, not: { regex: '^(y|Y|target|targets|label|labels)(_|$)' } }
+  S: { not: { regex: '(?i)label|^le$' } }
+---
+id: cross-val-on-fitted-data
+language: python
+severity: error
+message: The data was fitted on every row before cross-validation, so each fold was scored on rows the fit had seen. Put the step and the model in one Pipeline and cross-validate the Pipeline.
+rule:
+  any:
+    - pattern: $CV($M, $S.fit_transform($$$A), $$$C)
+    - pattern: $CV($M, $S.fit_transform($$$A))
+constraints:
+  CV: { regex: '(^|\.)(cross_val_score|cross_validate|cross_val_predict|learning_curve|validation_curve)$' }

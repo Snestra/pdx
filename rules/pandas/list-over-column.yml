@@ -9,3 +9,20 @@ rule:
     has: { field: right, pattern: "$DF[$C]" }
 constraints:
   C: { kind: string }
+---
+# The statement form: a for loop over a column that appends to a list.
+id: list-over-column
+language: python
+severity: warning
+message: This loop appends one value per row in Python. Compute on the whole column and call tolist() at the end.
+rule:
+  kind: for_statement
+  all:
+    - has:
+        field: right
+        any:
+          - kind: subscript
+            has: { field: subscript, kind: string }
+          - pattern: $DF[$C].items()
+          - pattern: enumerate($DF[$C])
+    - has: { field: body, has: { stopBy: end, pattern: '$OUT.append($$$V)' } }

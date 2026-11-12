@@ -1,0 +1,56 @@
+# Under copy-on-write these methods return a frame that shares nothing a write can go through,
+# so a copy before or after one only does the work twice. Methods that take most of the time
+# themselves, such as sort_values and merge, are left out, and so is copy().pipe(f), where f
+# may write to its argument.
+id: copy-in-chain
+language: python
+severity: warning
+message: $M returns a new frame, so the copy before it is thrown away. Drop .copy().
+rule:
+  pattern: $X.copy($$$D).$M($$$A)
+constraints:
+  M: { regex: '^(rename|assign|reset_index|set_index|astype|fillna)$' }
+fix: $X.$M($$$A)
+metadata: { fix: safe }
+---
+id: copy-in-chain
+language: python
+severity: warning
+message: $M returns a new frame that shares nothing you can write through, so the copy after it does the work twice. Drop .copy().
+rule:
+  pattern: $X.$M($$$A).copy()
+constraints:
+  M: { regex: '^(rename|assign|reset_index|set_index|astype|fillna)$' }
+fix: $X.$M($$$A)
+metadata: { fix: safe }
+---
+id: copy-in-chain
+language: python
+severity: warning
+message: drop returns a new frame, so the copy before it is thrown away. Drop .copy().
+rule:
+  pattern: $X.copy().drop($$$A)
+  has: { field: arguments, has: { kind: keyword_argument, has: { field: name, regex: '^columns$' } } }
+fix: $X.drop($$$A)
+metadata: { fix: safe }
+---
+id: copy-in-chain
+language: python
+severity: warning
+message: drop returns a new frame, so the copy after it does the work twice. Drop .copy().
+rule:
+  pattern: $X.drop($$$A).copy()
+  has: { field: function, has: { field: object, has: { field: arguments, has: { kind: keyword_argument, has: { field: name, regex: '^columns$' } } } } }
+fix: $X.drop($$$A)
+metadata: { fix: safe }
+---
+id: copy-in-chain
+language: python
+severity: warning
+message: concat builds a new frame, so the copy after it does the work twice. Drop .copy().
+rule:
+  pattern: $PD.concat($$$A).copy()
+constraints:
+  PD: { regex: '^(pd|pandas)$' }
+fix: $PD.concat($$$A)
+metadata: { fix: safe }

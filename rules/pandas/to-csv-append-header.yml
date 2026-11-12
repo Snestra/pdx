@@ -1,0 +1,10 @@
+# to_csv writes the header on every call, also with mode="a", so a file that is appended to
+# holds header rows among the data and its numbers read back as text.
+id: to-csv-append-header
+language: python
+severity: error
+message: to_csv with mode="a" writes the header again on every call, so the file holds header rows among the data. Pass header=False, or header=not os.path.exists(path) for the first write.
+rule:
+  pattern: $DF.to_csv($$$A)
+  has: { field: arguments, has: { kind: keyword_argument, regex: '^mode\s*=\s*["'']a\+?["'']$' } }
+  not: { has: { field: arguments, has: { kind: keyword_argument, has: { field: name, regex: '^header$' } } } }

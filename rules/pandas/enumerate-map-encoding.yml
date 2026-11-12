@@ -1,0 +1,13 @@
+# A dict of codes built from the unique values, and a lookup of every value in it. factorize
+# numbers the values in the same order. There is no fix, because factorize returns an array and
+# gives a missing value the code -1.
+id: enumerate-map-encoding
+language: python
+severity: warning
+message: This builds a dict of codes and looks every value up in it. Call pd.factorize($S)[0], which numbers the values in the same order.
+rule:
+  any:
+    - pattern: "$S.map({$V: $I for $I, $V in enumerate($S.unique())})"
+    - pattern: "$S.replace({$V: $I for $I, $V in enumerate($S.unique())})"
+    - pattern: "$S.map({$V: $I for $I, $V in enumerate(sorted($S.unique()))})"
+    - pattern: "$S.map(dict(zip($S.unique(), range($N))))"

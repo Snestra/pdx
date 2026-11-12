@@ -211,3 +211,86 @@ utils:
     all:
       - has: { field: subscript, kind: string }
       - has: { field: value, has: { field: value, pattern: $L.loc } }
+---
+# A column taken as an attribute, an indexer on a column, and update on a column.
+id: chained-assignment
+language: python
+severity: error
+message: This writes to a copy under copy-on-write, so the frame keeps its old values. Assign to $DF.loc[$MASK, "$COL"] instead.
+rule:
+  pattern: $DF.$COL[$MASK]
+  all:
+    - any:
+        - inside: { kind: assignment, field: left }
+        - inside: { kind: augmented_assignment, field: left }
+    # the mask reads the same frame, which tells df.a[df.b > 5] from self.items[i > 3]
+    - has: { field: subscript, has: { stopBy: end, pattern: $DF } }
+constraints:
+  COL: { not: { regex: '^(loc|iloc|at|iat|values|index|columns|T|str|dt|cat)$' } }
+  DF: { kind: identifier, not: { regex: '^(self|cls)$' } }
+  MASK:
+    any:
+      - kind: comparison_operator
+      - kind: binary_operator
+        has: { field: operator, regex: '^[&|^]$' }
+      - kind: unary_operator
+        has: { field: operator, regex: ^~$ }
+      - kind: call
+        has: { field: function, regex: '\.(isin|isna|isnull|notna|notnull|between|duplicated|contains|startswith|endswith|match|fullmatch)$' }
+fix: $DF.loc[$MASK, "$COL"]
+metadata: { fix: unsafe }
+---
+id: chained-assignment
+language: python
+severity: error
+message: $DF[$COL] is a copy under copy-on-write, so this write never reaches the frame. Assign to $DF.loc[$ROW, $COL] instead.
+rule:
+  all:
+    - any:
+        - pattern: $DF[$COL].loc[$ROW]
+        - pattern: $DF[$COL].at[$ROW]
+    - any:
+        - inside: { kind: assignment, field: left }
+        - inside: { kind: augmented_assignment, field: left }
+constraints:
+  COL: { kind: string }
+fix: $DF.loc[$ROW, $COL]
+metadata: { fix: unsafe }
+---
+id: chained-assignment
+language: python
+severity: error
+message: $DF[$COL] is a copy under copy-on-write, so this write never reaches the frame. Assign by label with $DF.loc[$DF.index[$ROW], $COL].
+rule:
+  all:
+    - any:
+        - pattern: $DF[$COL].iloc[$ROW]
+        - pattern: $DF[$COL].iat[$ROW]
+    - any:
+        - inside: { kind: assignment, field: left }
+        - inside: { kind: augmented_assignment, field: left }
+constraints:
+  COL: { kind: string }
+---
+id: chained-assignment
+language: python
+severity: error
+message: $DF[$COL] is a copy under copy-on-write, so update changes the copy and the frame keeps its old values. Call $DF.update with a frame, or assign the column.
+rule:
+  pattern: $DF[$COL].update($$$A)
+  inside: { kind: expression_statement }
+constraints:
+  COL: { kind: list }
+---
+# With a text key this is also how a dict of dicts is updated, as in state["seen"].update(extra),
+# so the frame must be named like one: df, frame, or a name with one of them as a word.
+id: chained-assignment
+language: python
+severity: error
+message: $DF[$COL] is a copy under copy-on-write, so update changes the copy and the frame keeps its old values. Call $DF.update with a frame, or assign the column.
+rule:
+  pattern: $DF[$COL].update($$$A)
+  inside: { kind: expression_statement }
+constraints:
+  COL: { kind: string }
+  DF: { regex: '(?i)(^|_)(df|frame)(_|\d|$)' }

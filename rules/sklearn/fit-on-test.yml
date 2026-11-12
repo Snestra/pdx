@@ -1,0 +1,48 @@
+# fit and fit_transform learn from the rows they are given. Called on test rows, the scaler or
+# encoder gives the same value another scale or code than in training, and a model fitted on
+# test rows is scored on rows it has seen. The rule reads the name of the first argument.
+# Unsafe: fit_transform on a name with test in it can be meant, as on a frame called latest_test
+# that is the whole data.
+id: fit-on-test
+language: python
+severity: error
+message: fit_transform on test data learns from the test rows, so the same value gets another code or scale than in training. Call transform on the object that was fitted on the training data.
+rule:
+  pattern: $S.fit_transform($X)
+constraints:
+  X: { regex: '(?i)(^|[^a-z])(test|val|valid|validation|holdout)([^a-z]|$)', not: { regex: '(?i)train' } }
+  S: { not: { kind: call } }
+fix: $S.transform($X)
+metadata: { fix: unsafe }
+---
+# A step built in the same expression, as in StandardScaler().fit_transform(X_test), was never
+# fitted on the training data, so there is nothing to call transform on.
+id: fit-on-test
+language: python
+severity: error
+message: fit_transform on test data learns from the test rows. Fit the step on the training data, keep it, and call transform here.
+rule:
+  pattern: $S.fit_transform($X)
+constraints:
+  X: { regex: '(?i)(^|[^a-z])(test|val|valid|validation|holdout)([^a-z]|$)', not: { regex: '(?i)train' } }
+  S: { kind: call }
+---
+id: fit-on-test
+language: python
+severity: error
+message: fit_transform on test data learns from the test rows. Call transform on the object that was fitted on the training data.
+rule:
+  pattern: $S.fit_transform($X, $$$REST)
+constraints:
+  X: { regex: '(?i)(^|[^a-z])(test|val|valid|validation|holdout)([^a-z]|$)', not: { regex: '(?i)train' } }
+---
+id: fit-on-test
+language: python
+severity: error
+message: This fits on the test data, so a score on those rows says nothing about new data. Fit on the training data.
+rule:
+  any:
+    - pattern: $S.fit($X)
+    - pattern: $S.fit($X, $$$REST)
+constraints:
+  X: { regex: '(?i)(^|[^a-z])test([^a-z]|$)', not: { regex: '(?i)train' } }

@@ -133,3 +133,31 @@ def groupby_first_skips_missing(df):
 @case
 def groupby_first_row(df):
     return df.sort_values("d").groupby("k").first(skipna=False), df.sort_values("d").groupby("k").head(1), df.iloc[[0]]
+
+
+@case
+def lambda_with_own_reduction(df):
+    return (
+        df.groupby("k")["b"].transform(lambda v: v - v.mean()),  # pdx: groupby-lambda-arithmetic
+        df.groupby("k")["w"].transform(lambda v: v / v.max()),  # pdx: groupby-lambda-arithmetic
+        df.groupby("k")["w"].transform(lambda v: (v - v.min()) / (v.max() - v.min())),  # pdx: groupby-lambda-arithmetic
+    )
+
+
+@case
+def reduction_through_transform(df):
+    return df["b"] - df.groupby("k")["b"].transform("mean"), df.groupby("k")["b"].transform(lambda v: v.rolling(7).mean())
+
+
+@case
+def lambda_reduction_with_arguments(df):
+    return (
+        df.groupby("k")["w"].agg(lambda v: v.quantile(0.9)),  # pdx: groupby-lambda
+        df.groupby("k")["w"].agg(lambda v: v.std(ddof=0)),  # pdx: groupby-lambda
+        df.groupby("k")["b"].agg(lambda v: (v > 0).sum()),  # pdx: groupby-lambda
+    )
+
+
+@case
+def reduction_called_on_the_groupby(df):
+    return df.groupby("k")["w"].quantile(0.9), (df["b"] > 0).groupby(df["k"]).sum(), df.groupby("k")["w"].agg(lambda v: v.max() - v.min())

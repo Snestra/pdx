@@ -160,3 +160,54 @@ utils:
           inside: { kind: keyword_argument, inside: { kind: argument_list, inside: { matches: reducer-call } } }
 fix: '"$R"'
 metadata: { fix: unsafe }
+---
+# A lambda on a resampler, a reduction with arguments, and a count of a condition.
+id: groupby-lambda
+language: python
+severity: warning
+message: This lambda runs in Python once per bin. Call the named method on the resampler, such as .sum().
+rule:
+  any:
+    - pattern: "$R.resample($$$F).apply(lambda $X: $X.$M())"
+    - pattern: "$R.resample($$$F).agg(lambda $X: $X.$M())"
+    - pattern: "$R.resample($$$F)[$C].apply(lambda $X: $X.$M())"
+    - pattern: "$R.resample($$$F)[$C].agg(lambda $X: $X.$M())"
+constraints:
+  M: { regex: '^(sum|mean|min|max|median|count|std|var|first|last|nunique)$' }
+---
+id: groupby-lambda
+language: python
+severity: warning
+message: A NumPy function passed to a resampler runs once per bin. Pass the name of the method, such as "max".
+rule:
+  any:
+    - pattern: $R.resample($$$F).agg($NP.$M)
+    - pattern: $R.resample($$$F).apply($NP.$M)
+    - pattern: $R.resample($$$F)[$C].agg($NP.$M)
+    - pattern: $R.resample($$$F)[$C].apply($NP.$M)
+constraints:
+  NP: { regex: '^(np|numpy)$' }
+  M: { regex: '^(sum|mean|min|max|median|std|var)$' }
+---
+id: groupby-lambda
+language: python
+severity: warning
+message: This lambda runs in Python once per group. Call $M on the groupby with the same arguments.
+rule:
+  any:
+    - pattern: "$G.agg(lambda $X: $X.$M($$$A))"
+    - pattern: "$G.aggregate(lambda $X: $X.$M($$$A))"
+  has: { stopBy: end, kind: lambda, has: { stopBy: end, kind: argument_list, has: { any: [{ kind: float }, { kind: integer }, { kind: keyword_argument }] } } }
+constraints:
+  M: { regex: '^(quantile|std|var)$' }
+---
+id: groupby-lambda
+language: python
+severity: warning
+message: This lambda runs in Python once per group. Build the mask on the whole column and sum it by group, as in (df["b"] > 0).groupby(df["k"]).sum().
+rule:
+  any:
+    - pattern: "$G.agg(lambda $X: ($CMP).sum())"
+    - pattern: "$G.agg(lambda $X: ($CMP).mean())"
+constraints:
+  CMP: { kind: comparison_operator, has: { nthChild: 1, pattern: $X } }

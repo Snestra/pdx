@@ -81,3 +81,28 @@ utils:
   missing-text: { regex: '^["''](nan|NaN|None|<NA>|NaT)["'']$' }
 fix: $X.notna()
 metadata: { fix: unsafe }
+---
+# None, inside a subscript only, because config["mode"] == None on a dict is valid Python.
+id: compare-to-missing
+language: python
+severity: error
+message: A comparison with None is False for every row, missing or not. Write $S.isna() instead.
+rule:
+  pattern: $S == None
+  inside: { stopBy: end, kind: subscript, field: subscript }
+constraints:
+  S: { kind: subscript, has: { field: subscript, kind: string } }
+fix: $S.isna()
+metadata: { fix: unsafe }
+---
+id: compare-to-missing
+language: python
+severity: error
+message: A comparison with None is True for every row, missing or not. Write $S.notna() instead.
+rule:
+  pattern: $S != None
+  inside: { stopBy: end, kind: subscript, field: subscript }
+constraints:
+  S: { kind: subscript, has: { field: subscript, kind: string } }
+fix: $S.notna()
+metadata: { fix: unsafe }

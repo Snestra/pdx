@@ -1,0 +1,42 @@
+# Without random_state these draw from a new seed on every run, so a score cannot be
+# reproduced. The classes listed changed their output between two runs on scikit-learn 1.9.1.
+# A file that calls np.random.seed is left alone, because scikit-learn then draws from that seed.
+id: missing-random-state
+language: python
+severity: warning
+message: train_test_split shuffles with a new seed on every run, so the score changes from run to run. Pass random_state.
+rule:
+  pattern: train_test_split($$$ARGS)
+  not:
+    any:
+      - has: { field: arguments, has: { kind: keyword_argument, has: { field: name, regex: '^(random_state|shuffle)$' } } }
+      - has: { field: arguments, has: { kind: dictionary_splat } }
+      - inside: { kind: module, stopBy: end, has: { stopBy: end, pattern: '$NP.random.seed($$$S)' } }
+---
+id: missing-random-state
+language: python
+severity: warning
+message: $C draws random numbers with a new seed on every run, so the result changes from run to run. Pass random_state.
+rule:
+  pattern: $C($$$ARGS)
+  not:
+    any:
+      - has: { field: arguments, has: { kind: keyword_argument, has: { field: name, regex: '^random_state$' } } }
+      - has: { field: arguments, has: { kind: dictionary_splat } }
+      - inside: { kind: module, stopBy: end, has: { stopBy: end, pattern: '$NP.random.seed($$$S)' } }
+constraints:
+  C: { regex: '(^|\.)(RandomForest(Classifier|Regressor)|ExtraTrees(Classifier|Regressor)|Bagging(Classifier|Regressor)|GradientBoosting(Classifier|Regressor)|IsolationForest|DecisionTree(Classifier|Regressor)|KMeans|MiniBatchKMeans|GaussianMixture|MLP(Classifier|Regressor)|SGD(Classifier|Regressor)|TruncatedSVD|NMF|TSNE|ShuffleSplit|StratifiedShuffleSplit|RepeatedKFold)$' }
+---
+id: missing-random-state
+language: python
+severity: warning
+message: $C with shuffle=True shuffles with a new seed on every run, so the folds change from run to run. Pass random_state.
+rule:
+  pattern: $C($$$ARGS)
+  has: { field: arguments, has: { kind: keyword_argument, regex: '^shuffle\s*=\s*True$' } }
+  not:
+    any:
+      - has: { field: arguments, has: { kind: keyword_argument, has: { field: name, regex: '^random_state$' } } }
+      - inside: { kind: module, stopBy: end, has: { stopBy: end, pattern: '$NP.random.seed($$$S)' } }
+constraints:
+  C: { regex: '(^|\.)(KFold|StratifiedKFold|GroupKFold|StratifiedGroupKFold)$' }

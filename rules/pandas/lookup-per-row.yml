@@ -1,0 +1,33 @@
+# A lambda that reads one key from another frame per row. map with a Series looks the whole
+# column up at once. Unsafe: a key that is absent gives a missing value where the lambda raised,
+# and a table with a repeated key raises in map.
+id: lookup-per-row
+language: python
+severity: warning
+message: This looks one key up in $T per row, in Python. Look the whole column up at once with $S.map($T[$C]).
+rule:
+  any:
+    - pattern: "$S.apply(lambda $X: $T.loc[$X, $C])"
+    - pattern: "$S.map(lambda $X: $T.loc[$X, $C])"
+    - pattern: "$S.apply(lambda $X: $T.at[$X, $C])"
+    - pattern: "$S.map(lambda $X: $T.at[$X, $C])"
+fix: $S.map($T[$C])
+metadata: { fix: unsafe }
+---
+id: lookup-per-row
+language: python
+severity: warning
+message: This filters a whole frame once per row to find one key. Index the table by the key once and call map, or merge the two frames.
+rule:
+  any:
+    - pattern: "$S.apply(lambda $X: $BODY)"
+    - pattern: "$S.map(lambda $X: $BODY)"
+constraints:
+  BODY:
+    has:
+      stopBy: end
+      kind: comparison_operator
+      any:
+        - all: [{ has: { nthChild: 1, kind: subscript } }, { has: { nthChild: { position: 1, reverse: true }, pattern: $X } }]
+        - all: [{ has: { nthChild: 1, pattern: $X } }, { has: { nthChild: { position: 1, reverse: true }, kind: subscript } }]
+      inside: { kind: subscript, field: subscript, stopBy: end }

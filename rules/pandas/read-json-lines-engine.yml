@@ -1,0 +1,30 @@
+# read_json with lines=True parses one line at a time. The pyarrow engine reads the file on
+# several threads. Unsafe: pyarrow can pick another dtype for a column, such as dates.
+id: read-json-lines-engine
+language: python
+severity: warning
+message: read_json with lines=True parses one line at a time. Pass engine="pyarrow" to parse the file on several threads.
+rule:
+  pattern: $PD.read_json($$$A)
+  has: { field: arguments, has: { kind: keyword_argument, regex: '^lines\s*=\s*True$' } }
+  not:
+    any:
+      - has: { field: arguments, has: { kind: keyword_argument, has: { field: name, regex: '^(engine|chunksize|nrows)$' } } }
+      # The pyarrow engine reads bytes and raises on a text buffer.
+      - has: { field: arguments, has: { nthChild: 1, regex: 'StringIO' } }
+constraints:
+  PD: { regex: '^(pd|pandas)$' }
+fix: $PD.read_json($$$A, engine="pyarrow")
+metadata: { fix: unsafe }
+---
+id: read-json-lines-engine
+language: python
+severity: warning
+message: This parses one line at a time in Python. Read the file with pd.read_json(path, lines=True, engine="pyarrow").
+rule:
+  any:
+    - pattern: "$PD.DataFrame([json.loads($L) for $L in $F])"
+    - pattern: "$PD.DataFrame(json.loads($L) for $L in $F)"
+    - pattern: "$PD.DataFrame([json.loads($L) for $L in $F], $$$K)"
+constraints:
+  PD: { regex: '^(pd|pandas)$' }

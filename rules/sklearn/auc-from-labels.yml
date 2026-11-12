@@ -1,0 +1,43 @@
+# Ranking metrics need a score per row. predict returns class labels on a scikit-learn
+# classifier, so the metric ranks two values. Files that import keras, tensorflow or torch are
+# left alone, because predict returns probabilities there.
+id: auc-from-labels
+language: python
+severity: error
+message: $F ranks the rows by score, and predict returns the class labels, which leaves two values to rank. Pass predict_proba(X)[:, 1] or decision_function(X).
+rule:
+  pattern: $F($$$ARGS)
+  has: { field: arguments, has: { nthChild: 2, pattern: '$M.predict($$$X)' } }
+  not: { inside: { kind: module, stopBy: end, has: { any: [{ kind: import_statement }, { kind: import_from_statement }], regex: 'keras|tensorflow|torch' } } }
+constraints:
+  F: { regex: '(^|\.)(roc_auc_score|average_precision_score|roc_curve|precision_recall_curve|log_loss|brier_score_loss)$' }
+---
+id: auc-from-labels
+language: python
+severity: error
+message: $V holds the class labels that predict returned, and this metric ranks the rows by score. Pass predict_proba(X)[:, 1] or decision_function(X).
+rule:
+  pattern: $V = $M.predict($$$X)
+  inside:
+    kind: expression_statement
+    precedes:
+      stopBy: end
+      has:
+        stopBy: end
+        kind: call
+        all:
+          - has: { field: function, regex: '(^|\.)(roc_auc_score|average_precision_score|roc_curve|precision_recall_curve|log_loss|brier_score_loss)$' }
+          - has: { field: arguments, has: { nthChild: 2, pattern: $V } }
+  not: { inside: { kind: module, stopBy: end, has: { any: [{ kind: import_statement }, { kind: import_from_statement }], regex: 'keras|tensorflow|torch' } } }
+constraints:
+  V: { kind: identifier }
+---
+id: auc-from-labels
+language: python
+severity: error
+message: Column 0 of predict_proba is the probability of the first class, so this scores the model upside down. Take column 1.
+rule:
+  pattern: $F($$$ARGS)
+  has: { field: arguments, has: { nthChild: 2, pattern: '$M.predict_proba($$$X)[:, 0]' } }
+constraints:
+  F: { regex: '(^|\.)(roc_auc_score|average_precision_score|roc_curve|precision_recall_curve)$' }

@@ -5,6 +5,7 @@ code computes, so a copy fixed with `pdx check --fix` can be compared with this 
 """
 
 import math
+from collections import Counter
 
 import numpy as np
 import pandas as pd
@@ -149,7 +150,7 @@ def apply_date_part(df):
 
 @case
 def date_part_that_stays(df):
-    return df["d"].dt.year, df["d"].apply(lambda t: t.year * 100 + t.month)
+    return df["d"].dt.year, df["d"].dt.year * 100 + df["d"].dt.month
 
 
 @case
@@ -234,7 +235,7 @@ def sort_then_head(df):
 
 @case
 def sort_that_stays(df):
-    return df.sort_values(["k", "b"]).head(5), df.nsmallest(5, "b"), df.sort_values("b").tail(5)
+    return df.sort_values(["k", "b"]).head(5), df.nsmallest(5, "b"), df.sort_values("b").iloc[5], df["b"].sort_values().iloc[5]
 
 
 @case
@@ -363,3 +364,144 @@ def zip_over_columns(df):
 def zip_that_stays(df):
     names = ["x", "y"]
     return dict(zip(df["k"], df["a"])), [n * 2 for n, c in zip(names, df.columns)], [a for a, n in zip(df["a"], names)]
+
+
+@case
+def sorted_column_read_at_one_end(df):
+    return (
+        df["a"].sort_values().iloc[0],  # pdx: sort-then-head
+        df["a"].sort_values().values[0],  # pdx: sort-then-head
+        df["a"].sort_values(ascending=False).iloc[0],  # pdx: sort-then-head
+        df["a"].sort_values().index[0],  # pdx: sort-then-head
+        df["b"].sort_values().iloc[-1],  # pdx: sort-then-head
+        df.sort_values("w").iloc[-1],  # pdx: sort-then-head
+        df.sort_values("w").tail(5),  # pdx: sort-then-head
+        sorted(df["a"])[0],  # pdx: sort-then-head
+    )
+
+
+@case
+def reductions_instead_of_a_sort(df):
+    return df["a"].min(), df["a"].max(), df["a"].idxmin(), df.nlargest(5, "w"), sorted(["b", "a"])[0]
+
+
+def lookup_table():
+    return pd.DataFrame({"v": [1.0, 2.0, 3.0, 4.0, 5.0]}, index=["g1", "g2", "g3", "g4", "g5"])
+
+
+@case
+def lookup_per_row(df):
+    table = lookup_table()
+    flat = table.reset_index(names="k")
+    return (
+        df["k"].apply(lambda key: table.loc[key, "v"]),  # pdx: lookup-per-row
+        df["k"].map(lambda key: table.at[key, "v"]),  # pdx: lookup-per-row
+        df["k"].head(50).apply(lambda key: flat[flat["k"] == key]["v"].iloc[0]),  # pdx: lookup-per-row
+        df["k"].head(50).map(lambda key: flat.loc[flat["k"] == key, "v"].values[0]),  # pdx: lookup-per-row
+    )
+
+
+@case
+def lookup_on_whole_column(df):
+    table = lookup_table()
+    codes = {"g1": 1, "g2": 2}
+    return df["k"].map(table["v"]), df["k"].apply(lambda key: codes.get(key, 0))
+
+
+@case
+def apply_recomputes_aggregate(df):
+    part = df.head(200)
+    return (
+        part["b"].apply(lambda v: v - part["b"].mean()),  # pdx: apply-recomputes-aggregate
+        part["w"].map(lambda v: (v - part["w"].min()) / (part["w"].max() - part["w"].min())),  # pdx: apply-recomputes-aggregate
+    )
+
+
+@case
+def aggregate_computed_once(df):
+    mean = df["b"].mean()
+    return df["b"] - mean, df["b"].apply(lambda v: v - mean), df["s"].apply(lambda v: v.count("a"))
+
+
+@case
+def agg_axis_1(df):
+    return (
+        df[["k", "s"]].agg("_".join, axis=1),  # pdx: apply-axis-1
+        df[["a", "w"]].agg(lambda row: row["a"] + row["w"], axis=1),  # pdx: apply-axis-1
+        df[["a", "w"]].head(100).transform(lambda row: row / row.sum(), axis="columns"),  # pdx: apply-axis-1
+    )
+
+
+@case
+def agg_on_whole_columns(df):
+    return df["k"] + "_" + df["s"], df[["a", "w"]].agg("sum", axis=1), df[["a", "w"]].agg(lambda column: column.max() - column.min())
+
+
+@case
+def enumerate_map_encoding(df):
+    return (
+        df["k"].map({v: i for i, v in enumerate(df["k"].unique())}),  # pdx: enumerate-map-encoding
+        df["k"].replace({v: i for i, v in enumerate(df["k"].unique())}),  # pdx: enumerate-map-encoding
+        df["k"].map({v: i for i, v in enumerate(sorted(df["k"].unique()))}),  # pdx: enumerate-map-encoding
+        df["k"].map(dict(zip(df["k"].unique(), range(df["k"].nunique())))),  # pdx: enumerate-map-encoding
+    )
+
+
+@case
+def encoding_that_stays(df):
+    sizes = {"g1": 0, "g2": 1, "g3": 2, "g4": 3, "g5": 4}
+    return pd.factorize(df["k"])[0], df["k"].map(sizes), df["k"].map({"g1": 0, "g2": 1})
+
+
+@case
+def builtins_that_hash_or_walk_a_column(df):
+    return (
+        sum(df["a"] > 50),  # pdx: builtin-on-column
+        set(df["k"]),  # pdx: builtin-on-column
+        Counter(df["k"]),  # pdx: builtin-on-column
+        list(df["a"]),  # pdx: builtin-on-column
+        np.array(df["a"].tolist()),  # pdx: builtin-on-column
+    )
+
+
+@case
+def column_methods_instead_of_builtins(df):
+    names = {"k": ["x", "y"]}["k"]
+    return (df["a"] > 50).sum(), set(df["k"].unique()), df["k"].value_counts(), df["a"].tolist(), df["a"].to_numpy(), len(names), sum([1, 2])
+
+
+@case
+def loop_that_appends(df):
+    out = []
+    for value in df["a"]:  # pdx: list-over-column
+        out.append(value * 2)
+    for label, value in df["a"].items():  # pdx: list-over-column
+        out.append(value + label)
+    return out
+
+
+@case
+def loop_that_only_reads(df):
+    total = 0
+    for value in df["a"]:
+        total += value
+    return total, (df["a"] * 2).tolist()
+
+
+@case
+def copy_in_chain(df):
+    return (
+        df.copy().rename(columns={"a": "x"}),  # pdx: copy-in-chain
+        df.rename(columns={"a": "x"}).copy(),  # pdx: copy-in-chain
+        df.copy(deep=True).assign(z=1),  # pdx: copy-in-chain
+        df.reset_index(drop=True).copy(),  # pdx: copy-in-chain
+        df.astype({"a": "float64"}).copy(),  # pdx: copy-in-chain
+        df.copy().drop(columns=["s"]),  # pdx: copy-in-chain
+        df.drop(columns=["s"]).copy(),  # pdx: copy-in-chain
+        pd.concat([df, df]).copy(),  # pdx: copy-in-chain
+    )
+
+
+@case
+def copy_that_does_work(df):
+    return df.copy(), df.sort_values("b").copy(), df.copy().pipe(lambda d: d), df.drop(index=[0, 1]).copy(), df.rename(columns={"a": "x"})

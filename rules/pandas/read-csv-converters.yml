@@ -1,0 +1,11 @@
+# converters calls a Python function once per value.
+id: read-csv-converters
+language: python
+severity: warning
+message: converters calls a Python function once per value. Pass dtype for a type, or change the column after reading, as in df["s"].str.strip().
+rule:
+  pattern: $PD.$R($$$A)
+  has: { field: arguments, has: { kind: keyword_argument, has: { field: name, regex: '^converters$' } } }
+constraints:
+  PD: { regex: '^(pd|pandas)$' }
+  R: { regex: '^read_(csv|table)$' }

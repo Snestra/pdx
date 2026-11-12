@@ -5,6 +5,7 @@ code computes, so a copy fixed with `pdx check --fix` can be compared with this 
 """
 
 import io
+import warnings
 
 import numpy as np
 import pandas as pd
@@ -308,3 +309,107 @@ def append_that_stays(df):
         parts.append(part)
     columns = df.columns.append(pd.Index(["extra"]))
     return pd.concat(parts), columns, np.append(df["a"].to_numpy(), 1)
+
+
+@case
+def str_replace_regex_default(df):
+    return (
+        df["k"].str.replace(r"\d+", ""),  # pdx: str-replace-regex-default
+        df["k"].str.replace("[^a-y]", ""),  # pdx: str-replace-regex-default
+        df["k"].str.replace("^x", "X"),  # pdx: str-replace-regex-default
+        df["k"].str.replace("x|y", "_"),  # pdx: str-replace-regex-default
+        df["k"].str.replace(".*z", ""),  # pdx: str-replace-regex-default
+    )
+
+
+@case
+def str_replace_plain_text(df):
+    return df["k"].str.replace(r"\d+", "", regex=True), df["k"].str.replace(".", ""), df["k"].str.replace("$", ""), df["k"].str.replace("x", "y", regex=False), "[x]".replace("[x]", "")
+
+
+@case
+def positional_key_on_labels(df):
+    return (
+        df["k"].value_counts()[0],  # pdx: positional-key-on-labels
+        df.iloc[0][1],  # pdx: positional-key-on-labels
+        df.dtypes[0],  # pdx: positional-key-on-labels
+        df.isna().sum()[1],  # pdx: positional-key-on-labels
+    )
+
+
+@case
+def positional_key_through_iloc(df):
+    return df["k"].value_counts().iloc[0], df.iloc[0, 1], df["k"].value_counts()["x"], df.iloc[:5]["a"], df[["a"]].to_numpy().sum(axis=0)[0]
+
+
+@case
+def chained_attribute_and_indexer(df):
+    df.b[df.a > 50] = 0.0  # pdx: chained-assignment
+    df["b"].loc[df["a"] < 5] = 1.0  # pdx: chained-assignment
+    df["b"].iloc[0] = 7.0  # pdx: chained-assignment
+    df["b"].update(pd.Series([9.0], index=[1]))  # pdx: chained-assignment
+    df[["b"]].update(pd.DataFrame({"b": [8.0]}, index=[2]))  # pdx: chained-assignment
+    return df
+
+
+@case
+def writes_that_reach_the_frame(df):
+    df.loc[df.a > 50, "b"] = 0.0
+    df.update(pd.DataFrame({"b": [9.0]}, index=[1]))
+    state = {"seen": {}}
+    state["seen"].update({"a": 1})
+    return df, df["b"].iloc[0]
+
+
+@case
+def compare_to_none(df):
+    return df[df["b"] == None], df.loc[df["b"] != None, "a"]  # pdx: compare-to-missing
+
+
+@case
+def none_outside_a_mask(df):
+    config = {"mode": None}
+    return df[df["b"].isna()], config["mode"] == None
+
+
+@case
+def object_dtype_check_other_shapes(df):
+    return (
+        [c for c in df if pd.api.types.is_object_dtype(df[c])],  # pdx: object-dtype-check
+        [c for c in df if df[c].dtype in ("object", "category")],  # pdx: object-dtype-check
+        [c for c in df if df[c].dtype.name == "object"],  # pdx: object-dtype-check
+        df.select_dtypes("object"),  # pdx: object-dtype-check
+        df.select_dtypes(["object", "category"]),  # pdx: object-dtype-check
+    )
+
+
+@case
+def dtype_checks_that_stay(df):
+    return df.select_dtypes("number"), [c for c in df if df[c].dtype in ("int64", "float64")], df["k"].dtype.kind == "O"
+
+
+@case
+def removed_names(df):
+    warnings.simplefilter("ignore", pd.errors.SettingWithCopyWarning)  # pdx: removed-in-pandas-3
+    pd.set_option("mode.use_inf_as_na", True)  # pdx: removed-in-pandas-3
+    return (
+        pd.value_counts(df["k"]),  # pdx: removed-in-pandas-3
+        df.index.is_monotonic,  # pdx: removed-in-pandas-3
+        df["a"].mad(),  # pdx: removed-in-pandas-3
+        df.as_matrix(),  # pdx: removed-in-pandas-3
+        df.ix[0],  # pdx: removed-in-pandas-3
+        pd.np.nan,  # pdx: removed-in-pandas-3
+        pd.datetime(2024, 1, 1),  # pdx: removed-in-pandas-3
+        pd.Int64Index([1, 2]),  # pdx: removed-in-pandas-3
+        pd.io.json.json_normalize([{"a": 1}]),  # pdx: removed-in-pandas-3
+        pd.to_numeric(df["a"], errors="ignore"),  # pdx: removed-in-pandas-3
+        list(df.iteritems()),  # pdx: removed-in-pandas-3
+        df.set_index(["k", "a"]).index.is_lexsorted(),  # pdx: removed-in-pandas-3
+        df[["a", "b"]].groupby(level=0, axis=1).sum(),  # pdx: removed-in-pandas-3
+    )
+
+
+@case
+def current_names(df):
+    pd.set_option("display.max_rows", 100)
+    return df["k"].value_counts(), df.index.is_monotonic_increasing, df.to_numpy(), pd.json_normalize([{"a": 1}]), pd.to_numeric(df["a"], errors="coerce"), list(df.items())

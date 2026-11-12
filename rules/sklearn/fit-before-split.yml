@@ -1,0 +1,47 @@
+# A step fitted on every row and split afterwards has seen the test rows. The rule reports the
+# fit when a later statement of the same block passes its result to train_test_split. It leaves
+# a label encoder on the target alone, which only renames the classes.
+id: fit-before-split
+language: python
+severity: error
+message: $V was fitted on every row and is split afterwards, so the test rows shaped the training data. Split first, fit on the training part, and transform both parts.
+rule:
+  pattern: $V = $S.fit_transform($$$A)
+  inside:
+    kind: expression_statement
+    precedes:
+      stopBy: end
+      has: { stopBy: end, any: [{ pattern: 'train_test_split($$$B, $V, $$$C)' }, { pattern: 'train_test_split($$$B, $V)' }] }
+constraints:
+  # A label encoder on the target only renames the classes.
+  V: { kind: identifier, not: { regex: '^(y|Y|target|targets|label|labels)(_|$)' } }
+  S: { not: { regex: '(?i)label|^le$' } }
+---
+id: fit-before-split
+language: python
+severity: error
+message: The columns of $V were fitted on every row and $V is split afterwards, so the test rows shaped the training data. Split first, fit on the training part, and transform both parts.
+rule:
+  pattern: $V[$COLS] = $S.fit_transform($$$A)
+  inside:
+    kind: expression_statement
+    precedes:
+      stopBy: end
+      has: { stopBy: end, any: [{ pattern: 'train_test_split($$$B, $V, $$$C)' }, { pattern: 'train_test_split($$$B, $V)' }] }
+constraints:
+  V: { kind: identifier }
+  S: { not: { regex: '(?i)label|^le$' } }
+---
+id: fit-before-split
+language: python
+severity: error
+message: The rows were resampled before the split, so copies and neighbours of the test rows are in the training data. Split first and resample the training part only.
+rule:
+  pattern: $V, $W = $S.fit_resample($$$A)
+  inside:
+    kind: expression_statement
+    precedes:
+      stopBy: end
+      has: { stopBy: end, any: [{ pattern: 'train_test_split($$$B, $V, $$$C)' }, { pattern: 'train_test_split($$$B, $V)' }] }
+constraints:
+  V: { kind: identifier }

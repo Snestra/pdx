@@ -1,0 +1,39 @@
+# An integer key on a Series is a label on pandas 3, where pandas 2 fell back to the position.
+# These Series are labelled by values or by column names, so the key raises KeyError. Unsafe:
+# on labels that are whole numbers the old form still works, and it reads another row.
+id: positional-key-on-labels
+language: python
+severity: error
+message: An integer key on a Series is a label on pandas 3, and value_counts labels its rows with the values, so this raises KeyError unless $N is one of the values. For the count at that position write .iloc[$N].
+rule:
+  pattern: $X.value_counts($$$A)[$N]
+constraints:
+  N: { kind: integer }
+fix: $X.value_counts($$$A).iloc[$N]
+metadata: { fix: unsafe }
+---
+id: positional-key-on-labels
+language: python
+severity: error
+message: A row is a Series labelled by the column names, and an integer key is a label on pandas 3, so this raises KeyError unless a column is named $N. Write $DF.iloc[$I, $N].
+rule:
+  pattern: $DF.iloc[$I][$N]
+constraints:
+  N: { kind: integer }
+  I: { any: [{ kind: integer }, { kind: identifier }, { kind: unary_operator }] }
+fix: $DF.iloc[$I, $N]
+metadata: { fix: unsafe }
+---
+id: positional-key-on-labels
+language: python
+severity: error
+message: This Series is labelled by the column names, and an integer key is a label on pandas 3, so this raises KeyError unless a column is named $N. Take the position with .iloc[$N].
+rule:
+  any:
+    - pattern: $DF.dtypes[$N]
+    - pattern: $DF.$R()[$N]
+    - pattern: $DF.isna().$R()[$N]
+    - pattern: $DF.isnull().$R()[$N]
+constraints:
+  N: { kind: integer }
+  R: { regex: '^(sum|mean|median|min|max|std|var|count|nunique|idxmax|idxmin|any|all)$' }

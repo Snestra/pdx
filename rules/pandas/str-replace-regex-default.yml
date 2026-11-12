@@ -1,0 +1,19 @@
+# str.replace reads its pattern as plain text since pandas 2.0, where it was a regular
+# expression before. The rule reports a pattern that cannot be meant as text: a class such as
+# \d, a set in brackets, .* or .+, a ^ at the start, or a|b. Unsafe: a set in brackets can be
+# meant as text.
+id: str-replace-regex-default
+language: python
+severity: error
+message: str.replace reads the pattern as plain text since pandas 2.0, so this regular expression matches nothing. Pass regex=True.
+rule:
+  pattern: $S.str.replace($$$ARGS)
+  has:
+    field: arguments
+    has:
+      nthChild: 1
+      kind: string
+      regex: '(\\[dDsSwWbB]|\[[^\]]+\]|[.\])][*+]|^[rR]?["'']\^.|\w\|\w)'
+  not: { has: { field: arguments, has: { kind: keyword_argument, has: { field: name, regex: '^regex$' } } } }
+fix: $S.str.replace($$$ARGS, regex=True)
+metadata: { fix: unsafe }

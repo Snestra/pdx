@@ -11,3 +11,21 @@ rule:
       all:
         - has: { field: name, regex: ^axis$ }
         - has: { field: value, regex: '^(1|["'']columns["''])$' }
+---
+# agg and transform with axis=1 call a function once per row as apply does. A named method, as
+# in agg("sum", axis=1), runs on whole columns and is left alone.
+id: apply-axis-1
+language: python
+severity: warning
+message: $M with axis=1 calls the function once per row in Python. Compute on whole columns instead, such as df["a"] + "_" + df["b"].
+rule:
+  pattern: $DF.$M($F, $$$REST)
+  has:
+    field: arguments
+    has: { kind: keyword_argument, regex: '^axis\s*=\s*(1|["'']columns["''])$' }
+constraints:
+  M: { regex: '^(agg|aggregate|transform)$' }
+  F:
+    any:
+      - kind: lambda
+      - pattern: $SEP.join

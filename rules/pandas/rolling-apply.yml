@@ -43,3 +43,17 @@ rule:
       - pattern: "$R.$K($$$W).apply(lambda $X: $X.$F())"
 constraints:
   K: { regex: ^(rolling|expanding)$ }
+---
+# A NumPy function passed to agg, or to apply with raw=True.
+id: rolling-apply
+language: python
+severity: warning
+message: A NumPy function passed to a rolling window runs once per window. Call the window method, such as .max().
+rule:
+  any:
+    - pattern: $X.rolling($$$W).agg($NP.$M)
+    - pattern: $X.rolling($$$W).aggregate($NP.$M)
+    - pattern: $X.rolling($$$W).apply($NP.$M, raw=True)
+constraints:
+  NP: { regex: '^(np|numpy)$' }
+  M: { regex: '^(sum|mean|min|max|median|std|var)$' }

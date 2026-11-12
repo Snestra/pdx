@@ -12,3 +12,19 @@ rule:
     - has: { field: right, regex: '^(10 ?\*\* ?[69]|1e[69]|1_?000_?000(_?000)?)$' }
 constraints:
   T: { regex: '^(["'']int64["'']|["'']int["'']|int|np\.int64|["'']i8["''])$' }
+---
+# The integer values of an index, and a cast of .values to float.
+id: epoch-from-int-cast
+language: python
+severity: error
+message: Datetimes default to microseconds in pandas 3, so this no longer counts nanoseconds. Subtract the epoch and divide by a Timedelta.
+rule:
+  any:
+    - pattern: $I.asi8 // $D
+    - pattern: $I.asi8 / $D
+    - pattern: $V.values.astype($T) / $D
+    - pattern: $V.values.astype($T) // $D
+constraints:
+  D: { regex: '^(10\s*\*\*\s*[369]|1e[369]|1_?000(_?000){0,2})$' }
+  # A cast to an integer type is the document above.
+  T: { regex: '^(float|["'']float(64)?["'']|np\.float64|["'']f8["''])$' }

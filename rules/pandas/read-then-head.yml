@@ -1,0 +1,26 @@
+# read_csv parses the whole file before head drops all but the first rows. Unsafe: pandas
+# guesses the dtypes from the rows it reads, so a column whose first text value comes later is a
+# number with nrows.
+id: read-then-head
+language: python
+severity: warning
+message: This reads and parses the whole file and keeps $N rows. Pass nrows=$N to read_csv.
+rule:
+  pattern: $PD.read_csv($$$A).head($N)
+  not: { has: { stopBy: end, kind: keyword_argument, has: { field: name, regex: '^(nrows|chunksize|iterator)$' } } }
+constraints:
+  PD: { regex: '^(pd|pandas)$' }
+fix: $PD.read_csv($$$A, nrows=$N)
+metadata: { fix: unsafe }
+---
+id: read-then-head
+language: python
+severity: warning
+message: This reads and parses the whole file and keeps the first rows. Pass nrows to read_csv.
+rule:
+  any:
+    - pattern: $PD.read_csv($$$A).head()
+    - pattern: $PD.read_csv($$$A).iloc[:$N]
+  not: { has: { stopBy: end, kind: keyword_argument, has: { field: name, regex: '^(nrows|chunksize|iterator)$' } } }
+constraints:
+  PD: { regex: '^(pd|pandas)$' }

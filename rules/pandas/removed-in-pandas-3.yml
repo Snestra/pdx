@@ -285,3 +285,264 @@ constraints:
   W: { regex: ^(week|weekofyear)$ }
 fix: $X.dt.isocalendar().week
 metadata: { fix: unsafe }
+---
+# Arguments and names that pandas 2.0 to 3.0 removed. Each raises on pandas 3.1.
+id: removed-in-pandas-3
+language: python
+severity: error
+message: read_csv no longer takes this argument and raises TypeError on pandas 3. For bad lines, pass on_bad_lines="skip".
+rule:
+  kind: keyword_argument
+  has: { field: name, regex: '^(error_bad_lines|warn_bad_lines|squeeze|verbose|keep_date_col|infer_datetime_format|mangle_dupe_cols|prefix)$' }
+  inside: { kind: argument_list, inside: { kind: call, has: { field: function, regex: '^(pd|pandas)\.read_(csv|table)$' } } }
+---
+id: removed-in-pandas-3
+language: python
+severity: error
+message: read_excel no longer takes squeeze and raises TypeError on pandas 3. Call .squeeze("columns") on the result.
+rule:
+  kind: keyword_argument
+  has: { field: name, regex: '^squeeze$' }
+  inside: { kind: argument_list, inside: { kind: call, has: { field: function, regex: '^(pd|pandas)\.read_excel$' } } }
+---
+id: removed-in-pandas-3
+language: python
+severity: error
+message: line_terminator was renamed and raises TypeError on pandas 3. Write lineterminator.
+rule:
+  kind: keyword_argument
+  all:
+    - has: { field: name, regex: '^line_terminator$' }
+    - has: { field: value, pattern: $V }
+  inside: { kind: argument_list, inside: { kind: call, has: { field: function, regex: '\.to_csv$' } } }
+fix: lineterminator=$V
+metadata: { fix: safe }
+---
+id: removed-in-pandas-3
+language: python
+severity: error
+message: to_excel no longer takes encoding and raises TypeError on pandas 3. Drop the argument.
+rule:
+  kind: keyword_argument
+  has: { field: name, regex: '^encoding$' }
+  inside: { kind: argument_list, inside: { kind: call, has: { field: function, regex: '\.to_excel$' } } }
+---
+id: removed-in-pandas-3
+language: python
+severity: error
+message: The separator is keyword-only and a second positional argument raises TypeError on pandas 3. Write sep=$SEP.
+rule:
+  pattern: $PD.$R($P, $SEP)
+constraints:
+  PD: { regex: '^(pd|pandas)$' }
+  R: { regex: '^read_(csv|table)$' }
+  SEP: { kind: string }
+fix: $PD.$R($P, sep=$SEP)
+metadata: { fix: safe }
+---
+id: removed-in-pandas-3
+language: python
+severity: error
+message: to_csv takes only the path by position and a second positional argument raises TypeError on pandas 3. Write sep=$SEP.
+rule:
+  pattern: $DF.to_csv($P, $SEP)
+constraints:
+  SEP: { kind: string }
+fix: $DF.to_csv($P, sep=$SEP)
+metadata: { fix: safe }
+---
+id: removed-in-pandas-3
+language: python
+severity: error
+message: ExcelWriter.save was removed and raises AttributeError on pandas 3. Call close, or open the writer in a with block.
+rule:
+  pattern: $W.save()
+constraints:
+  W: { regex: '(?i)writer' }
+fix: $W.close()
+metadata: { fix: unsafe }
+---
+id: removed-in-pandas-3
+language: python
+severity: error
+message: pd.value_counts was removed and raises AttributeError on pandas 3. Call value_counts on a Series.
+rule:
+  pattern: $PD.value_counts($X)
+constraints:
+  PD: { regex: '^(pd|pandas)$' }
+fix: $PD.Series($X).value_counts()
+metadata: { fix: unsafe }
+---
+id: removed-in-pandas-3
+language: python
+severity: error
+message: is_monotonic was removed and raises AttributeError on pandas 3. Write is_monotonic_increasing.
+rule:
+  pattern: $X.is_monotonic
+  not: { inside: { kind: call, field: function } }
+fix: $X.is_monotonic_increasing
+metadata: { fix: safe }
+---
+id: removed-in-pandas-3
+language: python
+severity: error
+message: mad, as_matrix and ix were removed and raise AttributeError on pandas 3. Write (s - s.mean()).abs().mean(), to_numpy() or .loc.
+rule:
+  any:
+    - pattern: $X.mad()
+    - pattern: $X.as_matrix($$$A)
+    - pattern: $X.ix[$$$A]
+---
+id: removed-in-pandas-3
+language: python
+severity: error
+message: pd.np was removed and raises AttributeError on pandas 3. Import numpy and write np.$A.
+rule:
+  pattern: $PD.np.$A
+constraints:
+  PD: { regex: '^(pd|pandas)$' }
+fix: np.$A
+metadata: { fix: safe }
+---
+id: removed-in-pandas-3
+language: python
+severity: error
+message: This name was removed and raises AttributeError on pandas 3.
+rule:
+  any:
+    - pattern: $PD.datetime
+    - pattern: $PD.Int64Index
+    - pattern: $PD.UInt64Index
+    - pattern: $PD.Float64Index
+    - pattern: $PD.errors.SettingWithCopyWarning
+    - pattern: $PD.core.common.SettingWithCopyWarning
+constraints:
+  PD: { regex: '^(pd|pandas)$' }
+---
+id: removed-in-pandas-3
+language: python
+severity: error
+message: pd.io.json.json_normalize was removed and raises AttributeError on pandas 3. Write pd.json_normalize.
+rule:
+  pattern: $PD.io.json.json_normalize
+constraints:
+  PD: { regex: '^(pd|pandas)$' }
+fix: $PD.json_normalize
+metadata: { fix: safe }
+---
+id: removed-in-pandas-3
+language: python
+severity: error
+message: This import raises on pandas 3, where the name no longer exists.
+rule:
+  any:
+    - kind: import_from_statement
+      regex: '^from\s+pandas(\.errors|\.core\.common)\s+import\b[^#]*\bSettingWithCopyWarning\b'
+    - kind: import_from_statement
+      regex: '^from\s+pandas\.io\.json\s+import\b[^#]*\bjson_normalize\b'
+    - kind: import_from_statement
+      regex: '^from\s+pandas\.util(\.testing)?\s+import\b[^#]*\btesting\b|^from\s+pandas\.util\.testing\s+import'
+    - kind: import_statement
+      regex: '^import\s+pandas\.util\.testing\b'
+---
+id: removed-in-pandas-3
+language: python
+severity: error
+message: The option mode.use_inf_as_na was removed and raises OptionError on pandas 3. Replace the infinities, as in df.replace([np.inf, -np.inf], np.nan).
+rule:
+  any:
+    - pattern: $PD.set_option($OPT, $$$V)
+    - pattern: $PD.option_context($OPT, $$$V)
+    - pattern: $PD.options.mode.use_inf_as_na = $VALUE
+constraints:
+  PD: { regex: '^(pd|pandas)$' }
+  OPT: { regex: 'use_inf_as_na' }
+---
+id: removed-in-pandas-3
+language: python
+severity: error
+message: errors="ignore" was removed from to_numeric and raises ValueError on pandas 3. Pass errors="coerce", or catch the error yourself.
+rule:
+  pattern: $PD.to_numeric($$$A)
+  has: { field: arguments, has: { kind: keyword_argument, regex: '^errors\s*=\s*["'']ignore["'']$' } }
+constraints:
+  PD: { regex: '^(pd|pandas)$' }
+---
+id: removed-in-pandas-3
+language: python
+severity: error
+message: This method was removed and raises AttributeError on pandas 3. Write shift(freq=...) for tshift, ffill() for pad, items() for iteritems, is_monotonic_increasing for is_lexsorted, and a .loc slice for first and last with an offset.
+rule:
+  any:
+    - pattern: $X.tshift($$$A)
+    - pattern: $X.pad()
+    - pattern: $X.iteritems()
+    - pattern: $X.is_lexsorted()
+    - pattern: $X.lexsort_depth
+    - pattern: $X.first($OFFSET)
+    - pattern: $X.last($OFFSET)
+constraints:
+  OFFSET: { kind: string }
+  # np.pad and .str.pad take arguments, and this form takes none, but a name is cheap to check.
+  X: { not: { regex: '(^(np|numpy)$|\.str$)' } }
+---
+id: removed-in-pandas-3
+language: python
+severity: error
+message: resample no longer takes this argument and raises TypeError on pandas 3.
+rule:
+  kind: keyword_argument
+  has: { field: name, regex: '^(loffset|base|kind)$' }
+  inside: { kind: argument_list, inside: { kind: call, has: { field: function, regex: '\.resample$' } } }
+---
+id: removed-in-pandas-3
+language: python
+severity: error
+message: This argument was removed and raises on pandas 3.
+rule:
+  any:
+    - kind: keyword_argument
+      has: { field: name, regex: '^closed$' }
+      inside: { kind: argument_list, inside: { kind: call, has: { field: function, regex: '(^|\.)(date_range|bdate_range)$' } } }
+    - kind: keyword_argument
+      has: { field: name, regex: '^infer_datetime_format$' }
+      inside: { kind: argument_list, inside: { kind: call, has: { field: function, regex: '(^|\.)to_datetime$' } } }
+    - kind: keyword_argument
+      regex: '^errors\s*=\s*["'']ignore["'']$'
+      inside: { kind: argument_list, inside: { kind: call, has: { field: function, regex: '(^|\.)to_datetime$' } } }
+    - kind: keyword_argument
+      has: { field: name, regex: '^date_parser$' }
+      inside: { kind: argument_list, inside: { kind: call, has: { field: function, regex: '(^|\.)read_(csv|table|excel)$' } } }
+    - kind: keyword_argument
+      regex: '^fill_method\s*=\s*["''](pad|ffill|bfill|backfill)["'']$'
+      inside: { kind: argument_list, inside: { kind: call, has: { field: function, regex: '\.pct_change$' } } }
+---
+id: removed-in-pandas-3
+language: python
+severity: error
+message: The unit "T" was removed from Timedelta text and raises ValueError on pandas 3. Write "min".
+rule:
+  any:
+    - pattern: $PD.Timedelta($TEXT)
+    - pattern: $PD.to_timedelta($TEXT)
+constraints:
+  PD: { regex: '^(pd|pandas)$' }
+  TEXT: { kind: string, regex: '^["'']\s*\d+\s*T["'']$' }
+---
+id: removed-in-pandas-3
+language: python
+severity: error
+message: A cast to a day unit raises TypeError on pandas 3. Call .dt.days on a timedelta column or .dt.normalize() on a datetime column.
+rule:
+  pattern: $X.astype($T)
+constraints:
+  T: { regex: '^["''](timedelta64|datetime64)\[D\]["'']$' }
+---
+id: removed-in-pandas-3
+language: python
+severity: error
+message: groupby no longer takes axis and raises TypeError on pandas 3. Transpose first, as in df.T.groupby(level=0).sum().T.
+rule:
+  kind: keyword_argument
+  regex: '^axis\s*=\s*(1|["'']columns["''])$'
+  inside: { kind: argument_list, inside: { kind: call, has: { field: function, regex: '\.groupby$' } } }

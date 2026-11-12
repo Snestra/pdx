@@ -1,8 +1,8 @@
 # pdx
 
 pdx is a fast, opinionated linter for Python library habits that make code slow or wrong,
-starting with pandas. Each library gets one set of rules, written for its current version. It
-fixes what it can, and it is built to run after every edit a coding agent makes.
+starting with pandas and scikit-learn. Each library gets one set of rules, written for its current
+version. It fixes what it can, and it is built to run after every edit a coding agent makes.
 
 ```console
 $ pdx check samples/bad.py

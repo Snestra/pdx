@@ -1,5 +1,8 @@
 # Rules
 
+pdx has two rule packs: [pandas](#pandas) and [scikit-learn](#scikit-learn). A pack's rules run only on
+files that import its library.
+
 ## pandas
 
 Every rule below has a direct heading link, its severity, fix safety, and before and after code.
@@ -23,9 +26,9 @@ Each old form gives a wrong result, raises, or warns on pandas 3.0 and 3.1.
 
 #### chained-assignment
 
-**Severity:** error. **Fix:** unsafe: `df.loc[i, "a"] = v`.
+**Severity:** error. **Fix:** unsafe: `df.loc[i, "a"] = v`. A write through `.iloc` or `.iat` on a column, and `update` on a column, have no fix.
 
-Reports `df["a"][i] = v`, `df[mask]["a"] = v` and `df.loc[mask]["a"] = v`, which write to a copy.
+Reports `df["a"][i] = v`, `df[mask]["a"] = v`, `df.loc[mask]["a"] = v`, `df.a[mask] = v`, `df["a"].iloc[0] = v` and `df["a"].update(other)`, which write to a copy.
 
 Example:
 
@@ -97,7 +100,7 @@ df = df.dropna()
 
 **Severity:** error. **Fix:** none.
 
-Reports `df["d"].astype("int64") // 10**9`, which is off by 1,000 now that datetimes default to microseconds.
+Reports `df["d"].astype("int64") // 10**9`, `index.asi8 // 10**9` and `df["d"].values.astype("float64") / 1e9`, which are off by 1,000 now that datetimes default to microseconds.
 
 Example:
 
@@ -119,7 +122,7 @@ The replacement is advice. pdx does not apply it automatically.
 
 **Severity:** error. **Fix:** unsafe: `df["b"].isna()`.
 
-Reports `df["b"] == np.nan` and `df["k"].astype(str) == "nan"`, which are never true.
+Reports `df["b"] == np.nan`, `df["k"].astype(str) == "nan"` and `df[df["b"] == None]`, which are never true.
 
 Example:
 
@@ -193,9 +196,9 @@ The replacement is advice. pdx does not apply it automatically.
 
 #### object-dtype-check
 
-**Severity:** error. **Fix:** unsafe: `pd.api.types.is_string_dtype(df["k"])`.
+**Severity:** error. **Fix:** unsafe: `pd.api.types.is_string_dtype(df["k"])`. `is_object_dtype`, a test with `in`, `dtype.name` and `select_dtypes("object")` by position have no fix.
 
-Reports `df["k"].dtype == object` and `select_dtypes(include="object")`, which miss the new str dtype.
+Reports `df["k"].dtype == object`, `select_dtypes(include="object")`, `is_object_dtype(df["k"])`, `df["k"].dtype in ("object", "category")` and `df["k"].dtype.name == "object"`, which miss the new str dtype.
 
 Example:
 
@@ -233,9 +236,9 @@ The replacement is advice. pdx does not apply it automatically.
 
 #### removed-in-pandas-3
 
-**Severity:** error. **Fix:** safe: `map`, `ffill()`, `"ME"`, `"h"`, `"min"`, `sep=r"\s+"`. unsafe: `"M"` in `resample`, `dt.isocalendar().week`.
+**Severity:** error. **Fix:** safe: `map`, `ffill()`, `"ME"`, `"h"`, `"min"`, `sep=r"\s+"`, `lineterminator=`, `sep=` for a separator passed by position, `is_monotonic_increasing`, `np.` for `pd.np.` and `pd.json_normalize`. unsafe: `"M"` in `resample`, `dt.isocalendar().week`, `writer.close()` and `pd.Series(x).value_counts()`. The other forms have no fix.
 
-Reports `applymap`, `fillna(method=)`, frequencies such as `"M"`, `"H"` and `"T"`, `delim_whitespace=True` and `dt.week`.
+Reports `applymap`, `fillna(method=)`, frequencies such as `"M"`, `"H"` and `"T"`, `delim_whitespace=True`, `dt.week`, and the removed arguments and names listed below.
 
 Example:
 
@@ -315,6 +318,44 @@ The example assumes parts is not empty. For single rows, collect them in a list 
 
 The replacement is advice. pdx does not apply it automatically.
 
+#### str-replace-regex-default
+
+**Severity:** error. **Fix:** unsafe: `regex=True`.
+
+Reports `df["s"].str.replace(r"\d+", "")`, which replaces nothing, because `str.replace` reads its pattern as plain text since pandas 2.0.
+
+Example:
+
+```python
+digits = df["phone"].str.replace(r"\D", "")
+```
+
+Use instead:
+
+```python
+digits = df["phone"].str.replace(r"\D", "", regex=True)
+```
+
+#### positional-key-on-labels
+
+**Severity:** error. **Fix:** unsafe: `.iloc[0]`.
+
+Reports `df["k"].value_counts()[0]` and `df.iloc[0][0]`, which raise KeyError, because an integer key on a Series is a label on pandas 3.
+
+Example:
+
+```python
+top = df["region"].value_counts()[0]
+first = df.iloc[0][0]
+```
+
+Use instead:
+
+```python
+top = df["region"].value_counts().iloc[0]
+first = df.iloc[0, 0]
+```
+
 #### deprecated-in-pandas-3
 
 **Severity:** warning. **Fix:** safe: delete the line, drop `copy=`, `pd.Timestamp.now("UTC")`. unsafe: drop `copy=` from `astype`.
@@ -333,6 +374,37 @@ Use instead:
 now = pd.Timestamp.now("UTC")
 ```
 
+
+`removed-in-pandas-3` also reports these, each of which raises on pandas 3.1:
+
+- Arguments of `read_csv`: `error_bad_lines`, `warn_bad_lines`, `squeeze`, `verbose`, `keep_date_col`,
+  `infer_datetime_format`, `mangle_dupe_cols`, `prefix`, `date_parser`, and a separator passed by position.
+  For bad lines, pass `on_bad_lines="skip"`.
+- Writing: `to_csv(line_terminator=)`, a separator passed to `to_csv` by position, `to_excel(encoding=)`,
+  `read_excel(squeeze=)` and `writer.save()` on a name that holds the word writer.
+- Names: `pd.value_counts`, `is_monotonic`, `mad`, `as_matrix`, `ix`, `pd.np`, `pd.datetime`,
+  `pd.Int64Index`, `pd.UInt64Index`, `pd.Float64Index`, `pd.io.json.json_normalize`, `pandas.util.testing`,
+  `SettingWithCopyWarning`, the option `mode.use_inf_as_na` and `pd.to_numeric(errors="ignore")`.
+- Time series: `tshift`, `pad()`, `first("3D")` and `last("3D")`, `resample(loffset=, base=, kind=)`,
+  `date_range(closed=)`, `to_datetime(infer_datetime_format=)` and `to_datetime(errors="ignore")`,
+  `pct_change(fill_method="pad")`, `pd.Timedelta("5T")`, and `astype("timedelta64[D]")`.
+- `iteritems()`, `is_lexsorted()`, `lexsort_depth` and `groupby(axis=1)`.
+
+The `writer.close()` fix is unsafe, because pdx knows the writer only by its name. `DataFrame.lookup`
+was removed too and is not reported, because other libraries have a method of that name.
+
+The new `chained-assignment` shapes: `df.a[mask] = v` is reported when the mask reads the same
+frame, which tells it from `self.items[i > 3] = v`. `df["a"].update(other)` is reported only on a name such as `df` or
+`frame`, because `state["seen"].update(extra)` is how a dict of dicts is updated. `compare-to-missing` reports `None` only
+inside a subscript, because `config["mode"] == None` on a dict is valid Python. `object-dtype-check`
+leaves `dtype.kind == "O"` alone, which is still true for a text column.
+
+`str-replace-regex-default` reports only a pattern that cannot be meant as plain text: a class such
+as `\d`, a set in brackets, `.*` or `.+`, a `^` at the start, or `a|b`. It leaves `"."`, `"$"` and
+`"("` alone. Its fix is unsafe, because a set in brackets can be meant as text.
+`positional-key-on-labels` reports `value_counts()[0]`, `df.iloc[i][0]`, `df.dtypes[0]` and a frame
+reduction such as `df.isna().sum()[0]`. Its fix is unsafe: on labels that are whole numbers the old
+form still works, and there `value_counts()[0]` is the count of the value 0. The frame reductions have no fix.
 
 The `reduction-level-argument` fix applies when `level=` is the only argument, and it is unsafe
 because the old form does not run on pandas 3, so the two cannot be compared. `stack-dropna` has no
@@ -700,6 +772,86 @@ Use instead:
 part = df[["load", "wind"]]
 ```
 
+#### lookup-per-row
+
+**Severity:** warning. **Fix:** unsafe: `df["k"].map(table["v"])`. A lookup through a mask has no fix.
+
+Reports `df["k"].apply(lambda key: table.loc[key, "v"])` and `lambda key: table[table["k"] == key]["v"].iloc[0]`, which read another frame once per row.
+
+Example:
+
+```python
+df["price"] = df["item"].apply(lambda item: prices.loc[item, "price"])
+```
+
+Use instead:
+
+```python
+df["price"] = df["item"].map(prices["price"])
+```
+
+#### apply-recomputes-aggregate
+
+**Severity:** warning. **Fix:** none.
+
+Reports `df["b"].apply(lambda v: v - df["b"].mean())`, which computes the mean of the whole column again for every row.
+
+Example:
+
+```python
+centered = df["load"].apply(lambda value: value - df["load"].mean())
+```
+
+Use instead:
+
+```python
+centered = df["load"] - df["load"].mean()
+```
+
+The replacement is advice. pdx does not apply it automatically.
+
+#### enumerate-map-encoding
+
+**Severity:** warning. **Fix:** none.
+
+Reports `df["k"].map({v: i for i, v in enumerate(df["k"].unique())})`, a dict of codes built by hand.
+
+Example:
+
+```python
+codes = df["region"].map({name: code for code, name in enumerate(df["region"].unique())})
+```
+
+Use instead:
+
+```python
+codes = pd.factorize(df["region"])[0]
+```
+
+factorize numbers the values in the order they first appear, as the dict does. It returns a NumPy array, and it gives a missing value the code -1 where the dict gave it a code of its own. Pass `sort=True` for the order of `sorted`.
+
+The replacement is advice. pdx does not apply it automatically.
+
+#### copy-in-chain
+
+**Severity:** warning. **Fix:** safe: drop `.copy()`.
+
+Reports `df.copy().rename(...)` and `df.rename(...).copy()`, also with `assign`, `reset_index`, `set_index`, `astype`, `fillna`, `drop(columns=)` and `pd.concat`.
+
+Example:
+
+```python
+clean = df.copy().rename(columns=names)
+tidy = df.reset_index(drop=True).copy()
+```
+
+Use instead:
+
+```python
+clean = df.rename(columns=names)
+tidy = df.reset_index(drop=True)
+```
+
 #### row-loop
 
 **Severity:** warning. **Fix:** none.
@@ -726,7 +878,7 @@ The replacement is advice. pdx does not apply it automatically.
 
 **Severity:** warning. **Fix:** none.
 
-Reports `df.apply(f, axis=1)`.
+Reports `df.apply(f, axis=1)`, and `agg` and `transform` with `axis=1` and a lambda or a `"_".join`.
 
 Example:
 
@@ -820,9 +972,9 @@ scaled = df["load"] * 2 + 1
 
 #### builtin-on-column
 
-**Severity:** warning. **Fix:** unsafe: `df["a"].sum()`, `df["k"].nunique()`.
+**Severity:** warning. **Fix:** unsafe: `df["a"].sum()`, `df["k"].nunique()`, `(df["a"] > 50).sum()`, `set(df["k"].unique())`, `df["a"].tolist()`, `df["a"].to_numpy()`. `Counter` has no fix.
 
-Reports `sum(df["a"])` and `len(set(df["k"]))`.
+Reports `sum(df["a"])`, `len(set(df["k"]))`, `sum(df["a"] > 50)`, `set(df["k"])`, `Counter(df["k"])`, `list(df["a"])` and `np.array(df["a"].tolist())`.
 
 Example:
 
@@ -840,7 +992,7 @@ total = df["load"].sum()
 
 **Severity:** warning. **Fix:** none.
 
-Reports `[v.upper() for v in df["s"]]`.
+Reports `[v.upper() for v in df["s"]]`, and a `for` loop over a column that appends to a list.
 
 Example:
 
@@ -900,9 +1052,9 @@ count = int((df["load"] > 50).sum())
 
 #### sort-then-head
 
-**Severity:** warning. **Fix:** unsafe: `df.nsmallest(10, "b")`, `df.iloc[df["b"].argmin()]`.
+**Severity:** warning. **Fix:** unsafe: `df.nsmallest(10, "b")`, `df.iloc[df["b"].argmin()]`, `df["b"].min()`, `df["b"].max()`, `df["b"].idxmin()`. The last rows of a frame, `iloc[-1]` on a sorted column and `sorted(df["b"])[0]` have no fix.
 
-Reports `df.sort_values("b").head(10)` and `df.sort_values("b").iloc[0]`.
+Reports `df.sort_values("b").head(10)`, `df.sort_values("b").iloc[0]`, `df["b"].sort_values().iloc[0]`, `df.sort_values("b").tail(10)` and `sorted(df["b"])[0]`.
 
 Example:
 
@@ -1104,6 +1256,26 @@ Keep the result as a Series when the next step takes one. Use tolist only at a b
 
 The replacement is advice. pdx does not apply it automatically.
 
+On 1,000,000 rows `map` with a Series ran 50 to 64 times faster than the `.loc` lambda of
+`lookup-per-row`, measured on 100,000 rows, and 777 to 848 times faster than the mask form, measured
+on 20,000. Its fix is unsafe, because a key that is absent gives a missing value where the lambda
+raised. `apply-recomputes-aggregate` grows with the square of the row count: 20,000 rows took 0.34
+seconds against 0.2 milliseconds. It reports a reduction of a column taken by a text label, and
+leaves `lambda v: v["scores"].mean()` alone, which reads the row's own value.
+`enumerate-map-encoding` was 7 to 17 times slower than `pd.factorize`. `copy-in-chain` names only
+methods that return a new frame at once: each copy cost 4 to 10 milliseconds on 6 columns, and
+dropping it was 3 to 118 times faster. A copy next to a slow method such as `sort_values` or `merge`
+is as wasted and is not reported, because it gained under 2 times. `df.copy().pipe(f)` is left
+alone, because `f` may write to its argument.
+
+The `apply-axis-1` shapes with `agg` and `transform` were 327 to 2,735 times slower than whole
+columns on 100,000 rows. A named method, as in `agg("sum", axis=1)`, is left alone. The new
+`builtin-on-column` shapes were 2.6 to 483 times slower, and `list` and `set` can report a dict of
+lists, such as `list(config["names"])`, because pdx cannot tell it from a frame. The `for` loop of
+`list-over-column` was 13 to 19 times slower. `sort-then-head` reports `sort_values().iloc[-1]`
+without a fix, because the sort puts missing values last, so the old form returns NaN where `max()`
+skips them. Its `idxmin` fix can name another row when the lowest value appears twice.
+
 `apply-known-function` reports only a column taken by a text label, because on a frame `apply`
 works per column. Its `pd.to_datetime` fix is unsafe, because a call per value parses each text
 on its own, and the whole column must share one format. The `isna` fix is unsafe, because on a
@@ -1139,9 +1311,9 @@ value is missing. `replace-with-mapping` asks for
 
 #### groupby-lambda
 
-**Severity:** warning. **Fix:** safe: `"max"` for min, max, median, count and nunique. unsafe: `"sum"`, `"mean"`.
+**Severity:** warning. **Fix:** safe: `"max"` for min, max, median, count and nunique. unsafe: `"sum"`, `"mean"`. A reduction with arguments, a count of a condition and `resample` have no fix.
 
-Reports `g["b"].agg(lambda v: v.max())`, `g.agg(np.sum)` and `pivot_table(aggfunc=np.mean)`.
+Reports `g["b"].agg(lambda v: v.max())`, `g.agg(np.sum)`, `pivot_table(aggfunc=np.mean)`, `g.agg(lambda v: v.quantile(0.9))`, `g.agg(lambda v: (v > 0).sum())` and a lambda or NumPy function on `resample`.
 
 Example:
 
@@ -1175,7 +1347,12 @@ previous = df.groupby("region")["load"].shift(1)
 
 
 `groupby-lambda` leaves a lambda inside a list alone, because the result column would get a new
-name. It also leaves `np.median`, `np.std` and `np.var` alone, because they treat missing values
+name. For `g.agg(lambda v: v.quantile(0.9))` write `g.quantile(0.9)`, which was 4.8 times faster
+with 1,000 groups and 345 times with 100,000. For a count of a condition write
+`(df["b"] > 0).groupby(df["k"]).sum()`. On a resampler the named method was 3.4 to 82 times faster.
+The `groupby-lambda-arithmetic` shapes `v - v.mean()` and `v / v.max()` were 6 times slower than
+`transform` with a name with 1,000 groups and 390 times slower with 100,000. Min-max scaling has no
+fix. It also leaves `np.median`, `np.std` and `np.var` alone, because they treat missing values
 and degrees of freedom differently from the named methods. The fixes for sum, mean, std, var, prod,
 cumsum and cumprod are unsafe, because pandas adds up each group with compensated summation. On
 values such as 1e16, 1, 1 and -1e16 the sum changes from 0 to 2. `groupby-lambda-window` leaves
@@ -1185,7 +1362,7 @@ values such as 1e16, 1, 1 and -1e16 the sum changes from 0 to 2. `groupby-lambda
 
 **Severity:** warning. **Fix:** unsafe: `df["w"] / df.groupby("k")["w"].transform("sum")`.
 
-Reports `g["w"].transform(lambda v: v / v.sum())`, the z-score and `v.fillna(v.mean())`.
+Reports `g["w"].transform(lambda v: v / v.sum())`, `v - v.mean()`, `v / v.max()`, the z-score, min-max scaling and `v.fillna(v.mean())`.
 
 Example:
 
@@ -1341,9 +1518,9 @@ Index. On 1,000,000 rows `from_arrays` ran 27 times faster than `from_tuples` ov
 
 #### rolling-apply
 
-**Severity:** warning. **Fix:** safe: `rolling(20).max()` for min, max and median. unsafe: sum, mean, std and var. The `raw=True` case has no fix.
+**Severity:** warning. **Fix:** safe: `rolling(20).max()` for min, max and median. unsafe: sum, mean, std and var. The `raw=True` case and a NumPy function have no fix.
 
-Reports `rolling(20).apply(lambda w: w.max())`, and `rolling(20).apply(f)` without `raw=True`.
+Reports `rolling(20).apply(lambda w: w.max())`, `rolling(20).apply(f)` without `raw=True`, `rolling(20).agg(np.max)` and `rolling(20).apply(np.mean, raw=True)`.
 
 Example:
 
@@ -1419,6 +1596,64 @@ Use instead:
 next_week = df["time"] + pd.Timedelta(days=7)
 ```
 
+#### strftime-date-part
+
+**Severity:** warning. **Fix:** unsafe: `df["d"].dt.year`, `df["d"].dt.day_name()`.
+
+Reports `df["d"].dt.strftime("%Y").astype(int)`, the same with `%m`, `%H` and `%j`, and `dt.strftime("%A")` and `"%B"`.
+
+Example:
+
+```python
+year = df["time"].dt.strftime("%Y").astype(int)
+weekday = df["time"].dt.strftime("%A")
+```
+
+Use instead:
+
+```python
+year = df["time"].dt.year
+weekday = df["time"].dt.day_name()
+```
+
+#### apply-date-expression
+
+**Severity:** warning. **Fix:** none.
+
+Reports `df["d"].apply(lambda t: t.weekday() >= 5)` and `lambda t: t.hour * 60 + t.minute`, a lambda that compares a date part or computes with parts.
+
+Example:
+
+```python
+weekend = df["time"].apply(lambda time: time.weekday() >= 5)
+```
+
+Use instead:
+
+```python
+weekend = df["time"].dt.weekday >= 5
+```
+
+The replacement is advice. pdx does not apply it automatically.
+
+#### strftime-round-trip
+
+**Severity:** warning. **Fix:** unsafe: `df["d"].dt.normalize()`, `df["d"].dt.floor("h")`. The comparison has no fix.
+
+Reports `pd.to_datetime(df["d"].dt.strftime("%Y-%m-%d"))` and `df["d"].dt.strftime("%Y-%m-%d") == "2023-06-01"`, which turn dates into text to drop the time.
+
+Example:
+
+```python
+day = pd.to_datetime(df["time"].dt.strftime("%Y-%m-%d"))
+```
+
+Use instead:
+
+```python
+day = df["time"].dt.normalize()
+```
+
 #### index-year-mask
 
 **Severity:** warning. **Fix:** none.
@@ -1443,9 +1678,9 @@ The replacement is advice. pdx does not apply it automatically.
 
 #### apply-date-method
 
-**Severity:** warning. **Fix:** unsafe: `df["d"].dt.floor("h")`, `df["d"].dt.weekday`.
+**Severity:** warning. **Fix:** unsafe: `df["d"].dt.floor("h")`, `df["d"].dt.weekday`, `df["d"].dt.date`, `df["d"].dt.isocalendar().week`. `timestamp` and `toordinal` have no fix.
 
-Reports `df["d"].apply(lambda t: t.floor("h"))`, and the same with `ceil`, `normalize`, `tz_localize`, `tz_convert`, `day_name`, `month_name`, `to_period`, `total_seconds` and `weekday`.
+Reports `df["d"].apply(lambda t: t.floor("h"))`, and the same with `ceil`, `normalize`, `tz_localize`, `tz_convert`, `day_name`, `month_name`, `to_period`, `total_seconds`, `weekday`, `date`, `isocalendar`, `timestamp` and `toordinal`.
 
 Example:
 
@@ -1503,6 +1738,15 @@ window method the message names `raw=True` and `engine="numba"`. `apply-on-dates
 `df["d"] - pd.to_timedelta(df["d"].dt.day - 1, unit="D")` for `replace(day=1)`, which keeps the
 time of day. Its fixes are unsafe, because a missing date gives a missing result where the
 lambda raised.
+
+`strftime-date-part` was 33 to 198 times slower than the part on 1,000,000 rows. Its fixes are
+unsafe: a part is int32 where `astype(int)` gave int64, and `day_name` is English where `strftime`
+follows the locale. `apply-date-expression` was 22 to 94 times slower. It has no fix, because the
+rewrite depends on the operator. `strftime-round-trip` was 18 to 202 times slower. Its fix is
+unsafe, because on dates with a time zone the round trip drops the zone. For `timestamp` in a
+lambda write `(df["d"] - pd.Timestamp("1970-01-01")) / pd.Timedelta("1s")`, which was 229 times
+faster. `isocalendar().week` is UInt32 where the lambda gave int64. `rolling(60).agg(np.max)` was
+1,031 times slower than `rolling(60).max()` on 200,000 rows.
 
 The `apply-date-method` fix is unsafe, because the dtype can change: `dt.weekday` is int32 where
 the lambda gave int64. It leaves `round` alone, because `lambda v: v.round(2)` is more often a
@@ -1581,13 +1825,13 @@ df.to_csv(path, index=False)
 The replacement is advice. pdx does not apply it automatically.
 
 
-### Reading files
+### Reading and writing files
 
 #### read-csv-slow-option
 
 **Severity:** warning. **Fix:** none.
 
-Reports `read_csv(..., engine="python")` and `low_memory=False`, which turn off reading on several threads.
+Reports `read_csv(..., engine="python")`, `sep=None` and `low_memory=False`, which turn off reading on several threads.
 
 Example:
 
@@ -1606,8 +1850,96 @@ The example needs no Python-engine-only options. Keep engine="python" when the s
 The replacement is advice. pdx does not apply it automatically.
 
 
+
+#### read-then-head
+
+**Severity:** warning. **Fix:** unsafe: `nrows=1000`.
+
+Reports `pd.read_csv(path).head(1000)` and `.iloc[:1000]`, which parse the whole file to keep the first rows.
+
+Example:
+
+```python
+sample = pd.read_csv(path).head(1000)
+```
+
+Use instead:
+
+```python
+sample = pd.read_csv(path, nrows=1000)
+```
+
+#### read-csv-converters
+
+**Severity:** warning. **Fix:** none.
+
+Reports `read_csv(..., converters=...)`, which calls a Python function once per value.
+
+Example:
+
+```python
+df = pd.read_csv(path, converters={"price": float, "name": str.strip})
+```
+
+Use instead:
+
+```python
+df = pd.read_csv(path, dtype={"price": float})
+df["name"] = df["name"].str.strip()
+```
+
+The replacement is advice. pdx does not apply it automatically.
+
+#### read-json-lines-engine
+
+**Severity:** warning. **Fix:** unsafe: `engine="pyarrow"`. The `json.loads` loop has no fix.
+
+Reports `pd.read_json(path, lines=True)` without an engine, and `pd.DataFrame([json.loads(line) for line in f])`.
+
+Example:
+
+```python
+df = pd.read_json(path, lines=True)
+```
+
+Use instead:
+
+```python
+df = pd.read_json(path, lines=True, engine="pyarrow")
+```
+
+#### to-csv-append-header
+
+**Severity:** error. **Fix:** none.
+
+Reports `df.to_csv(path, mode="a")` without `header=`, which writes the header again on every call.
+
+Example:
+
+```python
+for part in parts:
+    part.to_csv(path, mode="a", index=False)
+```
+
+Use instead:
+
+```python
+for part in parts:
+    part.to_csv(path, mode="a", index=False, header=not os.path.exists(path))
+```
+
+The repeated header rows are read back as data, so every number in the file comes back as text.
+
+The replacement is advice. pdx does not apply it automatically.
+
 `read-csv-slow-option` leaves `engine="python"` alone when the call needs it, for `skipfooter` or
-a separator of several characters other than `\s+`.
+a separator of several characters other than `\s+`. `sep=None` was 54 times slower than a named
+separator on 1,000,000 rows. `nrows` was 58 times faster than `head`. Its fix is unsafe, because
+pandas guesses the dtypes from the rows it reads. `converters` was 3.9 to 7.8 times slower than
+`dtype` or a column method after the read. `read_json` with the pyarrow engine was 18 times faster,
+and 27 times faster than the `json.loads` loop. Its fix is unsafe, because pyarrow can pick another
+dtype for a column. A call that reads from a `StringIO` is left alone, because the pyarrow engine
+raises on a text buffer.
 
 ### Packages
 
@@ -1669,6 +2001,220 @@ A project uses a type checker when the venv has it or `pyproject.toml` has a `[t
 table for it. numexpr and numba have no check. numexpr changed little in measurements, and numba
 only helps a function passed to `rolling(...).apply`, where the `rolling-apply` message names it.
 
+## scikit-learn
+
+These rules run on files that import `sklearn`. Each old form gives a wrong or leaked score, or a
+score that changes from run to run. Speed plays no part. The numbers are means of 30 seeds on
+scikit-learn 1.9.1. On data with no signal, an honest accuracy is 0.5.
+
+Several of these rules read the names of variables, such as `X_test` and `y_pred`, because that
+is all a pattern can see. A name that misleads gives a wrong report.
+
+### Leakage
+
+#### fit-on-test
+
+**Severity:** error. **Fix:** unsafe: `scaler.transform(X_test)`. `fit` on test data has no fix.
+
+Reports `scaler.fit_transform(X_test)` and `model.fit(X_test, y_test)`, which learn from the test rows.
+
+Example:
+
+```python
+X_train = scaler.fit_transform(X_train)
+X_test = scaler.fit_transform(X_test)
+```
+
+Use instead:
+
+```python
+X_train = scaler.fit_transform(X_train)
+X_test = scaler.transform(X_test)
+```
+
+#### fit-before-split
+
+**Severity:** error. **Fix:** none.
+
+Reports `X = selector.fit_transform(X, y)` followed by `train_test_split(X, y)`, and `fit_resample` before the split.
+
+Example:
+
+```python
+X = selector.fit_transform(X, y)
+X_train, X_test, y_train, y_test = train_test_split(X, y, random_state=0)
+```
+
+Use instead:
+
+```python
+X_train, X_test, y_train, y_test = train_test_split(X, y, random_state=0)
+X_train = selector.fit_transform(X_train, y_train)
+X_test = selector.transform(X_test)
+```
+
+The replacement is advice. pdx does not apply it automatically.
+
+#### cross-val-on-fitted-data
+
+**Severity:** error. **Fix:** none.
+
+Reports `cross_val_score(model, scaler.fit_transform(X), y)`, and a fitted result passed to it from an earlier line.
+
+Example:
+
+```python
+X_picked = selector.fit_transform(X, y)
+scores = cross_val_score(model, X_picked, y, cv=5)
+```
+
+Use instead:
+
+```python
+pipeline = make_pipeline(selector, model)
+scores = cross_val_score(pipeline, X, y, cv=5)
+```
+
+The replacement is advice. pdx does not apply it automatically.
+
+#### get-dummies-on-test
+
+**Severity:** error. **Fix:** none.
+
+Reports `pd.get_dummies(X_test)`, which makes one column per value in the test rows.
+
+Example:
+
+```python
+X_train = pd.get_dummies(X_train)
+X_test = pd.get_dummies(X_test)
+```
+
+Use instead:
+
+```python
+encoder = OneHotEncoder(handle_unknown="ignore")
+X_train = encoder.fit_transform(X_train)
+X_test = encoder.transform(X_test)
+```
+
+The replacement is advice. pdx does not apply it automatically.
+
+
+`fit-on-test` reads the first argument's name: `test`, `val`, `valid`, `validation` or `holdout`
+for `fit_transform`, and `test` only for `fit`, because a fit on a validation set can be meant, as
+in probability calibration. A scaler refitted on test rows that arrive 5 at a time scored 0.865
+where `transform` scored 0.976. An encoder refitted on the test rows scored 0.795 against 0.905.
+A model fitted on its test rows scored 1.000 on noise. The fix is unsafe, because a name can
+mislead. `StandardScaler().fit_transform(X_test)` has no fix, because that scaler was never fitted
+on the training data.
+
+`fit-before-split` reports the fit when a later statement of the same block passes its result to
+`train_test_split`. Feature selection before the split scored 0.781 on noise, where the honest
+value was 0.503. SMOTE before the split gave an F1 of 0.842 on noise, where the honest value was
+0.164. For `StandardScaler` the leak is real and small: 0.9673 against 0.9667. pdx cannot tell a
+scaler from a selector, so it reports both. It leaves a label encoder on the target alone, when the
+result is named `y`, `target` or `labels`, or the encoder's name holds `label`.
+
+`cross-val-on-fitted-data` covers `cross_val_score`, `cross_validate`, `cross_val_predict`,
+`learning_curve` and `validation_curve`. Cross-validated accuracy on noise was 0.781 where the
+Pipeline gave 0.510. `GridSearchCV(...).fit(X_fitted, y)` leaks in the same way and is not
+reported, because pdx cannot tell a search from any other object with `fit`.
+
+`get-dummies-on-test` reads the first argument's name, as `fit-on-test` does. In 15 of 30 splits
+`predict` raised on the columns. Passed on as arrays, 102 of 200 splits raised and 17 ran on the
+wrong columns. A call followed by `reindex` or `align` is left alone.
+
+### Metrics
+
+#### auc-from-labels
+
+**Severity:** error. **Fix:** none.
+
+Reports `roc_auc_score(y_test, model.predict(X_test))`, which ranks class labels where the metric needs a score per row.
+
+Example:
+
+```python
+auc = roc_auc_score(y_test, model.predict(X_test))
+```
+
+Use instead:
+
+```python
+auc = roc_auc_score(y_test, model.predict_proba(X_test)[:, 1])
+```
+
+The replacement is advice. pdx does not apply it automatically.
+
+#### metric-arguments-swapped
+
+**Severity:** error. **Fix:** unsafe: `precision_score(y_test, y_pred)`.
+
+Reports `precision_score(y_pred, y_test)`, with the predictions first.
+
+Example:
+
+```python
+precision = precision_score(y_pred, y_test)
+```
+
+Use instead:
+
+```python
+precision = precision_score(y_test, y_pred)
+```
+
+
+`auc-from-labels` covers `roc_auc_score`, `average_precision_score`, `roc_curve`,
+`precision_recall_curve`, `log_loss` and `brier_score_loss`. The AUC was 0.755 from labels and
+0.875 from probabilities. It also reports `predict_proba(X)[:, 0]`, which scored 0.126, and a
+variable that holds the result of `predict` and reaches the metric on a later line. Files that
+import keras, tensorflow or torch are left alone, because `predict` returns probabilities there.
+
+`metric-arguments-swapped` covers `precision_score`, `recall_score`, `confusion_matrix`,
+`classification_report`, `r2_score`, `explained_variance_score`, `mean_absolute_percentage_error`,
+`balanced_accuracy_score` and `fbeta_score`. The swapped precision is the recall: 0.817 against
+0.967. R2 went from 0.48 to -3.19. `accuracy_score` and `f1_score` return the same number either
+way and are left alone. The rule reports when the first name holds `pred` or `hat` and the second
+holds `true`, `test`, `val`, `actual`, `target` or `label`, or is `y`.
+
+### Reproducible results
+
+#### missing-random-state
+
+**Severity:** warning. **Fix:** none.
+
+Reports `train_test_split(X, y)`, `RandomForestClassifier()` and `KFold(shuffle=True)` without `random_state`.
+
+Example:
+
+```python
+X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2)
+model = RandomForestClassifier()
+```
+
+Use instead:
+
+```python
+X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=0)
+model = RandomForestClassifier(random_state=0)
+```
+
+The value 0 is only the example. Any fixed number makes the run repeatable.
+
+The replacement is advice. pdx does not apply it automatically.
+
+
+The same script, run 30 times, scored between 0.930 and 1.000. The rule names the classes whose
+output changed between two runs: the random forests, extra trees, bagging and gradient boosting
+models, `IsolationForest`, the decision trees, `KMeans`, `MiniBatchKMeans`, `GaussianMixture`, the
+MLP and SGD models, `TruncatedSVD`, `NMF`, `TSNE`, `ShuffleSplit`, `StratifiedShuffleSplit` and
+`RepeatedKFold`, and `KFold`, `StratifiedKFold`, `GroupKFold` and `StratifiedGroupKFold` with
+`shuffle=True`. `LogisticRegression`, `SVC`, `LinearSVC` and `PCA` gave the same output twice and
+are left alone. A call with `shuffle=False` or `**params` is left alone, and so is a file that
+calls `np.random.seed`, because scikit-learn then draws from that seed.
+
 ## Write a rule
 
 Rules are [ast-grep rules](https://ast-grep.github.io/guide/rule-config.html) in `.yml` files,
@@ -1677,7 +2223,7 @@ import.
 
 ```text
 rules/pandas/
-├── pack.yml        # the pack's manifest: import aliases and package checks
+├── pack.yml        # the pack's manifest: import aliases and package checks. A pack may leave it out
 ├── row-loop.yml    # one file per rule, named after the rule id
 └── ...
 ```
@@ -1703,7 +2249,8 @@ target/release/pdx check samples/bad.py
 cp samples/bad.py /tmp/bad.py && target/release/pdx check /tmp/bad.py --fix --unsafe-fixes
 ```
 
-The files in `samples/pandas/` mark each line a rule reports with a comment that names the rules.
+The files in `samples/pandas/` and `samples/sklearn/` mark each line a rule reports with a comment that
+names the rules.
 
 `pack.yml` may list package checks under `packages`. Each entry has an `id`, the `package` to
 look for, a `message`, and optionally `onlyWith`, a list of tools. pdx warns when the venv has the

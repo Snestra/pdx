@@ -1,0 +1,28 @@
+# scikit-learn metrics take the true values first. These metrics return another number with the
+# two swapped. accuracy_score and f1_score are left alone, because they return the same number.
+# The rule reads the names of the two arguments. Unsafe: a name can mislead.
+id: metric-arguments-swapped
+language: python
+severity: error
+message: $F takes the true values first and the predictions second. In this order it returns another number.
+rule:
+  pattern: $F($P, $T)
+constraints:
+  F: { regex: '(^|\.)(precision_score|recall_score|confusion_matrix|classification_report|r2_score|explained_variance_score|mean_absolute_percentage_error|balanced_accuracy_score|fbeta_score)$' }
+  P: { regex: '(?i)pred|y_?hat' }
+  T: { regex: '(?i)(true|test|val|actual|target|label|^y$)', not: { regex: '(?i)pred|hat' } }
+fix: $F($T, $P)
+metadata: { fix: unsafe }
+---
+id: metric-arguments-swapped
+language: python
+severity: error
+message: $F takes the true values first and the predictions second. In this order it returns another number.
+rule:
+  pattern: $F($P, $T, $$$REST)
+constraints:
+  F: { regex: '(^|\.)(precision_score|recall_score|confusion_matrix|classification_report|r2_score|explained_variance_score|mean_absolute_percentage_error|balanced_accuracy_score|fbeta_score)$' }
+  P: { regex: '(?i)pred|y_?hat' }
+  T: { regex: '(?i)(true|test|val|actual|target|label|^y$)', not: { regex: '(?i)pred|hat' } }
+fix: $F($T, $P, $$$REST)
+metadata: { fix: unsafe }
