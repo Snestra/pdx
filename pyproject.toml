@@ -17,8 +17,8 @@ classifiers = [
 dynamic = ["version", "description", "readme", "keywords"]
 
 [project.urls]
-Documentation = "https://bjoernaagaard.github.io/pdx/"
-Repository = "https://github.com/bjoernaagaard/pdx"
+Documentation = "https://snestra.github.io/pdx/"
+Repository = "https://github.com/Snestra/pdx"
 
 [tool.maturin]
 bindings = "bin"
