@@ -39,7 +39,7 @@ Run `xpd -h` for every flag.
 ## Documentation
 
 The full guide, including the Claude Code hook setup and how to write a rule, lives at
-<https://snestra.github.io/pdx/>.
+<https://snestra.github.io/xpd/>.
 
 ## License
 

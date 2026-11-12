@@ -1,9 +1,9 @@
 [project]
 site_name = "xpd"
-site_url = "https://snestra.github.io/pdx/"
+site_url = "https://snestra.github.io/xpd/"
 site_description = "Fast, opinionated linter for Python library habits, starting with pandas and scikit-learn"
-repo_url = "https://github.com/Snestra/pdx"
-repo_name = "Snestra/pdx"
+repo_url = "https://github.com/Snestra/xpd"
+repo_name = "Snestra/xpd"
 edit_uri = "edit/main/docs/"
 
 nav = [
