@@ -115,7 +115,9 @@ def range_mask(df):
 @case
 def range_that_stays(df):
     x = df["a"].to_numpy()
-    return ((x >= 10) & (x <= 20)).sum(), df[(df["a"] >= 10) & (df["b"] <= 20)]
+    on_index = (df.index >= 10) & (df.index <= 20)
+    on_values = (df["a"].values >= 10) & (df["a"].values <= 20)
+    return ((x >= 10) & (x <= 20)).sum(), df[(df["a"] >= 10) & (df["b"] <= 20)], on_index.sum(), on_values.sum()
 
 
 @case

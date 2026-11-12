@@ -512,6 +512,10 @@ Use instead:
 inside = df["load"].between(10, 20)
 ```
 
+`between` is a method of a Series. An index and a NumPy array have none, so comparisons on
+`df.index`, `df.index.hour`, `df.columns`, `df["load"].values` and `df["load"].array` are left
+alone.
+
 #### groupby-then-reset-index
 
 **Severity:** warning. **Fix:** unsafe: `df.groupby("k", as_index=False)[["a", "b"]].sum()`.

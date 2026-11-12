@@ -1,13 +1,14 @@
 # between() is defined as the two comparisons joined with &. Unsafe: the operand may be a numpy
 # array, which has no between, such as data["x"] in a dict of arrays. A plain name is left alone
-# for the same reason.
+# for the same reason. An index has no between either, so df.index, df.index.hour, df.columns,
+# and the arrays df["a"].values and df["a"].array are left alone.
 id: range-mask
 language: python
 severity: warning
 message: between() states the range once. Write $S.between($LO, $HI).
 rule: { pattern: ($S >= $LO) & ($S <= $HI) }
 constraints:
-  S: { any: [{ kind: subscript }, { kind: attribute }] }
+  S: { any: [{ kind: subscript }, { kind: attribute }], not: { regex: '(^|\.)(index|columns|values|array)(\.|\[|$)' } }
 fix: $S.between($LO, $HI)
 metadata: { fix: unsafe }
 ---
@@ -17,7 +18,7 @@ severity: warning
 message: between() states the range once. Write $S.between($LO, $HI, inclusive="left").
 rule: { pattern: ($S >= $LO) & ($S < $HI) }
 constraints:
-  S: { any: [{ kind: subscript }, { kind: attribute }] }
+  S: { any: [{ kind: subscript }, { kind: attribute }], not: { regex: '(^|\.)(index|columns|values|array)(\.|\[|$)' } }
 fix: $S.between($LO, $HI, inclusive="left")
 metadata: { fix: unsafe }
 ---
@@ -27,7 +28,7 @@ severity: warning
 message: between() states the range once. Write $S.between($LO, $HI, inclusive="right").
 rule: { pattern: ($S > $LO) & ($S <= $HI) }
 constraints:
-  S: { any: [{ kind: subscript }, { kind: attribute }] }
+  S: { any: [{ kind: subscript }, { kind: attribute }], not: { regex: '(^|\.)(index|columns|values|array)(\.|\[|$)' } }
 fix: $S.between($LO, $HI, inclusive="right")
 metadata: { fix: unsafe }
 ---
@@ -37,6 +38,6 @@ severity: warning
 message: between() states the range once. Write $S.between($LO, $HI, inclusive="neither").
 rule: { pattern: ($S > $LO) & ($S < $HI) }
 constraints:
-  S: { any: [{ kind: subscript }, { kind: attribute }] }
+  S: { any: [{ kind: subscript }, { kind: attribute }], not: { regex: '(^|\.)(index|columns|values|array)(\.|\[|$)' } }
 fix: $S.between($LO, $HI, inclusive="neither")
 metadata: { fix: unsafe }
