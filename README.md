@@ -30,7 +30,7 @@ The package is `pdx-lint` because the name `pdx` is taken. The command is `pdx`.
 | `pdx check --fix` | Apply safe fixes, then lint. Add `--unsafe-fixes` to apply the rest. |
 | `pdx profile data.csv` | Show dtypes, nulls, unique counts and memory per column. Needs pandas. |
 | `pdx equiv old.py new.py` | Check that two scripts leave an equal `result`. Needs pandas. |
-| `pdx graph features.py` | Print the dataflow of Apache Hamilton modules: each node, its inputs, and what does not connect. |
+| `pdx graph features.py` | Print the dataflow of step code or Apache Hamilton modules: what reads what, and what does not connect. |
 | `pdx hook` | Lint the file a Claude Code edit touched. |
 | `pdx skill` | Print the agent skill for this version. |
 

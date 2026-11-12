@@ -699,7 +699,7 @@ fn positional_or_keyword<'r>(
 }
 
 /// The text of a string literal with no interpolation, without its quotes.
-fn literal(node: &Syntax<'_>) -> Option<String> {
+pub(crate) fn literal(node: &Syntax<'_>) -> Option<String> {
     if node.kind() != "string" {
         return None;
     }

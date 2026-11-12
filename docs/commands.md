@@ -65,6 +65,75 @@ array with the same values count as equal. Run it after you refactor data logic.
 pdx graph [PATHS]... [--format text|json]
 ```
 
+Prints the dataflow of Python files: which part of the code reads the result of which other
+part, and what does not connect. It imports nothing and runs nothing, so it needs no Python.
+It reads two ways of writing a dataflow, and picks one per file.
+
+| A file with | Is read as |
+| --- | --- |
+| A function that passes a frame through other functions of the file | [Step code](#step-code) |
+| Anything else | [Hamilton modules](#hamilton-modules) |
+
+A file with a pipeline that also imports `hamilton` is read as both.
+
+### Step code
+
+A step is a function that takes a frame and returns it with columns added. A pipeline is a
+function that runs steps in order, as `frame.pipe(a).pipe(b)` or as `frame = a(frame)` followed
+by `frame = b(frame)`. `graph` reads from the source which columns each step reads and adds,
+so it knows which step needs which.
+
+```console
+$ pdx graph samples/graph/steps.py
+samples/graph/steps.py:51: features: 4 steps, 7 columns
+samples/graph/steps.py:18:   (source columns) -> totals  [2 columns]
+samples/graph/steps.py:28:   totals -> shares  [1 column]
+samples/graph/steps.py:33:   (source columns) -> discounts  [1 column]
+samples/graph/steps.py:41:   totals + discounts -> flags  [3 columns]
+samples/graph/steps.py:35: warning: discounts() computes before_discount with the formula of the column gross_amount from totals(). Read the column gross_amount there.
+samples/graph/steps.py:37: warning: discounts() writes to the frame it was given. Called as discounts(orders), it changes the caller's frame too. Return orders.assign(...) or write to orders.copy().
+samples/graph/steps.py:45: warning: The column over_limit from flags() has the same formula as is_large from flags(), so the result holds one column twice. Keep one of them.
+samples/graph/steps.py:51: warning: The tree in the module docstring lists totals, shares, flags and features() runs totals, shares, discounts, flags. Change the one that is out of date.
+pdx: 1 pipeline with 4 steps in 1 file, 4 warnings
+```
+
+The first line names the pipeline. Each line after it is `file:line: steps it reads from ->
+step`, with the number of columns the step adds. `order is free for` lists the steps that share
+no column with another step. Then come the findings:
+
+| Finding | Severity | What happens |
+| --- | --- | --- |
+| A step reads a column that a later step joins | error | The read raises `KeyError` |
+| A step joins a column that an earlier step added | error | The join raises "columns overlap" |
+| A step computes the formula of a column that another step adds | warning | The same work is done twice, and the two can drift apart |
+| Two columns have the same formula | warning | The result holds one column twice |
+| Two steps write out the same formula | warning | As above, with no column to read it from |
+| A column is assigned twice in one step with the same formula | warning | The first assignment is wasted |
+| A step writes to the frame it was given, as `frame["x"] = ...` | warning | Called as `step(frame)`, it changes the caller's frame |
+| The tree in the module docstring differs from the pipeline | warning | The description is out of date |
+| A frame of new columns is not joined to the result | note | The result has no column of those names |
+
+Two formulas are the same when they are equal after each local name is replaced by what it
+stands for and the terms of a sum or a product are sorted. So `a + b` in one step equals `b + a`
+in another.
+
+What `graph` reads:
+
+- A column read as `frame["name"]`, where the name is a literal, a constant of the module, or a
+  list of those. `frame.name` counts when another step adds a column of that name.
+- A column added with `frame.assign(name=...)`, with `frame.join(new)` where `new` is
+  `pd.DataFrame(index=frame.index).assign(name=...)`, or with `frame["name"] = ...`.
+- A step at module level. A method of a class is not read.
+
+A step whose column names the file computes, as in `frame[prefix + "_total"]` or a join of
+`pd.get_dummies(...)`, is marked `and computed names`. Its named columns are still read, and it
+is left out of `order is free for`, because not all of its columns are known.
+
+The tree check applies to a file with one pipeline whose module docstring draws its steps as
+`├── step()` lines.
+
+### Hamilton modules
+
 Prints the dataflow of [Apache Hamilton](https://hamilton.apache.org/) modules. Hamilton turns
 every function in a module into a node: the function name is the output and the parameter names
 are its inputs. `graph` reads the files and prints which node reads which. It imports nothing
@@ -107,9 +176,13 @@ the file computes, such as `@extract_columns(*COLUMNS)`, and for `@subdag`, `@pi
 the Driver gets, so it lists every version of a node. It does not compare type hints between
 nodes.
 
-Output is text on a terminal and JSON otherwise. The JSON has `nodes`, each with `name`, `file`,
-`line`, `function`, `inputs`, `kind` and `config`; `inputs`, each with `name`, `optional` and
-`readers`; `unread`; and `problems`, each with `file`, `line`, `severity` and `message`.
+### Output and exit code
+
+Output is text on a terminal and JSON otherwise. The JSON has `pipelines`, each with `name`,
+`file`, `line`, `steps`, `links` and `free`; `nodes`, each with `name`, `file`, `line`,
+`function`, `inputs`, `kind` and `config`; `inputs`, each with `name`, `optional` and `readers`;
+`unread`; and `problems`, each with `file`, `line`, `severity` and `message`. A step has `name`,
+`line`, `reads`, `columns` and `computed`. A link has `from`, `to` and `columns`.
 
 | Exit code | Meaning |
 | --- | --- |
@@ -119,7 +192,8 @@ Output is text on a terminal and JSON otherwise. The JSON has `nodes`, each with
 
 ## hook
 
-Reads a Claude Code hook event on stdin and lints the `.py` file the edit touched. See
+Reads a Claude Code hook event on stdin and lints the `.py` file the edit touched. When the file
+holds a pipeline of steps, the hook also prints the errors and warnings of `pdx graph` for it. See
 [Claude Code](claude-code.md).
 
 ## skill

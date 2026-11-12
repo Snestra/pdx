@@ -9,6 +9,7 @@ mod package_check;
 mod report;
 mod rule;
 mod scan;
+mod steps;
 mod venv;
 mod version;
 

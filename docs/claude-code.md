@@ -2,7 +2,9 @@
 
 `pdx hook` runs as a `PostToolUse` hook. After each edit to a `.py` file, Claude Code sends
 the event to pdx. When pdx finds issues, it prints them and exits 2, which shows them to the
-agent so it fixes them in the same turn.
+agent so it fixes them in the same turn. For a file with a pipeline of steps, the issues include
+the errors and warnings of [`pdx graph`](commands.md#step-code), such as a formula that another
+step computes already.
 
 Add this to `.claude/settings.json` in your project:
 

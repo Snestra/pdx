@@ -74,22 +74,27 @@ enum Cmd {
     },
     /// Claude Code `PostToolUse` hook: reads hook JSON on stdin and lints the edited .py file.
     ///
+    /// A file with a pipeline of steps also gets the errors and warnings of `pdx graph`.
+    ///
     /// Exit 2 with issues on stderr so the agent sees them, 1 if pdx can't run, 0 otherwise.
     Hook,
     /// Profile a data file (csv, parquet, feather, json, xlsx). Needs pandas.
     Profile { file: PathBuf },
     /// Check that two scripts produce an equal `result` (`DataFrame` or Series). Needs pandas.
     Equiv { old: PathBuf, new: PathBuf },
-    /// Print the dataflow of Hamilton modules: each node, its inputs, and what does not connect.
+    /// Print the dataflow of step code or Hamilton modules: what reads what, and what does not
+    /// connect.
     ///
-    /// The files are read as the modules of one Driver. Nothing is imported or run. Exit 1 when
-    /// Hamilton would raise on them or Python drops a function, 2 if pdx can't run.
+    /// A file with a function that passes a frame through other functions, as
+    /// `frame.pipe(a).pipe(b)`, is read as step code. The other files are read as the Hamilton
+    /// modules of one Driver. Nothing is imported or run. Exit 1 when the code would raise or
+    /// Python drops a function, 2 if pdx can't run.
     ///
     /// Examples:
     ///   pdx graph features.py
     ///   pdx graph loaders.py features.py --format json
     Graph {
-        /// The node modules, as files or directories (directories respect .gitignore).
+        /// Files or directories (directories respect .gitignore).
         #[arg(required = true)]
         paths: Vec<PathBuf>,
         /// Output format. Default: text on a terminal, json otherwise.
@@ -192,7 +197,7 @@ fn check(
     }
 }
 
-/// Prints the dataflow of the Hamilton modules under `paths`.
+/// Prints the dataflow of the files under `paths`.
 fn graph(paths: &[PathBuf], format: Format) -> ExitCode {
     let graph = match scan::collect_files(paths).and_then(|files| Graph::read(&files)) {
         Ok(graph) => graph,
@@ -247,11 +252,18 @@ fn hook() -> ExitCode {
             return ExitCode::from(HOOK_FAILED);
         }
     };
-    if report.issues.is_empty() {
+    // A file with a pipeline of steps also gets the errors and warnings of `pdx graph`.
+    let steps = std::fs::read_to_string(path)
+        .map(|src| Graph::step_lines(Path::new(path), &src))
+        .unwrap_or_default();
+    if report.issues.is_empty() && steps.is_empty() {
         return ExitCode::SUCCESS;
     }
     for i in &report.issues {
         eprintln!("{}", i.line(Applicability::Safe));
+    }
+    for line in &steps {
+        eprintln!("{line}");
     }
     ExitCode::from(HOOK_BLOCK)
 }
