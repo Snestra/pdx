@@ -1,6 +1,7 @@
-//! The dataflow of Hamilton modules: which node reads which, and what does not connect.
+//! The dataflow of Python files: which node or step reads which, and what does not connect.
 //!
-//! The files given are read as the modules of one Driver, as `with_modules(a, b)` takes them.
+//! A file with a pipeline of steps is read as step code, each pipeline on its own. The other
+//! files are read as Hamilton modules of one Driver, as `with_modules(a, b)` takes them.
 //! Nothing is imported or run, so this needs no Python and no Hamilton.
 
 use std::collections::{BTreeMap, BTreeSet};
@@ -11,6 +12,7 @@ use anyhow::{Context, Result};
 use serde_json::{Value, json};
 
 use crate::nodes::{self, Level, NodeDef};
+use crate::steps::{self, Pipeline};
 
 /// A name shorter than this is not compared with the node names, because short names such as
 /// `x1` and `x2` are one edit apart by design.
@@ -41,9 +43,17 @@ struct ExternalInput {
     readers: Vec<String>,
 }
 
+/// One pipeline of steps with the file that defines it.
+#[derive(Debug)]
+struct PlacedPipeline {
+    file: PathBuf,
+    pipeline: Pipeline,
+}
+
 /// The dataflow of a set of modules.
 #[derive(Debug)]
 pub(crate) struct Graph {
+    pipelines: Vec<PlacedPipeline>,
     nodes: Vec<Placed>,
     inputs: Vec<ExternalInput>,
     /// Nodes that no other node reads, which are the ends of the dataflow.
@@ -60,12 +70,31 @@ impl Graph {
     ///
     /// When a file cannot be read.
     pub(crate) fn read(files: &[PathBuf]) -> Result<Self> {
+        let mut pipelines = Vec::new();
         let mut nodes = Vec::new();
         let mut problems = Vec::new();
         let mut functions = 0;
         for file in files {
             let src = fs::read_to_string(file)
                 .with_context(|| format!("cannot read {}", file.display()))?;
+            let found = steps::read(&src);
+            let is_step_code = !found.is_empty();
+            for mut pipeline in found {
+                problems.extend(pipeline.findings.drain(..).map(|found| Problem {
+                    file: file.clone(),
+                    line: found.line,
+                    level: found.level,
+                    message: found.message,
+                }));
+                pipelines.push(PlacedPipeline {
+                    file: file.clone(),
+                    pipeline,
+                });
+            }
+            // The steps of a pipeline are no Hamilton nodes, unless the file says it is both.
+            if is_step_code && !imports_hamilton(&src) {
+                continue;
+            }
             let module = nodes::read(&src);
             functions += module.functions;
             nodes.extend(module.nodes.into_iter().map(|def| Placed {
@@ -95,6 +124,7 @@ impl Graph {
             .map(str::to_owned)
             .collect();
         Ok(Self {
+            pipelines,
             unread: unread.into_iter().collect(),
             nodes,
             inputs,
@@ -104,14 +134,74 @@ impl Graph {
         })
     }
 
-    /// Whether Hamilton would raise on these modules, or Python drops a function.
+    /// Whether the code would raise, or Python drops a function.
     pub(crate) fn has_errors(&self) -> bool {
         self.problems.iter().any(|p| p.level == Level::Error)
+    }
+
+    /// The errors and warnings about step code, one line each, for the hook.
+    pub(crate) fn step_lines(src_path: &Path, src: &str) -> Vec<String> {
+        let mut found: Vec<_> = steps::read(src)
+            .into_iter()
+            .flat_map(|pipeline| pipeline.findings)
+            .filter(|finding| finding.level != Level::Note)
+            .collect();
+        found.sort_by_key(|f| (f.line, f.level));
+        found
+            .iter()
+            .map(|f| {
+                format!(
+                    "{}: {} [graph] {}",
+                    place(src_path, f.line),
+                    f.level.as_str(),
+                    f.message
+                )
+            })
+            .collect()
     }
 
     /// One line per node, then the inputs, the nodes nobody reads, and the problems.
     pub(crate) fn to_text(&self) -> String {
         let mut lines = Vec::new();
+        for placed in &self.pipelines {
+            let pipeline = &placed.pipeline;
+            let columns: usize = pipeline.steps.iter().map(|s| s.writes.len()).sum();
+            lines.push(format!(
+                "{}: {}: {}, {}",
+                place(&placed.file, pipeline.line),
+                pipeline.name,
+                count(pipeline.steps.len(), "step"),
+                count(columns, "column")
+            ));
+            for step in &pipeline.steps {
+                let from: Vec<&str> = pipeline
+                    .links
+                    .iter()
+                    .filter(|link| link.to == step.name)
+                    .map(|link| link.from.as_str())
+                    .collect();
+                let from = if from.is_empty() {
+                    "(source columns)".to_owned()
+                } else {
+                    from.join(" + ")
+                };
+                let computed = if step.computed {
+                    " and computed names"
+                } else {
+                    ""
+                };
+                lines.push(format!(
+                    "{}:   {from} -> {}  [{}{computed}]",
+                    place(&placed.file, step.line),
+                    step.name,
+                    count(step.writes.len(), "column")
+                ));
+            }
+            let free = pipeline.free_steps();
+            if !free.is_empty() {
+                lines.push(format!("order is free for: {}", free.join(", ")));
+            }
+        }
         for node in &self.nodes {
             let inputs: Vec<String> = node
                 .def
@@ -208,18 +298,64 @@ impl Graph {
                 })
             })
             .collect();
-        json!({"nodes": nodes, "inputs": inputs, "unread": self.unread, "problems": problems})
+        let pipelines: Vec<Value> = self
+            .pipelines
+            .iter()
+            .map(|placed| {
+                let pipeline = &placed.pipeline;
+                let steps: Vec<Value> = pipeline
+                    .steps
+                    .iter()
+                    .map(|step| {
+                        json!({
+                            "name": step.name,
+                            "line": step.line,
+                            "reads": step.reads,
+                            "columns": step.writes,
+                            "computed": step.computed,
+                        })
+                    })
+                    .collect();
+                let links: Vec<Value> = pipeline
+                    .links
+                    .iter()
+                    .map(|l| json!({"from": l.from, "to": l.to, "columns": l.columns}))
+                    .collect();
+                json!({
+                    "name": pipeline.name,
+                    "file": placed.file.display().to_string(),
+                    "line": pipeline.line,
+                    "steps": steps,
+                    "links": links,
+                    "free": pipeline.free_steps(),
+                })
+            })
+            .collect();
+        json!({"pipelines": pipelines, "nodes": nodes, "inputs": inputs, "unread": self.unread, "problems": problems})
     }
 
     /// For example `10 nodes from 8 functions in 1 file, 14 inputs, 2 errors`.
     pub(crate) fn summary(&self) -> String {
-        let mut parts = vec![format!(
-            "{} from {} in {}",
-            count(self.nodes.len(), "node"),
-            count(self.functions, "function"),
-            count(self.files, "file")
-        )];
-        parts.push(count(self.inputs.len(), "input"));
+        let mut parts = Vec::new();
+        if !self.pipelines.is_empty() {
+            let steps: usize = self.pipelines.iter().map(|p| p.pipeline.steps.len()).sum();
+            parts.push(format!(
+                "{} with {}",
+                count(self.pipelines.len(), "pipeline"),
+                count(steps, "step")
+            ));
+        }
+        if !self.nodes.is_empty() || self.pipelines.is_empty() {
+            parts.push(format!(
+                "{} from {}",
+                count(self.nodes.len(), "node"),
+                count(self.functions, "function")
+            ));
+            parts.push(count(self.inputs.len(), "input"));
+        }
+        if let Some(first) = parts.first_mut() {
+            *first = format!("{first} in {}", count(self.files, "file"));
+        }
         for (level, word) in [
             (Level::Error, "error"),
             (Level::Warning, "warning"),
@@ -232,6 +368,16 @@ impl Graph {
         }
         parts.join(", ")
     }
+}
+
+/// Whether the source imports the `hamilton` module.
+fn imports_hamilton(src: &str) -> bool {
+    src.lines().map(str::trim_start).any(|line| {
+        ["import hamilton", "from hamilton"].iter().any(|start| {
+            line.strip_prefix(start)
+                .is_some_and(|rest| rest.starts_with([' ', '.']) || rest.is_empty())
+        })
+    })
 }
 
 fn place(file: &Path, line: usize) -> String {

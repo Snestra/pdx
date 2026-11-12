@@ -19,7 +19,13 @@ Use `pdx` whenever you write or change Python code that uses a library pdx has r
 - `pdx equiv old.py new.py`: both scripts must assign `result`. Run it after
   any refactor of data logic; a refactor isn't done until it prints
   `"equivalent": true`. Needs pandas.
-- `pdx graph <node modules…> --format json`: the dataflow of Apache Hamilton
-  modules, read without running them. Run it after you add or rename a node.
-  Fix every `error`. A `warning` names an input one edit from a node name:
-  check it for a typing error. `inputs` are what the caller must pass.
+- `pdx graph <files…> --format json`: the dataflow of a file, read without
+  running it. Run it after you add, move or rename a step or a node. Fix every
+  `error`. Fix `warning`s unless you can state why the code is right.
+  - Step code is a function that passes a frame through other functions, as
+    `frame.pipe(a).pipe(b)`. Before you add a column, read `pipelines[].steps`
+    and reuse a column that exists instead of computing its formula again.
+    Return `frame.assign(...)` or `frame.join(...)`, and don't write
+    `frame["x"] = ...` on the frame a step was given.
+  - Apache Hamilton modules: a `warning` names an input one edit from a node
+    name, so check it for a typing error. `inputs` are what the caller passes.
