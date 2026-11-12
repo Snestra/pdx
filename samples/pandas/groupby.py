@@ -1,8 +1,8 @@
 """groupby, agg and transform with a Python function per group, and code that looks similar but
 stays.
 
-A line that pdx reports ends with a comment that names the rule. Each case returns what the
-code computes, so a copy fixed with `pdx check --fix` can be compared with this file.
+A line that xpd reports ends with a comment that names the rule. Each case returns what the
+code computes, so a copy fixed with `xpd check --fix` can be compared with this file.
 """
 
 import numpy as np
@@ -35,12 +35,12 @@ def frame(n=2000, seed=0):
 def groupby_lambda(df):
     g = df.groupby("k")
     return (
-        g["b"].agg(lambda v: v.mean()),  # pdx: groupby-lambda
-        g["b"].transform(lambda v: v.sum()),  # pdx: groupby-lambda
-        g[["a", "b"]].agg(np.sum),  # pdx: groupby-lambda
-        g.agg({"b": lambda v: v.max()}),  # pdx: groupby-lambda
-        g.agg(low=("b", lambda v: v.min())),  # pdx: groupby-lambda
-        df.pivot_table(index="k", columns="s", values="b", aggfunc=np.mean),  # pdx: groupby-lambda
+        g["b"].agg(lambda v: v.mean()),  # xpd: groupby-lambda
+        g["b"].transform(lambda v: v.sum()),  # xpd: groupby-lambda
+        g[["a", "b"]].agg(np.sum),  # xpd: groupby-lambda
+        g.agg({"b": lambda v: v.max()}),  # xpd: groupby-lambda
+        g.agg(low=("b", lambda v: v.min())),  # xpd: groupby-lambda
+        df.pivot_table(index="k", columns="s", values="b", aggfunc=np.mean),  # xpd: groupby-lambda
     )
 
 
@@ -54,9 +54,9 @@ def groupby_function_that_stays(df):
 def groupby_lambda_window(df):
     g = df.groupby("k")["b"]
     return (
-        g.transform(lambda v: v.cumsum()),  # pdx: groupby-lambda-window
-        g.transform(lambda v: v.shift(1)),  # pdx: groupby-lambda-window
-        g.transform(lambda v: v.rank(method="first")),  # pdx: groupby-lambda-window
+        g.transform(lambda v: v.cumsum()),  # xpd: groupby-lambda-window
+        g.transform(lambda v: v.shift(1)),  # xpd: groupby-lambda-window
+        g.transform(lambda v: v.rank(method="first")),  # xpd: groupby-lambda-window
     )
 
 
@@ -75,9 +75,9 @@ def groupby_window_by_time(df):
 @case
 def groupby_lambda_arithmetic(df):
     return (
-        df.groupby("k")["w"].transform(lambda v: v / v.sum()),  # pdx: groupby-lambda-arithmetic
-        df.groupby("k")["b"].transform(lambda v: (v - v.mean()) / v.std()),  # pdx: groupby-lambda-arithmetic
-        df.groupby("k")["b"].transform(lambda v: v.fillna(v.mean())),  # pdx: groupby-lambda-arithmetic
+        df.groupby("k")["w"].transform(lambda v: v / v.sum()),  # xpd: groupby-lambda-arithmetic
+        df.groupby("k")["b"].transform(lambda v: (v - v.mean()) / v.std()),  # xpd: groupby-lambda-arithmetic
+        df.groupby("k")["b"].transform(lambda v: v.fillna(v.mean())),  # xpd: groupby-lambda-arithmetic
     )
 
 
@@ -88,7 +88,7 @@ def groupby_arithmetic_that_stays(df):
 
 @case
 def groupby_filter_lambda(df):
-    return df.groupby("k").filter(lambda g: len(g) > 400)  # pdx: groupby-filter-lambda
+    return df.groupby("k").filter(lambda g: len(g) > 400)  # xpd: groupby-filter-lambda
 
 
 @case
@@ -98,7 +98,7 @@ def groupby_filter_that_stays(df):
 
 @case
 def groupby_apply(df):
-    return df.groupby("k").apply(lambda g: g.loc[g["b"].idxmax()])  # pdx: groupby-apply
+    return df.groupby("k").apply(lambda g: g.loc[g["b"].idxmax()])  # xpd: groupby-apply
 
 
 @case
@@ -110,8 +110,8 @@ def groupby_without_apply(df):
 def aggregate_then_merge_back(df):
     totals = df.groupby("k")["b"].sum().rename("total").reset_index()
     return (
-        df.merge(df.groupby("k")["b"].sum().rename("total").reset_index(), on="k", how="left", validate="many_to_one"),  # pdx: aggregate-then-merge-back
-        df["k"].map(df.groupby("k")["b"].sum()),  # pdx: aggregate-then-merge-back
+        df.merge(df.groupby("k")["b"].sum().rename("total").reset_index(), on="k", how="left", validate="many_to_one"),  # xpd: aggregate-then-merge-back
+        df["k"].map(df.groupby("k")["b"].sum()),  # xpd: aggregate-then-merge-back
         totals,
     )
 
@@ -121,13 +121,13 @@ def transform_instead(df):
     other = df.head(10)
     return (
         df.assign(total=df.groupby("k")["b"].transform("sum")),
-        df.merge(other.groupby("k")["b"].sum().reset_index(), on="k", validate="many_to_one"),  # pdx: groupby-then-reset-index
+        df.merge(other.groupby("k")["b"].sum().reset_index(), on="k", validate="many_to_one"),  # xpd: groupby-then-reset-index
     )
 
 
 @case
 def groupby_first_skips_missing(df):
-    return df.sort_values("d").groupby("k").first(), df.groupby("k")["b"].last()  # pdx: groupby-first-skips-missing
+    return df.sort_values("d").groupby("k").first(), df.groupby("k")["b"].last()  # xpd: groupby-first-skips-missing
 
 
 @case
@@ -138,9 +138,9 @@ def groupby_first_row(df):
 @case
 def lambda_with_own_reduction(df):
     return (
-        df.groupby("k")["b"].transform(lambda v: v - v.mean()),  # pdx: groupby-lambda-arithmetic
-        df.groupby("k")["w"].transform(lambda v: v / v.max()),  # pdx: groupby-lambda-arithmetic
-        df.groupby("k")["w"].transform(lambda v: (v - v.min()) / (v.max() - v.min())),  # pdx: groupby-lambda-arithmetic
+        df.groupby("k")["b"].transform(lambda v: v - v.mean()),  # xpd: groupby-lambda-arithmetic
+        df.groupby("k")["w"].transform(lambda v: v / v.max()),  # xpd: groupby-lambda-arithmetic
+        df.groupby("k")["w"].transform(lambda v: (v - v.min()) / (v.max() - v.min())),  # xpd: groupby-lambda-arithmetic
     )
 
 
@@ -152,9 +152,9 @@ def reduction_through_transform(df):
 @case
 def lambda_reduction_with_arguments(df):
     return (
-        df.groupby("k")["w"].agg(lambda v: v.quantile(0.9)),  # pdx: groupby-lambda
-        df.groupby("k")["w"].agg(lambda v: v.std(ddof=0)),  # pdx: groupby-lambda
-        df.groupby("k")["b"].agg(lambda v: (v > 0).sum()),  # pdx: groupby-lambda
+        df.groupby("k")["w"].agg(lambda v: v.quantile(0.9)),  # xpd: groupby-lambda
+        df.groupby("k")["w"].agg(lambda v: v.std(ddof=0)),  # xpd: groupby-lambda
+        df.groupby("k")["b"].agg(lambda v: (v > 0).sum()),  # xpd: groupby-lambda
     )
 
 

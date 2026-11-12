@@ -1,7 +1,7 @@
 """Python work per row or per value, and code that looks similar but stays.
 
-A line that pdx reports ends with a comment that names the rule. Each case returns what the
-code computes, so a copy fixed with `pdx check --fix` can be compared with this file.
+A line that xpd reports ends with a comment that names the rule. Each case returns what the
+code computes, so a copy fixed with `xpd check --fix` can be compared with this file.
 """
 
 import math
@@ -35,22 +35,22 @@ def frame(n=2000, seed=0):
 
 @case
 def apply_to_datetime(df):
-    return df["raw"].apply(pd.to_datetime)  # pdx: apply-known-function
+    return df["raw"].apply(pd.to_datetime)  # xpd: apply-known-function
 
 
 @case
 def apply_missing_check(df):
-    return df["b"].apply(pd.isna), df["b"].map(pd.notna)  # pdx: apply-known-function
+    return df["b"].apply(pd.isna), df["b"].map(pd.notna)  # xpd: apply-known-function
 
 
 @case
 def apply_len(df):
-    return df["s"].apply(len)  # pdx: apply-known-function
+    return df["s"].apply(len)  # xpd: apply-known-function
 
 
 @case
 def apply_round(df):
-    return df["b"].apply(lambda v: round(v, 2))  # pdx: apply-known-function
+    return df["b"].apply(lambda v: round(v, 2))  # xpd: apply-known-function
 
 
 @case
@@ -61,8 +61,8 @@ def apply_that_stays(df):
 @case
 def literal_contains(df):
     return (
-        df["s"].str.contains("ta_"),  # pdx: literal-contains
-        df["s"].str.contains("alpha", case=False),  # pdx: literal-contains
+        df["s"].str.contains("ta_"),  # xpd: literal-contains
+        df["s"].str.contains("alpha", case=False),  # xpd: literal-contains
     )
 
 
@@ -73,11 +73,11 @@ def regex_contains(df):
 
 @case
 def copy_after_indexing(df):
-    part = df[df["a"] > 50].copy()  # pdx: copy-after-indexing
+    part = df[df["a"] > 50].copy()  # xpd: copy-after-indexing
     part["a"] = 0
-    cols = df.loc[:, ["a", "b"]].copy()  # pdx: copy-after-indexing
+    cols = df.loc[:, ["a", "b"]].copy()  # xpd: copy-after-indexing
     cols["a"] = 1
-    pair = df[["a", "w"]].copy()  # pdx: copy-after-indexing
+    pair = df[["a", "w"]].copy()  # xpd: copy-after-indexing
     pair["w"] = 2.0
     return part, cols, pair, df
 
@@ -97,12 +97,12 @@ def copy_that_stays(df):
 def row_loops(df):
     small = df.head(50)
     total = 0.0
-    for _, row in small.iterrows():  # pdx: row-loop
+    for _, row in small.iterrows():  # xpd: row-loop
         total += row["a"] * row["w"]
-    for row in small.itertuples():  # pdx: row-loop
+    for row in small.itertuples():  # xpd: row-loop
         total += row.a
-    names = [r["k"] for r in small.to_dict("records")]  # pdx: row-loop
-    for i in range(len(small)):  # pdx: row-loop
+    names = [r["k"] for r in small.to_dict("records")]  # xpd: row-loop
+    for i in range(len(small)):  # xpd: row-loop
         total += small.iloc[i]["a"]
     return round(total, 6), names
 
@@ -121,7 +121,7 @@ def loops_that_stay(df):
 
 @case
 def apply_axis_1(df):
-    return df.apply(lambda r: r["a"] + r["b"], axis=1)  # pdx: apply-axis-1
+    return df.apply(lambda r: r["a"] + r["b"], axis=1)  # xpd: apply-axis-1
 
 
 @case
@@ -132,9 +132,9 @@ def apply_per_column(df):
 @case
 def apply_text_method(df):
     return (
-        df["s"].apply(lambda v: v.strip()),  # pdx: apply-text-method
-        df["s"].map(lambda v: v.startswith("A")),  # pdx: apply-text-method
-        df["s"].map(lambda v: v.replace("_", " ")),  # pdx: apply-text-method
+        df["s"].apply(lambda v: v.strip()),  # xpd: apply-text-method
+        df["s"].map(lambda v: v.startswith("A")),  # xpd: apply-text-method
+        df["s"].map(lambda v: v.replace("_", " ")),  # xpd: apply-text-method
     )
 
 
@@ -145,7 +145,7 @@ def text_method_that_stays(df):
 
 @case
 def apply_date_part(df):
-    return df["d"].apply(lambda t: t.year), (df["d"] - pd.Timestamp("2022-01-01")).map(lambda t: t.days)  # pdx: apply-date-part
+    return df["d"].apply(lambda t: t.year), (df["d"] - pd.Timestamp("2022-01-01")).map(lambda t: t.days)  # xpd: apply-date-part
 
 
 @case
@@ -156,8 +156,8 @@ def date_part_that_stays(df):
 @case
 def apply_condition(df):
     return (
-        df["a"].apply(lambda v: 1 if v > 50 else 0),  # pdx: apply-condition
-        df["b"].apply(lambda v: min(v, 1.0)),  # pdx: apply-condition
+        df["a"].apply(lambda v: 1 if v > 50 else 0),  # xpd: apply-condition
+        df["b"].apply(lambda v: min(v, 1.0)),  # xpd: apply-condition
     )
 
 
@@ -168,7 +168,7 @@ def condition_on_whole_column(df):
 
 @case
 def apply_arithmetic(df):
-    return df["b"].apply(lambda v: v * 2 + 1), df["a"].map(lambda v: -v // 3)  # pdx: apply-arithmetic
+    return df["b"].apply(lambda v: v * 2 + 1), df["a"].map(lambda v: -v // 3)  # xpd: apply-arithmetic
 
 
 @case
@@ -179,7 +179,7 @@ def arithmetic_that_stays(df):
 
 @case
 def builtin_on_column(df):
-    return sum(df["a"]), max(df["w"]), len(set(df["k"]))  # pdx: builtin-on-column
+    return sum(df["a"]), max(df["w"]), len(set(df["k"]))  # xpd: builtin-on-column
 
 
 @case
@@ -190,7 +190,7 @@ def builtin_on_python_values(df):
 
 @case
 def list_over_column(df):
-    return [v.upper() for v in df["s"]]  # pdx: list-over-column
+    return [v.upper() for v in df["s"]]  # xpd: list-over-column
 
 
 @case
@@ -202,7 +202,7 @@ def list_over_python_values(df):
 def frame_growth_in_loop(df):
     out = pd.DataFrame(columns=["a", "b"])
     for a, b in zip(df["a"].head(30), df["b"].head(30)):
-        out.loc[len(out)] = [a, b]  # pdx: frame-growth-in-loop
+        out.loc[len(out)] = [a, b]  # xpd: frame-growth-in-loop
     return out
 
 
@@ -216,7 +216,7 @@ def frame_built_once(df):
 
 @case
 def len_of_filter(df):
-    return len(df[df["a"] > 50]), len(df[(df["a"] > 50) & (df["b"] < 0)])  # pdx: len-of-filter
+    return len(df[df["a"] > 50]), len(df[(df["a"] > 50) & (df["b"] < 0)])  # xpd: len-of-filter
 
 
 @case
@@ -227,9 +227,9 @@ def len_that_stays(df):
 @case
 def sort_then_head(df):
     return (
-        df.sort_values("b").head(5),  # pdx: sort-then-head
-        df.sort_values("b", ascending=False).head(5),  # pdx: sort-then-head
-        df.sort_values("w").iloc[0],  # pdx: sort-then-head
+        df.sort_values("b").head(5),  # xpd: sort-then-head
+        df.sort_values("b", ascending=False).head(5),  # xpd: sort-then-head
+        df.sort_values("w").iloc[0],  # xpd: sort-then-head
     )
 
 
@@ -241,7 +241,7 @@ def sort_that_stays(df):
 @case
 def replace_with_mapping(df):
     mapping = {"g1": "one", "g2": "two"}
-    return df["k"].replace(mapping)  # pdx: replace-with-mapping
+    return df["k"].replace(mapping)  # xpd: replace-with-mapping
 
 
 @case
@@ -252,12 +252,12 @@ def replace_with_literals(df):
 @case
 def apply_math_function(df):
     return (
-        df["w"].map(np.sqrt),  # pdx: apply-math-function
-        df["w"].apply(lambda v: np.log(v)),  # pdx: apply-math-function
-        df["w"].apply(math.sqrt),  # pdx: apply-math-function
-        df["w"].map(lambda v: math.log(v)),  # pdx: apply-math-function
-        df["b"].apply(abs),  # pdx: apply-math-function
-        df["b"].map(lambda v: abs(v)),  # pdx: apply-math-function
+        df["w"].map(np.sqrt),  # xpd: apply-math-function
+        df["w"].apply(lambda v: np.log(v)),  # xpd: apply-math-function
+        df["w"].apply(math.sqrt),  # xpd: apply-math-function
+        df["w"].map(lambda v: math.log(v)),  # xpd: apply-math-function
+        df["b"].apply(abs),  # xpd: apply-math-function
+        df["b"].map(lambda v: abs(v)),  # xpd: apply-math-function
     )
 
 
@@ -269,9 +269,9 @@ def math_that_stays(df):
 @case
 def apply_cast(df):
     return (
-        df["w"].apply(int),  # pdx: apply-cast
-        df["a"].map(float),  # pdx: apply-cast
-        df["w"].apply(lambda v: int(v)),  # pdx: apply-cast
+        df["w"].apply(int),  # xpd: apply-cast
+        df["a"].map(float),  # xpd: apply-cast
+        df["w"].apply(lambda v: int(v)),  # xpd: apply-cast
     )
 
 
@@ -284,11 +284,11 @@ def cast_that_stays(df):
 def apply_comparison(df):
     wanted = {1, 5, 9}
     return (
-        df["a"].apply(lambda v: v > 50),  # pdx: apply-comparison
-        df["k"].map(lambda v: v == "g2"),  # pdx: apply-comparison
-        df["b"].apply(lambda v: v != 0).sum(),  # pdx: apply-comparison
-        df["a"].apply(lambda v: v in wanted),  # pdx: apply-comparison
-        df["a"].map(lambda v: v not in wanted).sum(),  # pdx: apply-comparison
+        df["a"].apply(lambda v: v > 50),  # xpd: apply-comparison
+        df["k"].map(lambda v: v == "g2"),  # xpd: apply-comparison
+        df["b"].apply(lambda v: v != 0).sum(),  # xpd: apply-comparison
+        df["a"].apply(lambda v: v in wanted),  # xpd: apply-comparison
+        df["a"].map(lambda v: v not in wanted).sum(),  # xpd: apply-comparison
     )
 
 
@@ -305,10 +305,10 @@ def comparison_that_stays(df):
 
 @case
 def apply_pd_series(df):
-    pairs = df.assign(pair=[[a, w] for a, w in zip(df["a"].tolist(), df["w"].tolist())])  # pdx: zip-over-columns
+    pairs = df.assign(pair=[[a, w] for a, w in zip(df["a"].tolist(), df["w"].tolist())])  # xpd: zip-over-columns
     return (
-        pairs["pair"].apply(pd.Series),  # pdx: apply-pd-series
-        pairs["pair"].apply(lambda v: pd.Series(v)),  # pdx: apply-pd-series
+        pairs["pair"].apply(pd.Series),  # xpd: apply-pd-series
+        pairs["pair"].apply(lambda v: pd.Series(v)),  # xpd: apply-pd-series
     )
 
 
@@ -326,9 +326,9 @@ def bigger(b, w):
 @case
 def np_vectorize(df):
     return (
-        np.vectorize(bigger)(df["a"], df["w"]),  # pdx: np-vectorize
-        np.frompyfunc(bigger, 2, 1)(df["a"], df["w"]),  # pdx: np-vectorize
-        np.apply_along_axis(lambda row: row[0] * row[1], 1, df[["a", "w"]].to_numpy()),  # pdx: np-vectorize
+        np.vectorize(bigger)(df["a"], df["w"]),  # xpd: np-vectorize
+        np.frompyfunc(bigger, 2, 1)(df["a"], df["w"]),  # xpd: np-vectorize
+        np.apply_along_axis(lambda row: row[0] * row[1], 1, df[["a", "w"]].to_numpy()),  # xpd: np-vectorize
     )
 
 
@@ -340,9 +340,9 @@ def np_where_instead(df):
 @case
 def index_loop(df):
     out = []
-    for label in df.index:  # pdx: index-loop
+    for label in df.index:  # xpd: index-loop
         out.append(df.loc[label, "a"] * df.at[label, "w"])
-    return out, [df.loc[label, "a"] * 2 for label in df.index]  # pdx: index-loop
+    return out, [df.loc[label, "a"] * 2 for label in df.index]  # xpd: index-loop
 
 
 @case
@@ -355,9 +355,9 @@ def index_loop_that_stays(df):
 @case
 def zip_over_columns(df):
     out = []
-    for a, w in zip(df["a"].values, df["w"].to_numpy()):  # pdx: zip-over-columns
+    for a, w in zip(df["a"].values, df["w"].to_numpy()):  # xpd: zip-over-columns
         out.append(a * w)
-    return out, [a * w for a, w in zip(df["a"], df["w"])]  # pdx: zip-over-columns
+    return out, [a * w for a, w in zip(df["a"], df["w"])]  # xpd: zip-over-columns
 
 
 @case
@@ -369,14 +369,14 @@ def zip_that_stays(df):
 @case
 def sorted_column_read_at_one_end(df):
     return (
-        df["a"].sort_values().iloc[0],  # pdx: sort-then-head
-        df["a"].sort_values().values[0],  # pdx: sort-then-head
-        df["a"].sort_values(ascending=False).iloc[0],  # pdx: sort-then-head
-        df["a"].sort_values().index[0],  # pdx: sort-then-head
-        df["b"].sort_values().iloc[-1],  # pdx: sort-then-head
-        df.sort_values("w").iloc[-1],  # pdx: sort-then-head
-        df.sort_values("w").tail(5),  # pdx: sort-then-head
-        sorted(df["a"])[0],  # pdx: sort-then-head
+        df["a"].sort_values().iloc[0],  # xpd: sort-then-head
+        df["a"].sort_values().values[0],  # xpd: sort-then-head
+        df["a"].sort_values(ascending=False).iloc[0],  # xpd: sort-then-head
+        df["a"].sort_values().index[0],  # xpd: sort-then-head
+        df["b"].sort_values().iloc[-1],  # xpd: sort-then-head
+        df.sort_values("w").iloc[-1],  # xpd: sort-then-head
+        df.sort_values("w").tail(5),  # xpd: sort-then-head
+        sorted(df["a"])[0],  # xpd: sort-then-head
     )
 
 
@@ -394,10 +394,10 @@ def lookup_per_row(df):
     table = lookup_table()
     flat = table.reset_index(names="k")
     return (
-        df["k"].apply(lambda key: table.loc[key, "v"]),  # pdx: lookup-per-row
-        df["k"].map(lambda key: table.at[key, "v"]),  # pdx: lookup-per-row
-        df["k"].head(50).apply(lambda key: flat[flat["k"] == key]["v"].iloc[0]),  # pdx: lookup-per-row
-        df["k"].head(50).map(lambda key: flat.loc[flat["k"] == key, "v"].values[0]),  # pdx: lookup-per-row
+        df["k"].apply(lambda key: table.loc[key, "v"]),  # xpd: lookup-per-row
+        df["k"].map(lambda key: table.at[key, "v"]),  # xpd: lookup-per-row
+        df["k"].head(50).apply(lambda key: flat[flat["k"] == key]["v"].iloc[0]),  # xpd: lookup-per-row
+        df["k"].head(50).map(lambda key: flat.loc[flat["k"] == key, "v"].values[0]),  # xpd: lookup-per-row
     )
 
 
@@ -412,8 +412,8 @@ def lookup_on_whole_column(df):
 def apply_recomputes_aggregate(df):
     part = df.head(200)
     return (
-        part["b"].apply(lambda v: v - part["b"].mean()),  # pdx: apply-recomputes-aggregate
-        part["w"].map(lambda v: (v - part["w"].min()) / (part["w"].max() - part["w"].min())),  # pdx: apply-recomputes-aggregate
+        part["b"].apply(lambda v: v - part["b"].mean()),  # xpd: apply-recomputes-aggregate
+        part["w"].map(lambda v: (v - part["w"].min()) / (part["w"].max() - part["w"].min())),  # xpd: apply-recomputes-aggregate
     )
 
 
@@ -426,9 +426,9 @@ def aggregate_computed_once(df):
 @case
 def agg_axis_1(df):
     return (
-        df[["k", "s"]].agg("_".join, axis=1),  # pdx: apply-axis-1
-        df[["a", "w"]].agg(lambda row: row["a"] + row["w"], axis=1),  # pdx: apply-axis-1
-        df[["a", "w"]].head(100).transform(lambda row: row / row.sum(), axis="columns"),  # pdx: apply-axis-1
+        df[["k", "s"]].agg("_".join, axis=1),  # xpd: apply-axis-1
+        df[["a", "w"]].agg(lambda row: row["a"] + row["w"], axis=1),  # xpd: apply-axis-1
+        df[["a", "w"]].head(100).transform(lambda row: row / row.sum(), axis="columns"),  # xpd: apply-axis-1
     )
 
 
@@ -440,10 +440,10 @@ def agg_on_whole_columns(df):
 @case
 def enumerate_map_encoding(df):
     return (
-        df["k"].map({v: i for i, v in enumerate(df["k"].unique())}),  # pdx: enumerate-map-encoding
-        df["k"].replace({v: i for i, v in enumerate(df["k"].unique())}),  # pdx: enumerate-map-encoding
-        df["k"].map({v: i for i, v in enumerate(sorted(df["k"].unique()))}),  # pdx: enumerate-map-encoding
-        df["k"].map(dict(zip(df["k"].unique(), range(df["k"].nunique())))),  # pdx: enumerate-map-encoding
+        df["k"].map({v: i for i, v in enumerate(df["k"].unique())}),  # xpd: enumerate-map-encoding
+        df["k"].replace({v: i for i, v in enumerate(df["k"].unique())}),  # xpd: enumerate-map-encoding
+        df["k"].map({v: i for i, v in enumerate(sorted(df["k"].unique()))}),  # xpd: enumerate-map-encoding
+        df["k"].map(dict(zip(df["k"].unique(), range(df["k"].nunique())))),  # xpd: enumerate-map-encoding
     )
 
 
@@ -456,11 +456,11 @@ def encoding_that_stays(df):
 @case
 def builtins_that_hash_or_walk_a_column(df):
     return (
-        sum(df["a"] > 50),  # pdx: builtin-on-column
-        set(df["k"]),  # pdx: builtin-on-column
-        Counter(df["k"]),  # pdx: builtin-on-column
-        list(df["a"]),  # pdx: builtin-on-column
-        np.array(df["a"].tolist()),  # pdx: builtin-on-column
+        sum(df["a"] > 50),  # xpd: builtin-on-column
+        set(df["k"]),  # xpd: builtin-on-column
+        Counter(df["k"]),  # xpd: builtin-on-column
+        list(df["a"]),  # xpd: builtin-on-column
+        np.array(df["a"].tolist()),  # xpd: builtin-on-column
     )
 
 
@@ -473,9 +473,9 @@ def column_methods_instead_of_builtins(df):
 @case
 def loop_that_appends(df):
     out = []
-    for value in df["a"]:  # pdx: list-over-column
+    for value in df["a"]:  # xpd: list-over-column
         out.append(value * 2)
-    for label, value in df["a"].items():  # pdx: list-over-column
+    for label, value in df["a"].items():  # xpd: list-over-column
         out.append(value + label)
     return out
 
@@ -491,14 +491,14 @@ def loop_that_only_reads(df):
 @case
 def copy_in_chain(df):
     return (
-        df.copy().rename(columns={"a": "x"}),  # pdx: copy-in-chain
-        df.rename(columns={"a": "x"}).copy(),  # pdx: copy-in-chain
-        df.copy(deep=True).assign(z=1),  # pdx: copy-in-chain
-        df.reset_index(drop=True).copy(),  # pdx: copy-in-chain
-        df.astype({"a": "float64"}).copy(),  # pdx: copy-in-chain
-        df.copy().drop(columns=["s"]),  # pdx: copy-in-chain
-        df.drop(columns=["s"]).copy(),  # pdx: copy-in-chain
-        pd.concat([df, df]).copy(),  # pdx: copy-in-chain
+        df.copy().rename(columns={"a": "x"}),  # xpd: copy-in-chain
+        df.rename(columns={"a": "x"}).copy(),  # xpd: copy-in-chain
+        df.copy(deep=True).assign(z=1),  # xpd: copy-in-chain
+        df.reset_index(drop=True).copy(),  # xpd: copy-in-chain
+        df.astype({"a": "float64"}).copy(),  # xpd: copy-in-chain
+        df.copy().drop(columns=["s"]),  # xpd: copy-in-chain
+        df.drop(columns=["s"]).copy(),  # xpd: copy-in-chain
+        pd.concat([df, df]).copy(),  # xpd: copy-in-chain
     )
 
 

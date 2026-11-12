@@ -1,7 +1,7 @@
 """Longer forms that pandas 3 can write shorter, and code that looks similar but stays.
 
-A line that pdx reports ends with a comment that names the rule. Each case returns what the
-code computes, so a copy fixed with `pdx check --fix` can be compared with this file.
+A line that xpd reports ends with a comment that names the rule. Each case returns what the
+code computes, so a copy fixed with `xpd check --fix` can be compared with this file.
 """
 
 import numpy as np
@@ -43,10 +43,10 @@ def assign_with_a_named_list(df):
 @case
 def inline_column_list(df):
     return (
-        df[["k", "a", "b"]],  # pdx: inline-column-list
-        df.loc[df["a"] > 50, ["k", "a", "b"]],  # pdx: inline-column-list
-        df.groupby(["k", "s", "raw"])["b"].sum(),  # pdx: inline-column-list
-        df.drop_duplicates(subset=["k", "s", "raw"]),  # pdx: inline-column-list
+        df[["k", "a", "b"]],  # xpd: inline-column-list
+        df.loc[df["a"] > 50, ["k", "a", "b"]],  # xpd: inline-column-list
+        df.groupby(["k", "s", "raw"])["b"].sum(),  # xpd: inline-column-list
+        df.drop_duplicates(subset=["k", "s", "raw"]),  # xpd: inline-column-list
     )
 
 
@@ -65,9 +65,9 @@ def lists_that_stay(df):
 @case
 def sort_then_reset_index(df):
     return (
-        df.sort_values("b").reset_index(drop=True),  # pdx: sort-then-reset-index
-        df.mask(df["a"] > 90).dropna().reset_index(drop=True),  # pdx: sort-then-reset-index
-        df["k"].drop_duplicates().reset_index(drop=True),  # pdx: sort-then-reset-index
+        df.sort_values("b").reset_index(drop=True),  # xpd: sort-then-reset-index
+        df.mask(df["a"] > 90).dropna().reset_index(drop=True),  # xpd: sort-then-reset-index
+        df["k"].drop_duplicates().reset_index(drop=True),  # xpd: sort-then-reset-index
     )
 
 
@@ -83,8 +83,8 @@ def reset_index_that_stays(df):
 @case
 def set_index_then_resample(df):
     return (
-        df.set_index("d").resample("D")["b"].sum(),  # pdx: set-index-then-resample
-        df[["a", "d"]].set_index("d").resample("W").mean(),  # pdx: set-index-then-resample
+        df.set_index("d").resample("D")["b"].sum(),  # xpd: set-index-then-resample
+        df[["a", "d"]].set_index("d").resample("W").mean(),  # xpd: set-index-then-resample
     )
 
 
@@ -96,7 +96,7 @@ def set_index_for_upsampling(df):
 
 @case
 def subtract_shift(df):
-    return df["b"] - df["b"].shift(), df["a"] - df["a"].shift(1), df["d"] - df["d"].shift()  # pdx: subtract-shift
+    return df["b"] - df["b"].shift(), df["a"] - df["a"].shift(1), df["d"] - df["d"].shift()  # xpd: subtract-shift
 
 
 @case
@@ -107,8 +107,8 @@ def subtract_that_stays(df):
 @case
 def range_mask(df):
     return (
-        df[(df["a"] >= 10) & (df["a"] <= 20)],  # pdx: range-mask
-        df[(df["b"] > -0.5) & (df["b"] < 0.5)],  # pdx: range-mask
+        df[(df["a"] >= 10) & (df["a"] <= 20)],  # xpd: range-mask
+        df[(df["b"] > -0.5) & (df["b"] < 0.5)],  # xpd: range-mask
     )
 
 
@@ -121,8 +121,8 @@ def range_that_stays(df):
 @case
 def groupby_then_reset_index(df):
     return (
-        df.groupby("k")[["a", "b"]].sum().reset_index(),  # pdx: groupby-then-reset-index
-        df.groupby(["k", "s"]).mean(numeric_only=True).reset_index(),  # pdx: groupby-then-reset-index
+        df.groupby("k")[["a", "b"]].sum().reset_index(),  # xpd: groupby-then-reset-index
+        df.groupby(["k", "s"]).mean(numeric_only=True).reset_index(),  # xpd: groupby-then-reset-index
     )
 
 
@@ -134,7 +134,7 @@ def groupby_as_index(df):
 @case
 def rename_after_agg(df):
     g = df.groupby("k")
-    return g.agg({"b": "mean", "w": "sum"}).rename(columns={"b": "b_mean", "w": "w_total"})  # pdx: rename-after-agg
+    return g.agg({"b": "mean", "w": "sum"}).rename(columns={"b": "b_mean", "w": "w_total"})  # xpd: rename-after-agg
 
 
 @case
@@ -147,7 +147,7 @@ def named_agg(df):
 def merge_indicator_anti_join(df):
     other = df[df["a"] > 50][["k"]].drop_duplicates()
     m = df.merge(other, on="k", how="left", indicator=True, validate="many_to_one")
-    return m[m["_merge"] == "left_only"]  # pdx: merge-indicator-anti-join
+    return m[m["_merge"] == "left_only"]  # xpd: merge-indicator-anti-join
 
 
 @case
@@ -159,7 +159,7 @@ def merge_indicator_kept(df):
 
 @case
 def value_counts_share(df):
-    return df["k"].value_counts() / len(df["k"])  # pdx: value-counts-share
+    return df["k"].value_counts() / len(df["k"])  # xpd: value-counts-share
 
 
 @case
@@ -170,7 +170,7 @@ def value_counts_normalized(df):
 @case
 def nested_np_where(df):
     a = df["a"]
-    return pd.Series(np.where(a < 20, "low", np.where(a < 70, "mid", "high")))  # pdx: nested-np-where
+    return pd.Series(np.where(a < 20, "low", np.where(a < 70, "mid", "high")))  # xpd: nested-np-where
 
 
 @case
@@ -181,7 +181,7 @@ def single_np_where(df):
 
 @case
 def query_string(df):
-    return df.query("a > 50 and b < 0")  # pdx: query-string
+    return df.query("a > 50 and b < 0")  # xpd: query-string
 
 
 @case
@@ -196,7 +196,7 @@ def select_then_assign(df):
 
 @case
 def filter_items(df):
-    return df.filter(items=["a", "b"])  # pdx: filter-items
+    return df.filter(items=["a", "b"])  # xpd: filter-items
 
 
 @case
@@ -207,7 +207,7 @@ def filter_that_stays(df):
 @case
 def concat_then_category(df):
     x, y = df["k"].iloc[:1000].astype("category"), df["k"].iloc[1000:].astype("category")
-    return pd.concat([x, y]).astype("category")  # pdx: concat-then-category
+    return pd.concat([x, y]).astype("category")  # xpd: concat-then-category
 
 
 @case

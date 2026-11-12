@@ -1,4 +1,4 @@
-"""A file that seeds NumPy. scikit-learn then draws from that seed, so pdx reports nothing here."""
+"""A file that seeds NumPy. scikit-learn then draws from that seed, so xpd reports nothing here."""
 
 import numpy as np
 from sklearn.ensemble import RandomForestClassifier

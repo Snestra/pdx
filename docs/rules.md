@@ -1,6 +1,6 @@
 # Rules
 
-pdx has three rule packs: [pandas](#pandas), [scikit-learn](#scikit-learn) and [Hamilton](#hamilton). A
+xpd has three rule packs: [pandas](#pandas), [scikit-learn](#scikit-learn) and [Hamilton](#hamilton). A
 pack's rules run only on files that import its library.
 
 ## pandas
@@ -11,10 +11,10 @@ Examples assume `import pandas as pd` and `import numpy as np`. Names such as `d
 change behavior when repairing a bug or using an unsafe fix. Read the notes before applying it.
 
 The rules follow pandas 3, where copy-on-write is always on. A fix that writes `pd.` or `np.`
-applies only in a file with `import pandas as pd` or `import numpy as np`. In any other file pdx
+applies only in a file with `import pandas as pd` or `import numpy as np`. In any other file xpd
 reports the issue without a fix.
 
-One rule asks for an API that pandas 3.1 added, `concat-then-category`. pdx reads the installed
+One rule asks for an API that pandas 3.1 added, `concat-then-category`. xpd reads the installed
 pandas version from the name of the `pandas-<version>.dist-info` folder in the project's venv,
 which is `$VIRTUAL_ENV` or the nearest `.venv` above the working directory, without starting
 Python. On pandas 3.0 it skips that rule. When the venv has no pandas, or there is no venv, every
@@ -116,7 +116,7 @@ seconds = (df["time"] - pd.Timestamp("1970-01-01")) // pd.Timedelta("1s")
 
 The epoch example assumes dates without a time zone. For dates with a time zone, use a UTC epoch. Missing timestamps remain missing.
 
-The replacement is advice. pdx does not apply it automatically.
+The replacement is advice. xpd does not apply it automatically.
 
 #### compare-to-missing
 
@@ -172,7 +172,7 @@ Use instead:
 selected = df[(df["load"] > 1) & (df["wind"] < 3)]
 ```
 
-The replacement is advice. pdx does not apply it automatically.
+The replacement is advice. xpd does not apply it automatically.
 
 #### write-through-values
 
@@ -192,7 +192,7 @@ Use instead:
 df.loc[df.index[0], "load"] = value
 ```
 
-The replacement is advice. pdx does not apply it automatically.
+The replacement is advice. xpd does not apply it automatically.
 
 #### object-dtype-check
 
@@ -232,7 +232,7 @@ keys = df.groupby("region").apply(lambda group: group.name)
 
 Read group.name only inside the function passed to apply. Multiple group keys give a tuple.
 
-The replacement is advice. pdx does not apply it automatically.
+The replacement is advice. xpd does not apply it automatically.
 
 #### removed-in-pandas-3
 
@@ -292,7 +292,7 @@ long = wide.stack().dropna(how="all")
 
 For dropna=False, write stack() alone. The new stack keeps the rows that are all missing, which the old default dropped.
 
-The replacement is advice. pdx does not apply it automatically.
+The replacement is advice. xpd does not apply it automatically.
 
 #### frame-append
 
@@ -316,7 +316,7 @@ out = pd.concat(parts)
 
 The example assumes parts is not empty. For single rows, collect them in a list and build the frame once.
 
-The replacement is advice. pdx does not apply it automatically.
+The replacement is advice. xpd does not apply it automatically.
 
 #### str-replace-regex-default
 
@@ -390,7 +390,7 @@ now = pd.Timestamp.now("UTC")
   `pct_change(fill_method="pad")`, `pd.Timedelta("5T")`, and `astype("timedelta64[D]")`.
 - `iteritems()`, `is_lexsorted()`, `lexsort_depth` and `groupby(axis=1)`.
 
-The `writer.close()` fix is unsafe, because pdx knows the writer only by its name. `DataFrame.lookup`
+The `writer.close()` fix is unsafe, because xpd knows the writer only by its name. `DataFrame.lookup`
 was removed too and is not reported, because other libraries have a method of that name.
 
 The new `chained-assignment` shapes: `df.a[mask] = v` is reported when the mask reads the same
@@ -419,7 +419,7 @@ the enclosing function assigns that name only masks, such as a comparison or a c
 Any other chain, such as `df.iloc[0]["a"] = v`, is reported without a fix. Two plain keys, as in
 `rows[0]["name"] = v`, are left alone, because they are more often a list or a dict.
 
-`in-column` and `inplace-on-column` can report a dict, such as `"x" in data["names"]`, because pdx
+`in-column` and `inplace-on-column` can report a dict, such as `"x" in data["names"]`, because xpd
 cannot tell it from a frame. Their fixes are unsafe for that reason.
 
 `removed-in-pandas-3` rewrites a frequency where the call takes only datetimes, such as
@@ -548,7 +548,7 @@ Use instead:
 summary = df.groupby("region").agg(mean_load=("load", "mean"))
 ```
 
-The replacement is advice. pdx does not apply it automatically.
+The replacement is advice. xpd does not apply it automatically.
 
 #### merge-indicator-anti-join
 
@@ -571,7 +571,7 @@ unmatched = left.merge(right, on="key", how="left_anti")
 
 The anti join returns the left columns, without the indicator or the right-hand columns. Use it when the result needs unmatched left rows rather than the full merged schema.
 
-The replacement is advice. pdx does not apply it automatically.
+The replacement is advice. xpd does not apply it automatically.
 
 #### value-counts-share
 
@@ -614,7 +614,7 @@ band = pd.Series("high", index=df.index).case_when([
 
 case_when uses the first matching condition. It returns a Series rather than a NumPy array.
 
-The replacement is advice. pdx does not apply it automatically.
+The replacement is advice. xpd does not apply it automatically.
 
 #### query-string
 
@@ -634,7 +634,7 @@ Use instead:
 selected = df.loc[(pd.col("load") > 50) & (pd.col("wind") < 3)]
 ```
 
-The replacement is advice. pdx does not apply it automatically.
+The replacement is advice. xpd does not apply it automatically.
 
 #### filter-items
 
@@ -675,7 +675,7 @@ output_columns = ["load", "wind", "solar"]
 selected = df[output_columns]
 ```
 
-The replacement is advice. pdx does not apply it automatically.
+The replacement is advice. xpd does not apply it automatically.
 
 #### concat-then-category
 
@@ -696,7 +696,7 @@ combined = pd.concat(parts, union_categories=True)
 ```
 
 
-pdx has no rule for or against a lambda in `assign`. A lambda and `pd.col` gave the same result
+xpd has no rule for or against a lambda in `assign`. A lambda and `pd.col` gave the same result
 at the same speed, and a lambda also works with `np.where` and with calculations across columns.
 `set-index-then-resample` applies only when a named aggregation such as `sum` or `mean` follows,
 because upsampling with `asfreq` raises with `on=`, and a function passed to `agg` sees other
@@ -808,7 +808,7 @@ Use instead:
 centered = df["load"] - df["load"].mean()
 ```
 
-The replacement is advice. pdx does not apply it automatically.
+The replacement is advice. xpd does not apply it automatically.
 
 #### enumerate-map-encoding
 
@@ -830,7 +830,7 @@ codes = pd.factorize(df["region"])[0]
 
 factorize numbers the values in the order they first appear, as the dict does. It returns a NumPy array, and it gives a missing value the code -1 where the dict gave it a code of its own. Pass `sort=True` for the order of `sorted`.
 
-The replacement is advice. pdx does not apply it automatically.
+The replacement is advice. xpd does not apply it automatically.
 
 #### copy-in-chain
 
@@ -872,7 +872,7 @@ total = (df["load"] * df["weight"]).sum()
 
 The example sums numeric columns without missing values. Check missing values and floating point rounding when replacing a Python reduction. Keep a loop when its work cannot be expressed on columns.
 
-The replacement is advice. pdx does not apply it automatically.
+The replacement is advice. xpd does not apply it automatically.
 
 #### apply-axis-1
 
@@ -892,7 +892,7 @@ Use instead:
 total = df["load"] + df["wind"]
 ```
 
-The replacement is advice. pdx does not apply it automatically.
+The replacement is advice. xpd does not apply it automatically.
 
 #### apply-text-method
 
@@ -950,7 +950,7 @@ flag = pd.Series(np.where(df["load"] > 50, 1, 0), index=df.index)
 
 The explicit Series constructor preserves the row labels. Check the result name, dtype and missing-value behavior.
 
-The replacement is advice. pdx does not apply it automatically.
+The replacement is advice. xpd does not apply it automatically.
 
 #### apply-arithmetic
 
@@ -1008,7 +1008,7 @@ names = df["name"].str.upper()
 
 The result is a labeled Series rather than a Python list. Use tolist only at a boundary that needs a list.
 
-The replacement is advice. pdx does not apply it automatically.
+The replacement is advice. xpd does not apply it automatically.
 
 #### frame-growth-in-loop
 
@@ -1030,7 +1030,7 @@ Use instead:
 out = pd.DataFrame(rows, columns=output_columns)
 ```
 
-The replacement is advice. pdx does not apply it automatically.
+The replacement is advice. xpd does not apply it automatically.
 
 #### len-of-filter
 
@@ -1088,7 +1088,7 @@ names = df["name"].map(lambda value: mapping.get(value, value))
 
 The example uses an ordinary dictionary and scalar values. A short mapping can be faster with replace. map does not reproduce regex replacement or every special mapping behavior.
 
-The replacement is advice. pdx does not apply it automatically.
+The replacement is advice. xpd does not apply it automatically.
 
 #### concat-in-loop
 
@@ -1113,7 +1113,7 @@ out = pd.concat(frames)
 
 The example assumes paths is not empty and the starting frame has no schema to preserve. A single concat avoids repeatedly copying the growing result.
 
-The replacement is advice. pdx does not apply it automatically.
+The replacement is advice. xpd does not apply it automatically.
 
 #### apply-math-function
 
@@ -1210,7 +1210,7 @@ Use instead:
 out = np.where(df["load"] > df["wind"], df["load"] * 2, df["wind"])
 ```
 
-The replacement is advice. pdx does not apply it automatically.
+The replacement is advice. xpd does not apply it automatically.
 
 #### index-loop
 
@@ -1232,7 +1232,7 @@ Use instead:
 out = (df["load"] * df["weight"]).tolist()
 ```
 
-The replacement is advice. pdx does not apply it automatically.
+The replacement is advice. xpd does not apply it automatically.
 
 #### zip-over-columns
 
@@ -1254,7 +1254,7 @@ out = (df["load"] * df["weight"]).tolist()
 
 Keep the result as a Series when the next step takes one. Use tolist only at a boundary that needs a list.
 
-The replacement is advice. pdx does not apply it automatically.
+The replacement is advice. xpd does not apply it automatically.
 
 On 1,000,000 rows `map` with a Series ran 50 to 64 times faster than the `.loc` lambda of
 `lookup-per-row`, measured on 100,000 rows, and 777 to 848 times faster than the mask form, measured
@@ -1271,7 +1271,7 @@ alone, because `f` may write to its argument.
 The `apply-axis-1` shapes with `agg` and `transform` were 327 to 2,735 times slower than whole
 columns on 100,000 rows. A named method, as in `agg("sum", axis=1)`, is left alone. The new
 `builtin-on-column` shapes were 2.6 to 483 times slower, and `list` and `set` can report a dict of
-lists, such as `list(config["names"])`, because pdx cannot tell it from a frame. The `for` loop of
+lists, such as `list(config["names"])`, because xpd cannot tell it from a frame. The `for` loop of
 `list-over-column` was 13 to 19 times slower. `sort-then-head` reports `sort_values().iloc[-1]`
 without a fix, because the sort puts missing values last, so the old form returns NaN where `max()`
 skips them. Its `idxmin` fix can name another row when the lowest value appears twice.
@@ -1299,7 +1299,7 @@ label alone. `zip-over-columns` reports only when every argument of `zip` is a c
 text label, or a `.values`, `.to_numpy()` or `.tolist()`. It leaves `dict(zip(...))` alone, which
 is not a loop.
 
-`row-loop` replaces the `no-iterrows` rule of pdx 0.1.0. The fixes of `apply-text-method`,
+`row-loop` replaces the `no-iterrows` rule of xpd 0.1.0. The fixes of `apply-text-method`,
 `apply-date-part` and `apply-arithmetic` are unsafe, because a column method returns a missing
 value where the lambda raised, and the dtype can change: `dt.year` is int32 where the lambda gave
 int64. `builtin-on-column` skips missing values after the fix. `sort-then-head` is unsafe, because
@@ -1416,7 +1416,7 @@ totals = df.groupby("region")["load"].sum()
 
 The built-in reduction can change the index name, the dtype and floating point rounding. Check the result before replacing a general apply.
 
-The replacement is advice. pdx does not apply it automatically.
+The replacement is advice. xpd does not apply it automatically.
 
 #### aggregate-then-merge-back
 
@@ -1443,7 +1443,7 @@ result = df.assign(total=lambda frame: frame.groupby("region")["load"].transform
 
 transform keeps the original index and row order. A merge can instead create a fresh index. The report covers an inline aggregation on the same frame, as well as mapping an aggregate back to its source column. An aggregate stored in a separate variable is not detected.
 
-The replacement is advice. pdx does not apply it automatically.
+The replacement is advice. xpd does not apply it automatically.
 
 #### groupby-first-skips-missing
 
@@ -1465,7 +1465,7 @@ first = df.groupby("region").first(skipna=False)
 
 skipna=False preserves missing values from the first row. Without it, first can combine values from different rows.
 
-The replacement is advice. pdx does not apply it automatically.
+The replacement is advice. xpd does not apply it automatically.
 
 
 ### MultiIndex
@@ -1554,7 +1554,7 @@ monthly = df.groupby(df["time"].dt.to_period("M"))["load"].sum()
 
 The result has a PeriodIndex instead of text labels. Converting time zones to periods also removes the time zone.
 
-The replacement is advice. pdx does not apply it automatically.
+The replacement is advice. xpd does not apply it automatically.
 
 #### object-dates
 
@@ -1576,7 +1576,7 @@ days = df["time"].dt.normalize()
 
 normalize returns timestamps at midnight, not Python date objects. Keep dt.date when an external interface needs Python dates. For dt.time, choose the required datetime representation rather than normalizing away the time.
 
-The replacement is advice. pdx does not apply it automatically.
+The replacement is advice. xpd does not apply it automatically.
 
 #### apply-on-dates
 
@@ -1634,7 +1634,7 @@ Use instead:
 weekend = df["time"].dt.weekday >= 5
 ```
 
-The replacement is advice. pdx does not apply it automatically.
+The replacement is advice. xpd does not apply it automatically.
 
 #### strftime-round-trip
 
@@ -1674,7 +1674,7 @@ year = df.loc["2023"]
 
 Use the label example on a sorted DatetimeIndex. It is a label selection, not a rewrite for every kind of index.
 
-The replacement is advice. pdx does not apply it automatically.
+The replacement is advice. xpd does not apply it automatically.
 
 #### apply-date-method
 
@@ -1778,9 +1778,9 @@ Use instead:
 joined = left.merge(right, on="key", validate="many_to_one")
 ```
 
-Choose validate to match the data relationship. many_to_one is only the example, not a default pdx inserts. many_to_many does not check key uniqueness.
+Choose validate to match the data relationship. many_to_one is only the example, not a default xpd inserts. many_to_many does not check key uniqueness.
 
-The replacement is advice. pdx does not apply it automatically.
+The replacement is advice. xpd does not apply it automatically.
 
 #### merge-without-on
 
@@ -1802,7 +1802,7 @@ joined = left.merge(right, on="key", validate="many_to_one")
 
 Choose the actual join keys. Omitting on makes every shared column name a key.
 
-The replacement is advice. pdx does not apply it automatically.
+The replacement is advice. xpd does not apply it automatically.
 
 #### to-csv-index
 
@@ -1822,7 +1822,7 @@ Use instead:
 df.to_csv(path, index=False)
 ```
 
-The replacement is advice. pdx does not apply it automatically.
+The replacement is advice. xpd does not apply it automatically.
 
 
 ### Reading and writing files
@@ -1847,7 +1847,7 @@ df = pd.read_csv(path)
 
 The example needs no Python-engine-only options. Keep engine="python" when the separator or skipfooter requires it. For low_memory=False, specify the required column dtypes rather than dropping it blindly.
 
-The replacement is advice. pdx does not apply it automatically.
+The replacement is advice. xpd does not apply it automatically.
 
 
 
@@ -1888,7 +1888,7 @@ df = pd.read_csv(path, dtype={"price": float})
 df["name"] = df["name"].str.strip()
 ```
 
-The replacement is advice. pdx does not apply it automatically.
+The replacement is advice. xpd does not apply it automatically.
 
 #### read-json-lines-engine
 
@@ -1930,7 +1930,7 @@ for part in parts:
 
 The repeated header rows are read back as data, so every number in the file comes back as text.
 
-The replacement is advice. pdx does not apply it automatically.
+The replacement is advice. xpd does not apply it automatically.
 
 `read-csv-slow-option` leaves `engine="python"` alone when the call needs it, for `skipfooter` or
 a separator of several characters other than `\s+`. `sep=None` was 54 times slower than a named
@@ -1943,10 +1943,10 @@ raises on a text buffer.
 
 ### Packages
 
-`pdx check` also looks at the project's venv once per run. When the venv has pandas, it warns
+`xpd check` also looks at the project's venv once per run. When the venv has pandas, it warns
 about each package below that the venv lacks. The warning points at the project's
 `pyproject.toml`, or at the venv when there is none. A project without a venv gets no package
-warning, and `pdx hook` never gives one.
+warning, and `xpd hook` never gives one.
 
 #### missing-pyarrow
 
@@ -1962,7 +1962,7 @@ For a project managed with uv:
 uv add pyarrow
 ```
 
-Add the package to the project environment, not to pdx itself.
+Add the package to the project environment, not to xpd itself.
 
 #### missing-bottleneck
 
@@ -1978,7 +1978,7 @@ For a project managed with uv:
 uv add bottleneck
 ```
 
-Add the package to the project environment, not to pdx itself.
+Add the package to the project environment, not to xpd itself.
 
 #### missing-pandas-stubs
 
@@ -1994,7 +1994,7 @@ For a project managed with uv:
 uv add --dev pandas-stubs
 ```
 
-Add the package to the project environment, not to pdx itself.
+Add the package to the project environment, not to xpd itself.
 
 
 A project uses a type checker when the venv has it or `pyproject.toml` has a `[tool.<name>]`
@@ -2053,7 +2053,7 @@ X_train = selector.fit_transform(X_train, y_train)
 X_test = selector.transform(X_test)
 ```
 
-The replacement is advice. pdx does not apply it automatically.
+The replacement is advice. xpd does not apply it automatically.
 
 #### cross-val-on-fitted-data
 
@@ -2075,7 +2075,7 @@ pipeline = make_pipeline(selector, model)
 scores = cross_val_score(pipeline, X, y, cv=5)
 ```
 
-The replacement is advice. pdx does not apply it automatically.
+The replacement is advice. xpd does not apply it automatically.
 
 #### get-dummies-on-test
 
@@ -2098,7 +2098,7 @@ X_train = encoder.fit_transform(X_train)
 X_test = encoder.transform(X_test)
 ```
 
-The replacement is advice. pdx does not apply it automatically.
+The replacement is advice. xpd does not apply it automatically.
 
 
 `fit-on-test` reads the first argument's name: `test`, `val`, `valid`, `validation` or `holdout`
@@ -2112,14 +2112,14 @@ on the training data.
 `fit-before-split` reports the fit when a later statement of the same block passes its result to
 `train_test_split`. Feature selection before the split scored 0.781 on noise, where the honest
 value was 0.503. SMOTE before the split gave an F1 of 0.842 on noise, where the honest value was
-0.164. For `StandardScaler` the leak is real and small: 0.9673 against 0.9667. pdx cannot tell a
+0.164. For `StandardScaler` the leak is real and small: 0.9673 against 0.9667. xpd cannot tell a
 scaler from a selector, so it reports both. It leaves a label encoder on the target alone, when the
 result is named `y`, `target` or `labels`, or the encoder's name holds `label`.
 
 `cross-val-on-fitted-data` covers `cross_val_score`, `cross_validate`, `cross_val_predict`,
 `learning_curve` and `validation_curve`. Cross-validated accuracy on noise was 0.781 where the
 Pipeline gave 0.510. `GridSearchCV(...).fit(X_fitted, y)` leaks in the same way and is not
-reported, because pdx cannot tell a search from any other object with `fit`.
+reported, because xpd cannot tell a search from any other object with `fit`.
 
 `get-dummies-on-test` reads the first argument's name, as `fit-on-test` does. In 15 of 30 splits
 `predict` raised on the columns. Passed on as arrays, 102 of 200 splits raised and 17 ran on the
@@ -2145,7 +2145,7 @@ Use instead:
 auc = roc_auc_score(y_test, model.predict_proba(X_test)[:, 1])
 ```
 
-The replacement is advice. pdx does not apply it automatically.
+The replacement is advice. xpd does not apply it automatically.
 
 #### metric-arguments-swapped
 
@@ -2203,7 +2203,7 @@ model = RandomForestClassifier(random_state=0)
 
 The value 0 is only the example. Any fixed number makes the run repeatable.
 
-The replacement is advice. pdx does not apply it automatically.
+The replacement is advice. xpd does not apply it automatically.
 
 
 The same script, run 30 times, scored between 0.930 and 1.000. The rule names the classes whose
@@ -2223,7 +2223,7 @@ These rules run on files that import `hamilton`, the module of
 and the parameter names are its inputs. The results below are from sf-hamilton 1.90.0 with pandas
 3.1.1.
 
-A node module that uses no Hamilton decorator has no `hamilton` import, and pdx does not check
+A node module that uses no Hamilton decorator has no `hamilton` import, and xpd does not check
 it.
 
 ### Shared inputs
@@ -2257,7 +2257,7 @@ def total_uk(raw: pd.DataFrame) -> float:
     return float(raw["uk"].sum())
 ```
 
-The replacement is advice. pdx does not apply it automatically.
+The replacement is advice. xpd does not apply it automatically.
 
 Hamilton calls each function once and hands its result, the same object, to every node that
 takes it. With the example above, `execute(["total_uk"])` gave 2.0 and
@@ -2296,10 +2296,10 @@ as its `id`. The build fails on any other id.
 
 A rule may have one ast-grep `fix:`. It must then say whether the fix keeps what the code does,
 with `metadata: { fix: safe }` or `metadata: { fix: unsafe }`. A fix may write an alias that
-`pack.yml` lists under `aliases`, such as `pd.`, and pdx applies it only in a file that imports
+`pack.yml` lists under `aliases`, such as `pd.`, and xpd applies it only in a file that imports
 the module under that alias.
 
-A rule that needs a newer library version says so with `metadata: { since: "3.1" }`. pdx skips it
+A rule that needs a newer library version says so with `metadata: { since: "3.1" }`. xpd skips it
 when the project's venv holds an older version of the pack's library. It finds the version for any
 pack the same way: from the dist-info folder whose name is the module, or whose `top_level.txt`
 lists the module.
@@ -2308,15 +2308,15 @@ Add a file, rebuild, and check it against a sample:
 
 ```sh
 cargo build --release
-target/release/pdx check samples/bad.py
-cp samples/bad.py /tmp/bad.py && target/release/pdx check /tmp/bad.py --fix --unsafe-fixes
+target/release/xpd check samples/bad.py
+cp samples/bad.py /tmp/bad.py && target/release/xpd check /tmp/bad.py --fix --unsafe-fixes
 ```
 
 The files in `samples/pandas/`, `samples/sklearn/` and `samples/hamilton/` mark each line a rule
 reports with a comment that names the rules.
 
 `pack.yml` may list package checks under `packages`. Each entry has an `id`, the `package` to
-look for, a `message`, and optionally `onlyWith`, a list of tools. pdx warns when the venv has the
+look for, a `message`, and optionally `onlyWith`, a list of tools. xpd warns when the venv has the
 pack's library and lacks the package. With `onlyWith`, it warns only when the project also uses
 one of the tools.
 

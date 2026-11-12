@@ -1,6 +1,6 @@
 """Hamilton nodes that write to their inputs, and the same nodes without the write.
 
-A line that pdx reports ends with a comment that names the rule. Hamilton hands one object to
+A line that xpd reports ends with a comment that names the rule. Hamilton hands one object to
 every node that takes it, so `total_uk` is 2.0 when asked for alone and 4.0 after `clipped`.
 """
 
@@ -17,43 +17,43 @@ def total_uk(raw: pd.DataFrame) -> float:
 
 
 def clipped(raw: pd.DataFrame) -> pd.DataFrame:
-    raw.loc[raw["uk"] < 0, "uk"] = 0  # pdx: node-mutates-input
+    raw.loc[raw["uk"] < 0, "uk"] = 0  # xpd: node-mutates-input
     return raw
 
 
 def with_spread(raw: pd.DataFrame, offset: float = 0.0) -> pd.DataFrame:
-    raw["spread"] = raw["uk"] - raw["dk"]  # pdx: node-mutates-input
-    raw["spread"] += offset  # pdx: node-mutates-input
-    del raw["dk"]  # pdx: node-mutates-input
-    raw.columns = [name.upper() for name in raw.columns]  # pdx: node-mutates-input
+    raw["spread"] = raw["uk"] - raw["dk"]  # xpd: node-mutates-input
+    raw["spread"] += offset  # xpd: node-mutates-input
+    del raw["dk"]  # xpd: node-mutates-input
+    raw.columns = [name.upper() for name in raw.columns]  # xpd: node-mutates-input
     return raw
 
 
 @extract_columns("uk")
 def doubled(raw: pd.DataFrame) -> pd.DataFrame:
-    raw["uk"] = raw["uk"] * 2  # pdx: node-mutates-input
+    raw["uk"] = raw["uk"] * 2  # xpd: node-mutates-input
     return raw
 
 
 def uk_clean(uk: pd.Series) -> pd.Series:
-    uk[uk < 0] = 0  # pdx: node-mutates-input
+    uk[uk < 0] = 0  # xpd: node-mutates-input
     return uk
 
 
 def labels(raw: pd.DataFrame, target: str) -> pd.Series:
-    return raw.pop(target)  # pdx: node-mutates-input
+    return raw.pop(target)  # xpd: node-mutates-input
 
 
 def settings(defaults: dict, seen: list) -> dict:
-    defaults["checked"] = True  # pdx: node-mutates-input
-    defaults.update(region="uk")  # pdx: node-mutates-input
-    seen.append("settings")  # pdx: node-mutates-input
+    defaults["checked"] = True  # xpd: node-mutates-input
+    defaults.update(region="uk")  # xpd: node-mutates-input
+    seen.append("settings")  # xpd: node-mutates-input
     return defaults
 
 
 def plan_area(buildings: pd.DataFrame) -> pd.DataFrame:
     gdf = buildings
-    gdf["area"] = gdf["width"] * gdf["depth"]  # pdx: node-mutates-input
+    gdf["area"] = gdf["width"] * gdf["depth"]  # xpd: node-mutates-input
     return gdf
 
 

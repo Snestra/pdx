@@ -2,7 +2,7 @@
 id: query-string
 language: python
 severity: warning
-message: A query string hides column names from editors, type checkers and pdx. Write the condition as an expression, such as df.loc[(pd.col("a") > 50) & (pd.col("b") < 0)].
+message: A query string hides column names from editors, type checkers and xpd. Write the condition as an expression, such as df.loc[(pd.col("a") > 50) & (pd.col("b") < 0)].
 rule: { pattern: $X.query($S) }
 constraints:
   S: { kind: string, not: { regex: '^[rbfRBF]*["'']{1,3}\s*(?i:select|with|insert|update|delete|create|drop)\b' } }

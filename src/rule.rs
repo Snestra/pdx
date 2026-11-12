@@ -1,4 +1,4 @@
-//! One lint rule: an ast-grep rule, plus the settings pdx reads from its `metadata`.
+//! One lint rule: an ast-grep rule, plus the settings xpd reads from its `metadata`.
 
 use std::fmt;
 
@@ -9,7 +9,7 @@ use serde::Deserialize;
 
 use crate::version::Version;
 
-/// Whether a fix keeps the code's behavior. `pdx check --fix` applies safe fixes, and
+/// Whether a fix keeps the code's behavior. `xpd check --fix` applies safe fixes, and
 /// `--unsafe-fixes` adds the unsafe ones. The order matters: a fix applies when its
 /// applicability is at or below the one asked for.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Deserialize)]
