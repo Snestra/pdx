@@ -165,7 +165,14 @@ jobs:
         with:
           # A cache restored here could slip into what gets published.
           enable-cache: false
-      - run: uv publish --trusted-publishing always 'wheels-*/*'
+      # A failure is repeated as an annotation, which shows on the run page without opening the log.
+      - name: Publish
+        run: |
+          set -o pipefail
+          uv publish --trusted-publishing always 'wheels-*/*' 2>&1 | tee publish.log || {
+            echo "::error title=uv publish failed::$(grep -v '^Uploading\|^Publishing' publish.log | tail -n 6 | tr '\n' ' ')"
+            exit 1
+          }
 
   github-release:
     name: GitHub Release
