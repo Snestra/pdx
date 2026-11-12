@@ -19,3 +19,7 @@ Use `pdx` whenever you write or change Python code that uses a library pdx has r
 - `pdx equiv old.py new.py`: both scripts must assign `result`. Run it after
   any refactor of data logic; a refactor isn't done until it prints
   `"equivalent": true`. Needs pandas.
+- `pdx graph <node modules…> --format json`: the dataflow of Apache Hamilton
+  modules, read without running them. Run it after you add or rename a node.
+  Fix every `error`. A `warning` names an input one edit from a node name:
+  check it for a typing error. `inputs` are what the caller must pass.

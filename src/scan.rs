@@ -15,10 +15,10 @@ use crate::report::{Issue, Position};
 use crate::rule::{Applicability, Rule};
 
 /// A parsed Python file.
-type Root = AstGrep<StrDoc<SupportLang>>;
+pub(crate) type Root = AstGrep<StrDoc<SupportLang>>;
 
 /// Parses Python source. A syntax error gives a tree with error nodes, not a failure.
-fn parse(src: &str) -> Root {
+pub(crate) fn parse(src: &str) -> Root {
     use ast_grep_core::tree_sitter::LanguageExt;
 
     SupportLang::Python.ast_grep(src)

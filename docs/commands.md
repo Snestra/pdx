@@ -59,6 +59,64 @@ array with the same values count as equal. Run it after you refactor data logic.
 | 1 | The results differ, with the difference in `detail` |
 | 2 | A script failed, has no `result`, or pandas is missing |
 
+## graph
+
+```sh
+pdx graph [PATHS]... [--format text|json]
+```
+
+Prints the dataflow of [Apache Hamilton](https://hamilton.apache.org/) modules. Hamilton turns
+every function in a module into a node: the function name is the output and the parameter names
+are its inputs. `graph` reads the files and prints which node reads which. It imports nothing
+and runs nothing, so it needs no Python and no Hamilton.
+
+Pass the modules you give to one Driver. Together they are one dataflow, as with
+`with_modules(loaders, features)`. A folder means every `.py` file in it. A script that builds
+the Driver is not a node module, and its functions would show as nodes.
+
+```console
+$ pdx graph samples/graph/features.py
+samples/graph/features.py:10: (no input) -> uk
+samples/graph/features.py:14: (no input) -> dk
+samples/graph/features.py:18: uk + dk -> spread
+samples/graph/features.py:22: spraed -> spread_sq
+inputs: spraed
+read by no node: spread, spread_sq
+samples/graph/features.py:22: warning: spread_sq reads spraed, which no function defines and which is one edit from the node spread. If it is a typing error, Hamilton raises "Required input spraed not provided" at execute.
+pdx: 4 nodes from 4 functions in 1 file, 1 input, 1 warning
+```
+
+Each node line is `file:line: inputs -> node`. An input with `?` has a default. `inputs` lists
+the names that no function defines, which the caller has to pass. `read by no node` lists the
+ends of the dataflow. Then come the findings:
+
+| Finding | Severity | What happens in Hamilton |
+| --- | --- | --- |
+| A function name defined twice in one file | error | Python keeps the last `def`, so the others never become nodes. Two `@config.when` versions need the names `rate__uk` and `rate__dk` |
+| A node defined by two functions | error | The Driver raises "Cannot define function ... more than once" when it is built |
+| A plain `def rate` beside `@config.when` on `rate__dk` | error | The same error, once the config selects the version |
+| No type hint on the return value or on a parameter | error | The Driver raises "Missing type hint" when it is built |
+| An input one edit from a node name | warning | If it is a typing error, execute raises "Required input ... not provided" |
+| A decorator that `graph` cannot read | note | Nothing. The graph may lack nodes |
+
+`graph` reads `@config.when` and its relatives, `@extract_columns`, `@extract_fields`,
+`@unpack_fields`, `@parameterize`, `@parameterize_values`, `@parameterize_sources`, `@inject`,
+`@load_from` and `@save_to`, when their arguments are literals. It prints a note for names that
+the file computes, such as `@extract_columns(*COLUMNS)`, and for `@subdag`, `@pipe_input`,
+`@pipe_output`, `@mutate`, `@with_columns`, `@does` and `@resolve`. It does not know the config
+the Driver gets, so it lists every version of a node. It does not compare type hints between
+nodes.
+
+Output is text on a terminal and JSON otherwise. The JSON has `nodes`, each with `name`, `file`,
+`line`, `function`, `inputs`, `kind` and `config`; `inputs`, each with `name`, `optional` and
+`readers`; `unread`; and `problems`, each with `file`, `line`, `severity` and `message`.
+
+| Exit code | Meaning |
+| --- | --- |
+| 0 | No error |
+| 1 | At least one error |
+| 2 | pdx could not run, for example an unreadable path |
+
 ## hook
 
 Reads a Claude Code hook event on stdin and lints the `.py` file the edit touched. See
