@@ -1,25 +1,27 @@
+# The slow form is a frame that grows inside a loop: `out = pd.concat([out, part])` copies every
+# earlier row on each pass. A concat inside a loop that builds a frame from other objects, such
+# as `panel = pd.concat(parts_of_this_month)`, copies each row once and is left alone.
 id: concat-in-loop
 language: python
 severity: warning
-message: Concatenating inside a loop is quadratic. Collect frames in a list, concat once.
+message: $OUT grows by one concat per pass, and each concat copies every earlier row. Collect the frames in a list and concat once after the loop.
 rule:
-  any:
-    - pattern: pd.concat($$$)
-    - pattern: concat($$$)
-      inside:
-        stopBy: end
-        kind: module
+  kind: assignment
+  all:
+    - has: { field: left, pattern: $OUT }
+    - has:
+        field: right
+        any:
+          - pattern: pd.concat($$$ARGS)
+          - pattern: pandas.concat($$$ARGS)
+          - pattern: concat($$$ARGS)
+          - pattern: pd.concat($$$ARGS).$M($$$REST)
         has:
-          kind: import_from_statement
-          all:
-            - has:
-                field: module_name
-                regex: ^pandas$
-            - has:
-                field: name
-                regex: ^concat$
-  inside:
-    stopBy: end
-    any:
-      - kind: for_statement
-      - kind: while_statement
+          stopBy: end
+          field: arguments
+          has: { stopBy: end, pattern: $OUT }
+    - inside:
+        stopBy: end
+        any: [{ kind: for_statement }, { kind: while_statement }]
+constraints:
+  OUT: { any: [{ kind: identifier }, { kind: attribute }] }

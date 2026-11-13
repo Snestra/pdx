@@ -116,7 +116,25 @@ def loops_that_stay(df):
     records = df[["a", "k"]].head(2).to_dict("records")
     for name in df.columns:
         total += len(name)
-    return total, records
+    # Rows that become Python objects: a function receives the row values.
+    small = df.head(5)
+    pairs = [divmod(row["a"], 3) for row in small.to_dict("records")]
+    labels = []
+    for row in small.itertuples():
+        labels.append("{}:{}".format(row.k, row.a))
+    # A frame built inside a loop from other objects, which copies each row once.
+    halves = []
+    for start in (0, 2):
+        halves.append(pd.concat([small.iloc[start : start + 1], small.iloc[start + 1 : start + 2]]))
+    return total, records, pairs, labels, len(halves)
+
+
+@case
+def concat_in_loop(df):
+    out = df.head(0)
+    for start in (0, 2):
+        out = pd.concat([out, df.iloc[start : start + 2]])  # xpd: concat-in-loop
+    return out
 
 
 @case

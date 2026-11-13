@@ -860,7 +860,7 @@ tidy = df.reset_index(drop=True)
 
 **Severity:** warning. **Fix:** none.
 
-Reports a loop over `iterrows()`, `itertuples()` or `to_dict("records")`, and `for i in range(len(df))` with `df.iloc[i]`.
+Reports a loop over `iterrows()`, a loop over `itertuples()` or `to_dict("records")` that only computes from the row values, and `for i in range(len(df))` with `df.iloc[i]`.
 
 Example:
 
@@ -875,6 +875,13 @@ total = (df["load"] * df["weight"]).sum()
 ```
 
 The example sums numeric columns without missing values. Check missing values and floating point rounding when replacing a Python reduction. Keep a loop when its work cannot be expressed on columns.
+
+A loop over `itertuples()` or `to_dict("records")` that hands the row or its values to a function,
+as in `orders = [Order(id=row["id"], total=row["total"]) for row in df.to_dict("records")]`, turns
+rows into Python objects. Columns cannot do that, so it is left alone. A cast such as
+`int(row["a"])` and a list method such as `out.append(...)` do not count as a function here.
+`iterrows()` is reported in every loop, because it builds a Series for each row: use
+`itertuples()` or `to_dict("records")` when each row has to become an object.
 
 The replacement is advice. xpd does not apply it automatically.
 
@@ -1098,7 +1105,7 @@ The replacement is advice. xpd does not apply it automatically.
 
 **Severity:** warning. **Fix:** none.
 
-Reports `pd.concat` inside a loop, which is quadratic.
+Reports a frame that grows inside a loop, as in `out = pd.concat([out, part])`. Each pass copies every earlier row.
 
 Example:
 
@@ -1116,6 +1123,9 @@ out = pd.concat(frames)
 ```
 
 The example assumes paths is not empty and the starting frame has no schema to preserve. A single concat avoids repeatedly copying the growing result.
+
+A `pd.concat` inside a loop that builds a frame from other objects, such as
+`panel = pd.concat(parts_of_this_month)`, copies each row once and is left alone.
 
 The replacement is advice. xpd does not apply it automatically.
 

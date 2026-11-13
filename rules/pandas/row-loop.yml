@@ -1,19 +1,57 @@
 # A for loop or comprehension over the rows of a frame runs Python once per row.
+
+# iterrows builds a Series for every row, so it is the slowest way to loop for any purpose.
+id: row-loop
+language: python
+severity: warning
+message: iterrows() builds a Series for every row. Compute on whole columns instead, such as df["a"] * df["w"]. When each row has to become a Python object, loop over itertuples() or to_dict("records").
+rule:
+  pattern: $DF.iterrows()
+  inside:
+    any: [{ kind: for_statement }, { kind: for_in_clause }]
+    field: right
+---
+# itertuples and to_dict("records") are the fast ways to turn rows into Python objects. A loop
+# that hands the row or its values to a function, as in Order(id=row["id"]), does work that
+# columns cannot do, and is left alone. A loop that only computes from the row values is reported.
 id: row-loop
 language: python
 severity: warning
 message: A loop over rows runs Python once per row. Compute on whole columns instead, such as df["a"] * df["w"].
 rule:
-  any:
-    - pattern: $DF.iterrows()
-    - pattern: $DF.itertuples($$$)
-    - pattern: $DF.to_dict("records")
-    - pattern: $DF.to_dict('records')
-    - pattern: $DF.to_dict(orient="records")
-    - pattern: $DF.to_dict(orient='records')
-  inside:
-    any: [{ kind: for_statement }, { kind: for_in_clause }]
-    field: right
+  all:
+    - any:
+        - pattern: $DF.itertuples($$$)
+        - pattern: $DF.to_dict("records")
+        - pattern: $DF.to_dict('records')
+        - pattern: $DF.to_dict(orient="records")
+        - pattern: $DF.to_dict(orient='records')
+    - any:
+        - inside:
+            kind: for_statement
+            field: right
+            all:
+              - has: { field: left, pattern: $ROW }
+              - not: { has: { field: body, stopBy: end, matches: row-passed-to-function } }
+        - inside:
+            kind: for_in_clause
+            field: right
+            all:
+              - has: { field: left, pattern: $ROW }
+              - not: { inside: { has: { field: body, any: [{ matches: row-passed-to-function }, { has: { stopBy: end, matches: row-passed-to-function } }] } } }
+utils:
+  # A call that receives the row or one of its values. A cast and a list method do not count,
+  # because a column can do the same.
+  row-passed-to-function:
+    kind: call
+    all:
+      - not:
+          has:
+            field: function
+            regex: '(^|\.)(append|extend|add|update|insert|print|len|int|float|str|bool|round|abs|min|max|sum|tuple|list|set|dict|sorted|any|all|isinstance|getattr)$'
+      - has:
+          field: arguments
+          has: { stopBy: end, kind: identifier, pattern: $ROW }
 ---
 id: row-loop
 language: python
